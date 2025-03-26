@@ -1,0 +1,204 @@
+{
+    "data": [
+        {
+            "id": 1,
+            "name": "Nguyễn Thị Anh",
+            "email": "nguyenthianh@hotel.com",
+            "phone": "0901122334",
+            "department": "MANAGEMENT",
+            "position": "MANAGER",
+            "joinDate": "2022-01-10",
+            "status": true
+        },
+        {
+            "id": 2,
+            "name": "Trần Văn Bình",
+            "email": "tranvanbinh@hotel.com",
+            "phone": "0912233445",
+            "department": "FRONT_DESK",
+            "position": "RECEPTIONIST",
+            "joinDate": "2022-02-15",
+            "status": true
+        },
+        {
+            "id": 3,
+            "name": "Phạm Thị Châu",
+            "email": "phamthichau@hotel.com",
+            "phone": "0923344556",
+            "department": "FRONT_DESK",
+            "position": "RECEPTIONIST",
+            "joinDate": "2022-03-01",
+            "status": true
+        },
+        {
+            "id": 4,
+            "name": "Lê Văn Đức",
+            "email": "levanduc@hotel.com",
+            "phone": "0934455667",
+            "department": "RESTAURANT",
+            "position": "SERVER",
+            "joinDate": "2022-03-15",
+            "status": false
+        },
+        {
+            "id": 5,
+            "name": "Hoàng Thị Giang",
+            "email": "hoangthigiang@hotel.com",
+            "phone": "0945566778",
+            "department": "HOUSEKEEPING",
+            "position": "CLEANING",
+            "joinDate": "2022-04-01",
+            "status": true
+        },
+        {
+            "id": 6,
+            "name": "Đỗ Văn Hùng",
+            "email": "dovanhung@hotel.com",
+            "phone": "0956677889",
+            "department": "SECURITY",
+            "position": "SECURITY",
+            "joinDate": "2022-04-15",
+            "status": true
+        },
+        {
+            "id": 7,
+            "name": "Ngô Thị Lan",
+            "email": "ngothilan@hotel.com",
+            "phone": "0967788990",
+            "department": "RESTAURANT",
+            "position": "SERVER",
+            "joinDate": "2022-05-01",
+            "status": true
+        },
+        {
+            "id": 8,
+            "name": "Vũ Văn Minh",
+            "email": "vuvanminh@hotel.com",
+            "phone": "0978899001",
+            "department": "TECHNICAL",
+            "position": "MANAGER",
+            "joinDate": "2022-05-15",
+            "status": true
+        },
+        {
+            "id": 9,
+            "name": "Lý Thị Ngọc",
+            "email": "lythingoc@hotel.com",
+            "phone": "0989900112",
+            "department": "HOUSEKEEPING",
+            "position": "CLEANING",
+            "joinDate": "2022-06-01",
+            "status": true
+        },
+        {
+            "id": 10,
+            "name": "Phan Văn Phúc",
+            "email": "phanvanphuc@hotel.com",
+            "phone": "0990011223",
+            "department": "FRONT_DESK",
+            "position": "MANAGER",
+            "joinDate": "2022-06-15",
+            "status": true
+        },
+        {
+            "id": 11,
+            "name": "Trịnh Thị Quỳnh",
+            "email": "trinhthiquynh@hotel.com",
+            "phone": "0901122334",
+            "department": "RESTAURANT",
+            "position": "MANAGER",
+            "joinDate": "2022-07-01",
+            "status": true
+        },
+        {
+            "id": 12,
+            "name": "Mai Văn Sơn",
+            "email": "maivanson@hotel.com",
+            "phone": "0912233445",
+            "department": "SECURITY",
+            "position": "SECURITY",
+            "joinDate": "2022-07-15",
+            "status": true
+        },
+        {
+            "id": 13,
+            "name": "Đặng Thị Thảo",
+            "email": "dangthithao@hotel.com",
+            "phone": "0923344556",
+            "department": "FRONT_DESK",
+            "position": "RECEPTIONIST",
+            "joinDate": "2022-08-01",
+            "status": true
+        },
+        {
+            "id": 14,
+            "name": "Bùi Văn Uy",
+            "email": "buivanuy@hotel.com",
+            "phone": "0934455667",
+            "department": "TECHNICAL",
+            "position": "MANAGER",
+            "joinDate": "2022-08-15",
+            "status": false
+        },
+        {
+            "id": 15,
+            "name": "Hồ Thị Vân",
+            "email": "hothivan@hotel.com",
+            "phone": "0945566778",
+            "department": "HOUSEKEEPING",
+            "position": "MANAGER",
+            "joinDate": "2022-09-01",
+            "status": true
+        },
+        {
+            "id": 16,
+            "name": "Dương Văn X",
+            "email": "duongvanx@hotel.com",
+            "phone": "0956677889",
+            "department": "RESTAURANT",
+            "position": "CHEF",
+            "joinDate": "2022-09-15",
+            "status": true
+        },
+        {
+            "id": 17,
+            "name": "Trương Thị Y",
+            "email": "truongthiy@hotel.com",
+            "phone": "0967788990",
+            "department": "HOUSEKEEPING",
+            "position": "SUPERVISOR",
+            "joinDate": "2022-10-01",
+            "status": true
+        },
+        {
+            "id": 18,
+            "name": "Đinh Văn Z",
+            "email": "dinhvanz@hotel.com",
+            "phone": "0978899001",
+            "department": "SECURITY",
+            "position": "SUPERVISOR",
+            "joinDate": "2022-10-15",
+            "status": true
+        },
+        {
+            "id": 19,
+            "name": "Lương Thị W",
+            "email": "luongthiw@hotel.com",
+            "phone": "0989900112",
+            "department": "SPA",
+            "position": "THERAPIST",
+            "joinDate": "2022-11-01",
+            "status": true
+        },
+        {
+            "id": 20,
+            "name": "Võ Văn T",
+            "email": "vovant@hotel.com",
+            "phone": "0990011223",
+            "department": "FRONT_DESK",
+            "position": "SUPERVISOR",
+            "joinDate": "2022-11-15",
+            "status": true
+        }
+    ]
+}

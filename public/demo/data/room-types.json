@@ -1,0 +1,64 @@
+{
+    "data": [
+        {
+            "id": 1,
+            "name": "Phòng Đơn Tiêu Chuẩn",
+            "code": "SINGLE",
+            "description": "Phòng đơn với 1 giường đơn, phù hợp cho 1 người.",
+            "pricePerNight": 500000,
+            "maxOccupancy": 1,
+            "amenities": ["TV", "Điều hòa", "Wifi", "Minibar"],
+            "imageUrl": "https://minio.fares.vn/mixivivu-dev/tour/du-thuyen-heritage-binh-chuan-cat-ba/Ph%C3%B2ng%20Delta%20Suite/b1zy0kd45oky2b4k.webp",
+            "isActive": true,
+            "createdAt": "2023-01-10"
+        },
+        {
+            "id": 2,
+            "name": "Phòng Đôi Tiêu Chuẩn",
+            "code": "DOUBLE",
+            "description": "Phòng với 1 giường đôi, phù hợp cho 2 người.",
+            "pricePerNight": 800000,
+            "maxOccupancy": 2,
+            "amenities": ["TV", "Điều hòa", "Wifi", "Minibar", "Bồn tắm"],
+            "imageUrl": "https://minio.fares.vn/mixivivu-dev/tour/du-thuyen-heritage-binh-chuan-cat-ba/Ph%C3%B2ng%20Delta%20Suite/e1ozdho5a3a8iuom.webp",
+            "isActive": true,
+            "createdAt": "2023-01-15"
+        },
+        {
+            "id": 3,
+            "name": "Phòng Gia Đình",
+            "code": "FAMILY",
+            "description": "Phòng rộng với 1 giường đôi và 2 giường đơn, phù hợp cho gia đình 4 người.",
+            "pricePerNight": 1200000,
+            "maxOccupancy": 4,
+            "amenities": ["TV", "Điều hòa", "Wifi", "Minibar", "Bồn tắm", "Tủ lạnh"],
+            "imageUrl": "https://minio.fares.vn/mixivivu-dev/tour/du-thuyen-heritage-binh-chuan-cat-ba/Ph%C3%B2ng%20Ocean%20Suite/ceb6gpnbn7ujv921.webp",
+            "isActive": true,
+            "createdAt": "2023-02-01"
+        },
+        {
+            "id": 4,
+            "name": "Phòng Hạng Sang",
+            "code": "DELUXE",
+            "description": "Phòng sang trọng với giường cỡ King, view đẹp và nhiều tiện nghi cao cấp.",
+            "pricePerNight": 1800000,
+            "maxOccupancy": 2,
+            "amenities": ["TV LCD", "Điều hòa", "Wifi tốc độ cao", "Minibar", "Bồn tắm spa", "Tủ lạnh", "Máy pha cà phê"],
+            "imageUrl": "https://minio.fares.vn/mixivivu-dev/tour/du-thuyen-heritage-binh-chuan-cat-ba/Ph%C3%B2ng%20Regal%20Suite/zkzkyobaulxx5m2j.webp",
+            "isActive": true,
+            "createdAt": "2023-02-15"
+        },
+        {
+            "id": 5,
+            "name": "Suite Tổng Thống",
+            "code": "PRESIDENT",
+            "description": "Suite hạng sang với phòng khách riêng, 2 phòng ngủ và nhiều tiện nghi đẳng cấp.",
+            "pricePerNight": 5000000,
+            "maxOccupancy": 4,
+            "amenities": ["TV LCD", "Điều hòa", "Wifi tốc độ cao", "Minibar cao cấp", "Bồn tắm spa", "Tủ lạnh", "Máy pha cà phê", "Phòng khách riêng", "Phòng ăn riêng"],
+            "imageUrl": "https://minio.fares.vn/mixivivu-dev/tour/du-thuyen-essencegrand/Ph%C3%B2ng%20Ocean%20Suite/fxf3v6pr8w2en5q2.webp",
+            "isActive": true,
+            "createdAt": "2023-03-01"
+        }
+    ]
+}

@@ -1,0 +1,9 @@
+{
+  "data": [
+    { "id": 1, "name": "Giặt ủi" },
+    { "id": 2, "name": "Đưa đón sân bay" },
+    { "id": 3, "name": "Spa" },
+    { "id": 4, "name": "Ăn sáng" },
+    { "id": 5, "name": "Dọn phòng VIP" }
+  ]
+}

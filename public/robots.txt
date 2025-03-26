@@ -1,0 +1,10 @@
+# Cho phép tất cả các robot tìm kiếm truy cập
+User-agent: *
+Allow: /
+
+# Ngăn truy cập vào thư mục admin
+User-agent: *
+Disallow: /admin/
+
+# Chỉ định sitemap (nếu có)
+Sitemap: https://luxuryhotel.com/sitemap.xml

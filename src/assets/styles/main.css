@@ -1,0 +1,128 @@
+/* Kiểm tra và loại bỏ CSS có thể gây ẩn nội dung, ví dụ: */
+main, .router-view {
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Thêm vào file CSS của bạn */
+.login-dialog .p-dialog-content {
+  padding: 2rem !important;
+}
+
+.login-dialog .p-inputtext {
+  width: 100%;
+  padding: 0.75rem 1rem;
+}
+
+.login-dialog .p-password,
+.register-dialog .p-password {
+  width: 100% !important;
+  display: block;
+}
+
+.login-dialog .p-password input,
+.register-dialog .p-password input {
+  width: 100% !important;
+}
+
+.login-dialog label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.login-dialog .p-button {
+  padding: 0.5rem 1rem;
+}
+
+/* Thêm các style cho trang đăng nhập quản trị */
+.admin-login-page .p-password,
+.admin-login-page .p-password input {
+  width: 100% !important;
+}
+
+.admin-login-page .p-checkbox {
+  margin-right: 0.5rem;
+}
+
+.admin-login-page .p-button {
+  padding: 0.75rem 1.25rem;
+}
+
+/* Fix cho các trang đăng nhập/đăng ký */
+.p-dialog-content .p-password,
+.p-dialog-content .p-password input,
+form .p-password,
+form .p-password input {
+  width: 100% !important;
+}
+
+/* Thêm các style cho trang đăng nhập */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: var(--surface-ground);
+    padding: 1rem;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 30rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Style cho form đăng nhập admin */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 1rem;
+    background-image: url('/images/hotel-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+}
+
+.login-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(240, 240, 240, 0.7);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 400px;
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    position: relative;
+}
+
+.login-card .p-inputtext,
+.login-card .p-password input {
+    border-radius: 10px;
+    background-color: #f0f7ff;
+    border: 1px solid #e2e8f0;
+}
+
+.login-card .p-button {
+    border-radius: 10px;
+    background-color: #10b981;
+    border-color: #10b981;
+    font-weight: 600;
+}
+
+.login-card .p-button:hover {
+    background-color: #059669;
+    border-color: #059669;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}

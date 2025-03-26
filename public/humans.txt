@@ -1,0 +1,11 @@
+/* TEAM */
+Developer: Đội ngũ phát triển Luxury Hotel
+Contact: dev@luxuryhotel.com
+Twitter: @luxuryhotel
+Location: TP. Hồ Chí Minh, Việt Nam
+
+/* SITE */
+Last update: 2023/12/25
+Standards: HTML5, CSS3, ES6
+Components: Vue.js, PrimeVue, Tailwind CSS
+Software: Visual Studio Code, Git
