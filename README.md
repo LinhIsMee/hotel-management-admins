@@ -1,11 +1,8 @@
 
 # Luxury Hotel - Hệ thống đặt phòng khách sạn
 
-<<<<<<< HEAD
-## Giới thiệu 1
-=======
 ## Giới thiệu
->>>>>>> 455fbda (Initial commit)
+
 
 Luxury Hotel là một nền tảng đặt phòng khách sạn trực tuyến cao cấp, được xây dựng trên công nghệ hiện đại. Dự án hướng đến trải nghiệm người dùng tối ưu với giao diện thân thiện và tính năng đa dạng.
 
