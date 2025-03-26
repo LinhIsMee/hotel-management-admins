@@ -1,12 +1,10 @@
+# Luxury Hotel - Premium Hotel Booking System
 
-# Luxury Hotel - Hệ thống đặt phòng khách sạn
+## Overview
 
-## Giới thiệu
+Luxury Hotel is a sophisticated online hotel booking platform, crafted with cutting-edge technology. Our platform delivers an exceptional user experience through an intuitive interface and comprehensive features, setting new standards in the hospitality industry.
 
-
-Luxury Hotel là một nền tảng đặt phòng khách sạn trực tuyến cao cấp, được xây dựng trên công nghệ hiện đại. Dự án hướng đến trải nghiệm người dùng tối ưu với giao diện thân thiện và tính năng đa dạng.
-
-## Công nghệ
+## Tech Stack
 
 - **Frontend:** Vue.js 3, Vite
 - **UI Components:** PrimeVue
@@ -14,44 +12,50 @@ Luxury Hotel là một nền tảng đặt phòng khách sạn trực tuyến ca
 - **State Management:** Vue's Composition API
 - **Routing:** Vue Router
 
-## Tính năng chính
+## Key Features
 
-- 🏨 Xem và tìm kiếm phòng theo nhiều tiêu chí
-- 🔐 Hệ thống đăng nhập/đăng ký cho khách hàng
-- 📝 Quản lý thông tin cá nhân
-- 📅 Đặt phòng trực tuyến
-- 📱 Giao diện thích ứng đa thiết bị
-- 👩‍💼 Phân quyền quản trị viên/khách hàng
+- 🏨 Advanced room search and filtering capabilities
+- 🔐 Secure authentication system for guests
+- 📝 Comprehensive personal information management
+- 📅 Seamless online booking experience
+- 📱 Responsive design for all devices
+- 👩‍💼 Role-based access control (Admin/Guest)
 
-## Cài đặt
+## Getting Started
 
 ```bash
-# Cài đặt dependencies
+# Install dependencies
 npm install
 
-# Chạy ứng dụng ở môi trường phát triển
+# Run development server
 npm run dev
 
-# Build cho môi trường production
+# Build for production
 npm run build
 ```
 
-## Cấu trúc dự án
+## Project Structure
 
 ```
 src/
-├── assets/         # Hình ảnh, styles
-├── components/     # Components tái sử dụng
-├── services/       # API và các dịch vụ
-├── views/          # Các trang giao diện
-│   ├── client/     # Giao diện khách hàng
-│   └── admin/      # Giao diện quản trị
-└── router/         # Cấu hình định tuyến
+├── assets/         # Images, styles
+├── components/     # Reusable components
+├── services/       # API and services
+├── views/          # Interface pages
+│   ├── client/     # Guest interface
+│   └── admin/      # Admin interface
+└── router/         # Routing configuration
 ```
 
-## Liên hệ
+## Author
 
-- **Website:** [luxuryhotel.com.vn](#)
-- **Email:** info@luxuryhotel.com.vn
+- **Name:** LinhIsMee
+- **Email:** linh.pthth@gmail.com
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
+
+© 2024 Luxury Hotel. All rights reserved.
