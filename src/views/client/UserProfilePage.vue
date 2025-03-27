@@ -207,6 +207,8 @@ const updatePassword = async () => {
     isUpdatingPassword.value = true;
 
     try {
+        console.log('Attempting to change password');
+
         // Gọi API cập nhật mật khẩu
         await AuthService.changePassword(passwords.current, passwords.new);
 

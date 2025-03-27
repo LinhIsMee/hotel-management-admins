@@ -347,12 +347,14 @@ class AuthService {
     }
 
     /**
-     * Đặt lại mật khẩu
+     * Đặt lại mật khẩu (dùng cho flow quên mật khẩu)
      * @param {object} data - Thông tin mật khẩu mới
      * @returns {Promise<object>} - Promise kết quả
      */
     async resetPassword(data) {
         try {
+            console.log('Resetting password with token:', data.token);
+
             const response = await fetch(`${API_URL}/reset-password`, {
                 method: 'POST',
                 headers: {
@@ -365,13 +367,55 @@ class AuthService {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Password reset failed');
+                console.error('Reset password failed with status:', response.status);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+                throw new Error(errorText || 'Password reset failed');
             }
 
             return await response.json();
         } catch (error) {
             console.error('Password reset error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Thay đổi mật khẩu người dùng (khi đã đăng nhập)
+     * @param {string} currentPassword - Mật khẩu hiện tại
+     * @param {string} newPassword - Mật khẩu mới
+     * @returns {Promise<object>} - Kết quả thay đổi mật khẩu
+     */
+    async changePassword(currentPassword, newPassword) {
+        const user = this.getCurrentUser();
+        if (!user || !user.accessToken) {
+            throw new Error('User not authenticated');
+        }
+
+        try {
+            console.log('Changing password for user');
+
+            const response = await fetch(`${API_URL}/user/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.accessToken}`
+                },
+                body: JSON.stringify({
+                    oldPassword: currentPassword,
+                    newPassword: newPassword
+                })
+            });
+
+            if (!response.ok) {
+                console.error('Change password failed with status:', response.status);
+                const errorData = await response.json().catch(() => ({ message: 'Failed to change password' }));
+                throw new Error(errorData.message || 'Failed to change password');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Change password error:', error);
             throw error;
         }
     }
@@ -566,43 +610,6 @@ class AuthService {
             return data;
         } catch (error) {
             console.error('Update profile error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Thay đổi mật khẩu người dùng
-     * @param {string} currentPassword - Mật khẩu hiện tại
-     * @param {string} newPassword - Mật khẩu mới
-     * @returns {Promise<object>} - Kết quả thay đổi mật khẩu
-     */
-    async changePassword(currentPassword, newPassword) {
-        const user = this.getCurrentUser();
-        if (!user || !user.accessToken) {
-            throw new Error('User not authenticated');
-        }
-
-        try {
-            const response = await fetch(`${API_URL}/user/change-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${user.accessToken}`
-                },
-                body: JSON.stringify({
-                    currentPassword,
-                    newPassword
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to change password');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Change password error:', error);
             throw error;
         }
     }

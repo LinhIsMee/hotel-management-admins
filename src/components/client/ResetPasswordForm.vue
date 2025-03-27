@@ -34,6 +34,8 @@ const resetPassword = async () => {
     loading.value = true;
 
     try {
+        console.log('Resetting password with token:', token.value);
+
         const result = await AuthService.resetPassword({
             token: token.value,
             newPassword: newPassword.value
