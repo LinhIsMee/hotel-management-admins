@@ -236,8 +236,8 @@ class AuthService {
         try {
             console.log('Fetching user profile with token:', userInfo.accessToken);
 
-            const response = await fetch(`${API_URL}/user`, {
-                method: 'POST',
+            const response = await fetch(`${API_URL}/user/profile`, {
+                method: 'GET', // API lấy profile thường dùng GET
                 headers: {
                     Authorization: `Bearer ${userInfo.accessToken}`,
                     'Content-Type': 'application/json'
@@ -257,8 +257,8 @@ class AuthService {
             // Cập nhật thông tin trong localStorage
             const updatedUserInfo = {
                 ...userInfo,
-                name: userData.name || userData.fullName,
-                email: userData.email
+                name: userData.fullName || userInfo.name,
+                email: userData.email || userInfo.email
             };
 
             localStorage.setItem(TOKEN_KEY_USER, JSON.stringify(updatedUserInfo));
@@ -520,28 +520,42 @@ class AuthService {
         }
 
         try {
-            const response = await fetch(`${API_URL}/user/profile`, {
+            // Tạo URL với userId
+            const updateUrl = `${API_URL}/user/update/${user.id}`;
+            console.log('Updating user profile at URL:', updateUrl);
+
+            const response = await fetch(updateUrl, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${user.accessToken}`
                 },
-                body: JSON.stringify(userData)
+                body: JSON.stringify({
+                    fullName: userData.fullName,
+                    email: userData.email,
+                    phone: userData.phone,
+                    gender: userData.gender,
+                    dateOfBirth: userData.dateOfBirth,
+                    address: userData.address,
+                    nationalId: userData.nationalId
+                })
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to update profile');
+                console.error('Update profile failed, status:', response.status);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+                throw new Error(errorText || 'Failed to update profile');
             }
 
             const data = await response.json();
+            console.log('Profile update response:', data);
 
             // Cập nhật thông tin user trong localStorage
             const updatedUser = {
                 ...user,
                 name: userData.fullName || user.name,
-                phone: userData.phone || user.phone
-                // Không cập nhật email vì đó là thông tin đăng nhập không thay đổi
+                email: userData.email || user.email
             };
 
             localStorage.setItem(TOKEN_KEY_USER, JSON.stringify(updatedUser));

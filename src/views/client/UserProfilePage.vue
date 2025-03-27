@@ -56,13 +56,13 @@ onMounted(async () => {
         const userProfile = await AuthService.getCurrentUserProfile();
 
         if (userProfile) {
-            // Cập nhật đầy đủ tất cả các trường thông tin
-            user.fullName = userProfile.name || userProfile.fullName || '';
+            // Cập nhật đầy đủ tất cả các trường thông tin theo cấu trúc API trả về
+            user.fullName = userProfile.fullName || '';
             user.email = userProfile.email || '';
-            user.phone = userProfile.phone || userProfile.phoneNumber || '';
+            user.phone = userProfile.phone || '';
             user.address = userProfile.address || '';
-            user.identityNumber = userProfile.identityNumber || userProfile.nationalId || '';
-            user.birthdate = userProfile.birthdate || userProfile.dateOfBirth || null;
+            user.identityNumber = userProfile.nationalId || '';
+            user.birthdate = userProfile.dateOfBirth !== 'null' ? userProfile.dateOfBirth : null;
 
             // Gửi sự kiện để cập nhật navbar
             window.dispatchEvent(new CustomEvent('update-user-profile'));
@@ -131,13 +131,25 @@ const updateProfile = async () => {
     isUpdatingProfile.value = true;
 
     try {
+        console.log('Updating profile with data:', {
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone,
+            address: user.address,
+            nationalId: user.identityNumber,
+            dateOfBirth: user.birthdate,
+            gender: 'Male' // Thêm giới tính mặc định hoặc có thể bổ sung vào form
+        });
+
         // Gọi API để cập nhật thông tin người dùng
         await AuthService.updateUserProfile({
             fullName: user.fullName,
+            email: user.email,
             phone: user.phone,
             address: user.address,
-            identityNumber: user.identityNumber,
-            birthdate: user.birthdate
+            nationalId: user.identityNumber,
+            dateOfBirth: user.birthdate,
+            gender: 'Male' // Thêm giới tính mặc định hoặc có thể bổ sung vào form
         });
 
         profileUpdateSuccess.value = true;
