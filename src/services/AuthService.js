@@ -1,7 +1,7 @@
 /**
  * Dịch vụ xác thực người dùng
  */
-const API_URL = 'http://103.82.24.35:9000/api/v1';
+const API_URL = 'http://127.0.0.1:9000/api/v1';
 export const TOKEN_KEY_USER = 'user_token';
 export const TOKEN_KEY_ADMIN = 'admin_token';
 
@@ -55,6 +55,56 @@ class AuthService {
     }
 
     /**
+     * Kiểm tra token còn hạn hay không
+     * @param {string} token - JWT token
+     * @returns {boolean} - True nếu token còn hạn
+     */
+    isTokenValid(token) {
+        if (!token) return false;
+
+        try {
+            // JWT token có định dạng: header.payload.signature
+            const payload = token.split('.')[1];
+            const decodedPayload = JSON.parse(atob(payload));
+
+            // Kiểm tra thời gian hết hạn
+            const expirationTime = decodedPayload.exp * 1000; // Chuyển sang milliseconds
+            return Date.now() < expirationTime;
+        } catch (error) {
+            console.error('Token validation error:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Validate token với server
+     * @param {string} token - JWT token cần validate
+     * @returns {Promise<object>} - Kết quả validate
+     */
+    async validateToken(token) {
+        if (!token) return { valid: false, username: null };
+
+        try {
+            const response = await fetch(`${API_URL}/validate-token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token })
+            });
+
+            if (!response.ok) {
+                return { valid: false, username: null };
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Validate token error:', error);
+            return { valid: false, username: null };
+        }
+    }
+
+    /**
      * Đăng nhập vào trang quản trị
      * @param {string} username - Tên đăng nhập admin
      * @param {string} password - Mật khẩu admin
@@ -82,19 +132,24 @@ class AuthService {
             const data = await response.json();
             console.log('Admin login response data:', data);
 
-            // Kiểm tra kỹ hơn về dữ liệu trả về
+            // Kiểm tra response và role
             if (!data || !data.accessToken) {
                 console.error('Invalid response format - missing accessToken');
                 return null;
             }
 
+            if (data.role !== 'ROLE_ADMIN') {
+                console.error('User is not an admin');
+                return null;
+            }
+
             // Lưu token vào localStorage
             const adminInfo = {
-                id: data.userId || 0,
+                id: data.userId,
                 username: username,
                 accessToken: data.accessToken,
-                token: data.token || data.accessToken,
-                role: data.role || 'ROLE_ADMIN' // Nếu API không trả về role, giả định là admin
+                token: data.token,
+                role: data.role
             };
 
             localStorage.setItem(TOKEN_KEY_ADMIN, JSON.stringify(adminInfo));
@@ -112,7 +167,8 @@ class AuthService {
 
     /**
      * Đăng nhập vào trang client
-     * @param {object} credentials - Thông tin đăng nhập người dùng
+     * @param {string} username - Tên đăng nhập
+     * @param {string} password - Mật khẩu
      * @returns {Promise<object>} - Promise với thông tin người dùng
      */
     async loginClient(username, password) {
@@ -126,8 +182,10 @@ class AuthService {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Login failed');
+                if (response.status === 401) {
+                    throw new Error('Username or password is incorrect');
+                }
+                throw new Error('Login failed');
             }
 
             const data = await response.json();
@@ -145,7 +203,7 @@ class AuthService {
             return userInfo;
         } catch (error) {
             console.error('Login error:', error);
-            return null;
+            throw error;
         }
     }
 
@@ -163,6 +221,34 @@ class AuthService {
 
     /**
      * Lấy thông tin người dùng hiện tại
+     * @returns {Promise<object>} - Thông tin người dùng
+     */
+    async getCurrentUserProfile() {
+        const userInfo = this.getCurrentUser();
+        if (!userInfo) return null;
+
+        try {
+            const response = await fetch(`${API_URL}/user`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${userInfo.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to get user profile');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Get user profile error:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Lấy thông tin người dùng từ localStorage
      * @returns {object|null} - Thông tin người dùng hoặc null
      */
     getCurrentUser() {
@@ -186,11 +272,15 @@ class AuthService {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    username: userData.username || userData.email,
+                    username: userData.username,
                     password: userData.password,
                     email: userData.email,
-                    phone: userData.phone,
-                    fullName: userData.name
+                    fullName: userData.fullName || `${userData.firstName} ${userData.lastName}`,
+                    phoneNumber: userData.phone,
+                    gender: userData.gender || 'Prefer not to say',
+                    dateOfBirth: userData.dateOfBirth || null,
+                    address: userData.address || null,
+                    nationalId: userData.nationalId || null
                 })
             });
 
@@ -202,7 +292,7 @@ class AuthService {
             return await response.json();
         } catch (error) {
             console.error('Registration error:', error);
-            return null;
+            throw error;
         }
     }
 
@@ -211,42 +301,26 @@ class AuthService {
      * @param {string} email - Email của người dùng
      * @returns {Promise<object>} - Promise kết quả
      */
-    requestPasswordReset(email) {
-        return new Promise((resolve) => {
-            // Giả lập gọi API với email
-            console.log(`Requesting password reset for email: ${email}`);
-            setTimeout(() => {
-                resolve({
-                    success: true,
-                    message: 'Password reset request has been sent. Please check your email.'
-                });
-            }, 1500);
-        });
-    }
+    async requestPasswordReset(email) {
+        try {
+            const response = await fetch(`${API_URL}/forgot-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email })
+            });
 
-    /**
-     * Xác nhận mã OTP
-     * @param {string} otp - Mã OTP
-     * @returns {Promise<object>} - Promise kết quả
-     */
-    verifyOTP(otp) {
-        return new Promise((resolve, reject) => {
-            // Giả lập gọi API
-            setTimeout(() => {
-                if (otp === '123456') {
-                    // Giả sử mã OTP là 123456
-                    resolve({
-                        success: true,
-                        message: 'Xác thực OTP thành công'
-                    });
-                } else {
-                    reject({
-                        success: false,
-                        message: 'Mã OTP không đúng'
-                    });
-                }
-            }, 1000);
-        });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Password reset request failed');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Password reset request error:', error);
+            throw error;
+        }
     }
 
     /**
@@ -254,22 +328,34 @@ class AuthService {
      * @param {object} data - Thông tin mật khẩu mới
      * @returns {Promise<object>} - Promise kết quả
      */
-    resetPassword(data) {
-        return new Promise((resolve) => {
-            // Giả lập gọi API với data
-            console.log(`Resetting password with: ${JSON.stringify(data)}`);
-            setTimeout(() => {
-                resolve({
-                    success: true,
-                    message: 'Password has been reset successfully'
-                });
-            }, 1500);
-        });
+    async resetPassword(data) {
+        try {
+            const response = await fetch(`${API_URL}/reset-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    token: data.token,
+                    newPassword: data.newPassword
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Password reset failed');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Password reset error:', error);
+            throw error;
+        }
     }
 
     /**
-     * Lấy thông tin admin hiện tại
-     * @returns {object} - Thông tin admin
+     * Lấy thông tin admin từ localStorage
+     * @returns {object|null} - Thông tin admin hoặc null
      */
     getCurrentAdmin() {
         const adminInfo = localStorage.getItem(TOKEN_KEY_ADMIN);
@@ -283,8 +369,41 @@ class AuthService {
      * Đăng xuất admin
      */
     logoutAdmin() {
+        const admin = this.getCurrentAdmin();
+        if (admin && admin.accessToken) {
+            // Gọi API đăng xuất
+            fetch(`${API_URL}/logout`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${admin.accessToken}`
+                }
+            }).catch(error => {
+                console.error('Logout error:', error);
+            });
+        }
+
         localStorage.removeItem(TOKEN_KEY_ADMIN);
         localStorage.removeItem('admin_username');
+    }
+
+    /**
+     * Đăng xuất client
+     */
+    logoutClient() {
+        const user = this.getCurrentUser();
+        if (user && user.accessToken) {
+            // Gọi API đăng xuất
+            fetch(`${API_URL}/logout`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${user.accessToken}`
+                }
+            }).catch(error => {
+                console.error('Logout error:', error);
+            });
+        }
+
+        localStorage.removeItem(TOKEN_KEY_USER);
     }
 
     /**
@@ -304,35 +423,13 @@ class AuthService {
     }
 
     /**
-     * Kiểm tra token còn hạn hay không
-     * @param {string} token - JWT token
-     * @returns {boolean} - True nếu token còn hạn
-     */
-    isTokenValid(token) {
-        if (!token) return false;
-
-        try {
-            // JWT token có định dạng: header.payload.signature
-            const payload = token.split('.')[1];
-            const decodedPayload = JSON.parse(atob(payload));
-
-            // Kiểm tra thời gian hết hạn
-            const expirationTime = decodedPayload.exp * 1000; // Chuyển sang milliseconds
-            return Date.now() < expirationTime;
-        } catch (error) {
-            console.error('Token validation error:', error);
-            return false;
-        }
-    }
-
-    /**
      * Lấy header authorization với token
      * @returns {object} - Header với Authorization
      */
     getAuthHeader() {
         const user = this.getCurrentUser();
         if (user && user.accessToken) {
-            return { Authorization: `Bearer ${user.accessToken}` };
+            return { 'Authorization': `Bearer ${user.accessToken}` };
         }
         return {};
     }
@@ -364,6 +461,7 @@ class AuthService {
 
             // Cập nhật token mới vào localStorage
             user.accessToken = data.accessToken;
+            user.token = data.token;
             localStorage.setItem(TOKEN_KEY_USER, JSON.stringify(user));
             return true;
         } catch (error) {
@@ -371,13 +469,6 @@ class AuthService {
             this.logoutClient();
             return false;
         }
-    }
-
-    /**
-     * Đăng xuất client
-     */
-    logoutClient() {
-        localStorage.removeItem(TOKEN_KEY_USER);
     }
 }
 

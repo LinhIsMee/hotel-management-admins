@@ -1,5 +1,5 @@
 <script setup>
-import AuthService from '@/services/AuthService';
+import AuthService, { TOKEN_KEY_ADMIN } from '@/services/AuthService';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
 import InputText from 'primevue/inputtext';
@@ -47,76 +47,37 @@ const login = async () => {
     errorMessage.value = '';
 
     try {
-        console.log('Attempting admin login with:', username.value);
+        // Sử dụng AuthService.loginAdmin để đăng nhập
+        const adminUser = await AuthService.loginAdmin(username.value, password.value);
 
-        // Thử trực tiếp gọi API để kiểm tra
-        const response = await fetch(`http://103.82.24.35:9000/api/v1/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                username: username.value,
-                password: password.value
-            })
-        });
+        if (adminUser) {
+            // Lưu username nếu chọn "Remember me"
+            if (rememberMe.value) {
+                localStorage.setItem('admin_username', username.value);
+            } else {
+                localStorage.removeItem('admin_username');
+            }
 
-        console.log('Login response status:', response.status);
+            toast.add({
+                severity: 'success',
+                summary: 'Login Successful',
+                detail: 'Welcome to the administration system',
+                life: 3000
+            });
 
-        if (!response.ok) {
-            errorMessage.value = `Login failed with status: ${response.status}`;
+            // Chuyển hướng đến trang dashboard hoặc trang chỉ định
+            const redirectPath = route.query.redirect || '/admin/dashboard';
+            router.push(redirectPath);
+        } else {
+            errorMessage.value = 'Login failed. Please check your credentials or permissions.';
             toast.add({
                 severity: 'error',
                 summary: 'Login Failed',
-                detail: errorMessage.value,
+                detail: 'Username or password is incorrect, or you do not have admin privileges',
                 life: 3000
             });
-            loading.value = false;
-            return;
         }
-
-        const data = await response.json();
-        console.log('Login response data:', data);
-
-        if (!data || !data.accessToken) {
-            errorMessage.value = 'Invalid response format from server';
-            toast.add({
-                severity: 'error',
-                summary: 'Login Failed',
-                detail: errorMessage.value,
-                life: 3000
-            });
-            loading.value = false;
-            return;
-        }
-
-        // Lưu thông tin vào localStorage
-        const adminInfo = {
-            id: data.userId || 0,
-            username: username.value,
-            accessToken: data.accessToken,
-            token: data.token || data.accessToken,
-            role: data.role || 'ROLE_ADMIN'
-        };
-
-        localStorage.setItem(TOKEN_KEY_ADMIN, JSON.stringify(adminInfo));
-
-        if (rememberMe.value) {
-            localStorage.setItem('admin_username', username.value);
-        }
-
-        toast.add({
-            severity: 'success',
-            summary: 'Login Successful',
-            detail: 'Welcome to the administration system',
-            life: 3000
-        });
-
-        // Chuyển hướng đến trang dashboard hoặc trang chỉ định
-        const redirectPath = route.query.redirect || '/admin/dashboard';
-        router.push(redirectPath);
     } catch (error) {
-        console.error('Login error:', error);
         errorMessage.value = error.message || 'An error occurred during login';
         toast.add({
             severity: 'error',

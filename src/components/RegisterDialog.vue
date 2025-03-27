@@ -7,6 +7,7 @@ import Password from 'primevue/password';
 import { useToast } from 'primevue/usetoast';
 import { reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import AuthService from '../services/AuthService';
 
 const props = defineProps({
     modelValue: {
@@ -77,56 +78,37 @@ const register = async () => {
     });
 
     try {
-        const response = await fetch('http://103.82.24.35:9000/api/v1/register', {
-            method: 'POST',
-            mode: 'cors',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-                Origin: window.location.origin
-            },
-            body: JSON.stringify({
-                username: registerData.username,
-                password: registerData.password,
-                email: registerData.email,
-                phone: registerData.phone,
-                fullName: `${registerData.firstName} ${registerData.lastName}`
-            })
+        const result = await AuthService.registerClient({
+            username: registerData.username,
+            password: registerData.password,
+            email: registerData.email,
+            firstName: registerData.firstName,
+            lastName: registerData.lastName,
+            phone: registerData.phone,
+            fullName: `${registerData.firstName} ${registerData.lastName}`
         });
 
-        console.log('Register API response status:', response.status);
-        const responseData = await response.json();
-        console.log('Register API response data:', responseData);
+        console.log('Register API response data:', result);
 
-        if (response.ok) {
-            toast.add({
-                severity: 'success',
-                summary: 'Registration Successful',
-                detail: 'Your account has been created successfully',
-                life: 3000
-            });
+        toast.add({
+            severity: 'success',
+            summary: 'Registration Successful',
+            detail: 'Your account has been created successfully',
+            life: 3000
+        });
 
-            emit('update:modelValue', false);
+        emit('update:modelValue', false);
+        emit('register-success');
 
-            emit('register-success');
-
-            setTimeout(() => {
-                emit('login');
-            }, 1000);
-        } else {
-            toast.add({
-                severity: 'error',
-                summary: 'Registration Failed',
-                detail: responseData.message || 'An error occurred during registration. Please try again.',
-                life: 3000
-            });
-        }
+        setTimeout(() => {
+            emit('login');
+        }, 1000);
     } catch (error) {
         console.error('Registration error:', error);
         toast.add({
             severity: 'error',
             summary: 'Registration Failed',
-            detail: error.message || 'An error occurred during registration',
+            detail: error.message || 'An error occurred during registration. Please try again.',
             life: 3000
         });
     } finally {

@@ -69,29 +69,20 @@ const login = async () => {
         // Sử dụng AuthService.loginClient để đăng nhập
         const user = await AuthService.loginClient(loginData.username, loginData.password);
 
-        if (user) {
-            toast.add({
-                severity: 'success',
-                summary: 'Login Successful',
-                detail: `Welcome back!`,
-                life: 3000
-            });
+        toast.add({
+            severity: 'success',
+            summary: 'Login Successful',
+            detail: `Welcome back!`,
+            life: 3000
+        });
 
-            emit('update:modelValue', false);
-            emit('login-success', user);
+        emit('update:modelValue', false);
+        emit('login-success', user);
 
-            // Chuyển hướng nếu cần
-            const redirectPath = route.query.redirect;
-            if (redirectPath) {
-                router.push(redirectPath);
-            }
-        } else {
-            toast.add({
-                severity: 'error',
-                summary: 'Login Failed',
-                detail: 'Username or password is incorrect',
-                life: 3000
-            });
+        // Chuyển hướng nếu cần
+        const redirectPath = route.query.redirect;
+        if (redirectPath) {
+            router.push(redirectPath);
         }
     } catch (error) {
         toast.add({
