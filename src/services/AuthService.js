@@ -1,8 +1,9 @@
 /**
  * Dịch vụ xác thực người dùng
  */
-const TOKEN_KEY_ADMIN = 'adminUser';
-const TOKEN_KEY_CLIENT = 'userInfo';
+const API_URL = 'http://103.82.24.35:9000/api/v1';
+export const TOKEN_KEY_USER = 'user_token';
+export const TOKEN_KEY_ADMIN = 'admin_token';
 
 class AuthService {
     /**
@@ -33,8 +34,15 @@ class AuthService {
      * @returns {boolean} - true nếu đã đăng nhập, false nếu chưa
      */
     isAdminAuthenticated() {
-        const adminUser = localStorage.getItem(TOKEN_KEY_ADMIN);
-        return !!adminUser;
+        const adminInfo = localStorage.getItem(TOKEN_KEY_ADMIN);
+        if (!adminInfo) return false;
+
+        try {
+            const parsed = JSON.parse(adminInfo);
+            return parsed.role === 'ROLE_ADMIN';
+        } catch (e) {
+            return false;
+        }
     }
 
     /**
@@ -42,36 +50,64 @@ class AuthService {
      * @returns {boolean} - true nếu đã đăng nhập, false nếu chưa
      */
     isClientAuthenticated() {
-        const clientUser = localStorage.getItem(TOKEN_KEY_CLIENT);
-        return !!clientUser;
+        const userInfo = localStorage.getItem(TOKEN_KEY_USER);
+        return !!userInfo;
     }
 
     /**
      * Đăng nhập vào trang quản trị
-     * @param {object} credentials - Thông tin đăng nhập admin
+     * @param {string} username - Tên đăng nhập admin
+     * @param {string} password - Mật khẩu admin
      * @returns {Promise<object>} - Promise với thông tin người dùng admin
      */
-    loginAdmin(username, password) {
-        console.log('Đang thử đăng nhập với:', username, password);
+    async loginAdmin(username, password) {
+        try {
+            console.log('Attempting admin login with:', username);
 
-        // Đảm bảo kiểm tra chính xác cả hai trường username và password
-        if (username === 'admin' && password === 'admin') {
-            const adminUser = {
-                id: 1,
-                username: 'admin',
-                name: 'Quản trị viên',
-                email: 'admin@example.com',
-                isAdmin: true
-            };
+            const response = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            console.log('Admin login response status:', response.status);
+
+            if (!response.ok) {
+                console.error('Admin login failed with status:', response.status);
+                return null;
+            }
+
+            const data = await response.json();
+            console.log('Admin login response data:', data);
+
+            // Kiểm tra kỹ hơn về dữ liệu trả về
+            if (!data || !data.accessToken) {
+                console.error('Invalid response format - missing accessToken');
+                return null;
+            }
 
             // Lưu token vào localStorage
-            localStorage.setItem(TOKEN_KEY_ADMIN, JSON.stringify(adminUser));
-            console.log('Đăng nhập admin thành công:', adminUser);
-            return adminUser;
-        }
+            const adminInfo = {
+                id: data.userId || 0,
+                username: username,
+                accessToken: data.accessToken,
+                token: data.token || data.accessToken,
+                role: data.role || 'ROLE_ADMIN' // Nếu API không trả về role, giả định là admin
+            };
 
-        console.log('Đăng nhập admin thất bại');
-        return null;
+            localStorage.setItem(TOKEN_KEY_ADMIN, JSON.stringify(adminInfo));
+
+            if (data.rememberMe) {
+                localStorage.setItem('admin_username', username);
+            }
+
+            return adminInfo;
+        } catch (error) {
+            console.error('Admin login error:', error);
+            return null;
+        }
     }
 
     /**
@@ -79,19 +115,38 @@ class AuthService {
      * @param {object} credentials - Thông tin đăng nhập người dùng
      * @returns {Promise<object>} - Promise với thông tin người dùng
      */
-    loginClient(email, password) {
-        // Giả lập đăng nhập thành công cho client
-        if (email && password) {
-            const clientUser = {
-                id: Math.floor(Math.random() * 1000) + 1,
-                name: email.split('@')[0],
-                email: email,
-                isAdmin: false
+    async loginClient(username, password) {
+        try {
+            const response = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Login failed');
+            }
+
+            const data = await response.json();
+
+            // Lưu token vào localStorage
+            const userInfo = {
+                id: data.userId,
+                username: username,
+                accessToken: data.accessToken,
+                token: data.token,
+                role: data.role
             };
-            localStorage.setItem(TOKEN_KEY_CLIENT, JSON.stringify(clientUser));
-            return clientUser;
+
+            localStorage.setItem(TOKEN_KEY_USER, JSON.stringify(userInfo));
+            return userInfo;
+        } catch (error) {
+            console.error('Login error:', error);
+            return null;
         }
-        return null;
     }
 
     /**
@@ -102,7 +157,7 @@ class AuthService {
         if (isAdmin) {
             localStorage.removeItem(TOKEN_KEY_ADMIN);
         } else {
-            localStorage.removeItem(TOKEN_KEY_CLIENT);
+            localStorage.removeItem(TOKEN_KEY_USER);
         }
     }
 
@@ -111,8 +166,11 @@ class AuthService {
      * @returns {object|null} - Thông tin người dùng hoặc null
      */
     getCurrentUser() {
-        const clientUser = localStorage.getItem(TOKEN_KEY_CLIENT);
-        return clientUser ? JSON.parse(clientUser) : null;
+        const userInfo = localStorage.getItem(TOKEN_KEY_USER);
+        if (userInfo) {
+            return JSON.parse(userInfo);
+        }
+        return null;
     }
 
     /**
@@ -120,17 +178,32 @@ class AuthService {
      * @param {object} userData - Thông tin đăng ký
      * @returns {Promise<object>} - Promise kết quả đăng ký
      */
-    register(userData) {
-        // Lưu tạm thời vào localStorage
-        localStorage.setItem(
-            TOKEN_KEY_CLIENT,
-            JSON.stringify({
-                ...userData,
-                id: Math.floor(Math.random() * 1000) + 1,
-                isAdmin: false
-            })
-        );
-        return true;
+    async registerClient(userData) {
+        try {
+            const response = await fetch(`${API_URL}/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: userData.username || userData.email,
+                    password: userData.password,
+                    email: userData.email,
+                    phone: userData.phone,
+                    fullName: userData.name
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Registration failed');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Registration error:', error);
+            return null;
+        }
     }
 
     /**
@@ -140,11 +213,12 @@ class AuthService {
      */
     requestPasswordReset(email) {
         return new Promise((resolve) => {
-            // Giả lập gọi API
+            // Giả lập gọi API với email
+            console.log(`Requesting password reset for email: ${email}`);
             setTimeout(() => {
                 resolve({
                     success: true,
-                    message: 'Yêu cầu đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email của bạn.'
+                    message: 'Password reset request has been sent. Please check your email.'
                 });
             }, 1500);
         });
@@ -182,48 +256,128 @@ class AuthService {
      */
     resetPassword(data) {
         return new Promise((resolve) => {
-            // Giả lập gọi API
+            // Giả lập gọi API với data
+            console.log(`Resetting password with: ${JSON.stringify(data)}`);
             setTimeout(() => {
                 resolve({
                     success: true,
-                    message: 'Đặt lại mật khẩu thành công'
+                    message: 'Password has been reset successfully'
                 });
             }, 1500);
         });
     }
 
+    /**
+     * Lấy thông tin admin hiện tại
+     * @returns {object} - Thông tin admin
+     */
     getCurrentAdmin() {
-        const adminUser = localStorage.getItem(TOKEN_KEY_ADMIN);
-        return adminUser ? JSON.parse(adminUser) : null;
+        const adminInfo = localStorage.getItem(TOKEN_KEY_ADMIN);
+        if (adminInfo) {
+            return JSON.parse(adminInfo);
+        }
+        return null;
     }
 
+    /**
+     * Đăng xuất admin
+     */
     logoutAdmin() {
         localStorage.removeItem(TOKEN_KEY_ADMIN);
-        // Xóa các dữ liệu phiên liên quan đến admin nếu có
         localStorage.removeItem('admin_username');
-        console.log("Admin đã đăng xuất");
     }
 
-    logoutClient() {
-        localStorage.removeItem(TOKEN_KEY_CLIENT);
-    }
-
-    registerClient(userData) {
+    /**
+     * Kiểm tra API endpoint cho đăng ký
+     * @returns {Promise<boolean>} - True nếu API có endpoint đăng ký
+     */
+    async checkRegisterEndpoint() {
         try {
-            // Giả lập đăng ký thành công
-            const user = {
-                id: Math.floor(Math.random() * 1000) + 1,
-                name: userData.name,
-                email: userData.email,
-                phone: userData.phone,
-                isAdmin: false
-            };
-
-            return true;
+            const response = await fetch(`${API_URL}/register`, {
+                method: 'OPTIONS'
+            });
+            return response.ok;
         } catch (error) {
-            console.error('Lỗi khi đăng ký:', error);
+            console.error('Check register endpoint error:', error);
             return false;
         }
+    }
+
+    /**
+     * Kiểm tra token còn hạn hay không
+     * @param {string} token - JWT token
+     * @returns {boolean} - True nếu token còn hạn
+     */
+    isTokenValid(token) {
+        if (!token) return false;
+
+        try {
+            // JWT token có định dạng: header.payload.signature
+            const payload = token.split('.')[1];
+            const decodedPayload = JSON.parse(atob(payload));
+
+            // Kiểm tra thời gian hết hạn
+            const expirationTime = decodedPayload.exp * 1000; // Chuyển sang milliseconds
+            return Date.now() < expirationTime;
+        } catch (error) {
+            console.error('Token validation error:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Lấy header authorization với token
+     * @returns {object} - Header với Authorization
+     */
+    getAuthHeader() {
+        const user = this.getCurrentUser();
+        if (user && user.accessToken) {
+            return { Authorization: `Bearer ${user.accessToken}` };
+        }
+        return {};
+    }
+
+    /**
+     * Xử lý refresh token khi token hết hạn
+     * @returns {Promise<boolean>} - True nếu refresh token thành công
+     */
+    async refreshToken() {
+        const user = this.getCurrentUser();
+        if (!user || !user.token) return false;
+
+        try {
+            const response = await fetch(`${API_URL}/refresh-token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token: user.token })
+            });
+
+            if (!response.ok) {
+                // Nếu refresh token thất bại, đăng xuất
+                this.logoutClient();
+                return false;
+            }
+
+            const data = await response.json();
+
+            // Cập nhật token mới vào localStorage
+            user.accessToken = data.accessToken;
+            localStorage.setItem(TOKEN_KEY_USER, JSON.stringify(user));
+            return true;
+        } catch (error) {
+            console.error('Refresh token error:', error);
+            this.logoutClient();
+            return false;
+        }
+    }
+
+    /**
+     * Đăng xuất client
+     */
+    logoutClient() {
+        localStorage.removeItem(TOKEN_KEY_USER);
     }
 }
 
