@@ -1,67 +1,3 @@
-<template>
-    <Dialog
-        :visible="modelValue"
-        @update:visible="$emit('update:modelValue', $event)"
-        modal
-        :style="{ width: '450px' }"
-        class="p-fluid login-dialog"
-    >
-        <template #header>
-            <div class="text-center w-full">
-                <h3 class="text-xl font-bold text-gray-800 m-0">Đăng nhập</h3>
-            </div>
-        </template>
-
-        <div class="text-center mb-6">
-            <h3 class="text-lg font-semibold">
-                <span class="text-amber-600">LUXURY</span><span class="text-slate-800">HOTEL</span>
-            </h3>
-            <p class="text-sm text-gray-600 mt-2">Đăng nhập để quản lý đặt phòng và nhận ưu đãi</p>
-        </div>
-
-        <div class="field mb-4">
-            <label for="email" class="block text-sm font-medium mb-2">Email</label>
-            <InputText id="email" v-model="loginData.email" type="email" class="w-full p-2" required />
-            <small v-if="isSubmitted && !loginData.email" class="p-error">Email không được để trống</small>
-        </div>
-
-        <div class="field mb-4">
-            <label for="password" class="block text-sm font-medium mb-2">Mật khẩu</label>
-            <Password id="password" v-model="loginData.password" toggleMask class="w-full" :feedback="false" required />
-            <small v-if="isSubmitted && !loginData.password" class="p-error">Mật khẩu không được để trống</small>
-        </div>
-
-        <div class="field-checkbox mb-4">
-            <Checkbox id="remember" v-model="loginData.rememberMe" :binary="true" />
-            <label for="remember" class="ml-2">Ghi nhớ đăng nhập</label>
-        </div>
-
-        <div class="flex flex-col">
-            <Button
-                type="button"
-                label="Đăng nhập"
-                class="w-full mb-3 py-2 font-medium bg-amber-600 hover:bg-amber-700 border-amber-600"
-                @click="login"
-            />
-
-            <div class="flex justify-between items-center mt-3">
-                <Button
-                    type="button"
-                    label="Quên mật khẩu?"
-                    class="p-button-link p-button-sm text-amber-600"
-                    @click="forgotPassword"
-                />
-                <Button
-                    type="button"
-                    label="Đăng ký tài khoản"
-                    class="p-button-link p-button-sm text-amber-600"
-                    @click="register"
-                />
-            </div>
-        </div>
-    </Dialog>
-</template>
-
 <script setup>
 import AuthService from '@/services/AuthService';
 import Button from 'primevue/button';
@@ -83,69 +19,89 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'login-success', 'register', 'forgot-password']);
 
 // Theo dõi thay đổi trên prop modelValue
-watch(() => props.modelValue, (newValue) => {
-    // Khi giá trị prop thay đổi, emit event để cập nhật
-    emit('update:modelValue', newValue);
-});
+watch(
+    () => props.modelValue,
+    (newValue) => {
+        // Khi giá trị prop thay đổi, emit event để cập nhật
+        emit('update:modelValue', newValue);
+    }
+);
 
 const toast = useToast();
 const router = useRouter();
 const route = useRoute();
 const isSubmitted = ref(false);
+const loading = ref(false);
 
 const loginData = reactive({
-    email: '',
+    username: '',
     password: '',
     rememberMe: false
 });
 
 const resetForm = () => {
-    loginData.email = '';
+    loginData.username = '';
     loginData.password = '';
     loginData.rememberMe = false;
     isSubmitted.value = false;
 };
 
 // Khi dialog đóng, reset form
-watch(() => props.modelValue, (newValue) => {
-    if (!newValue) {
-        resetForm();
+watch(
+    () => props.modelValue,
+    (newValue) => {
+        if (!newValue) {
+            resetForm();
+        }
     }
-});
+);
 
-const login = () => {
+const login = async () => {
     isSubmitted.value = true;
 
-    if (!loginData.email || !loginData.password) {
+    if (!loginData.username || !loginData.password) {
         return;
     }
 
-    // Sử dụng AuthService.loginClient để đăng nhập
-    const user = AuthService.loginClient(loginData.email, loginData.password);
+    loading.value = true;
 
-    if (user) {
-        toast.add({
-            severity: 'success',
-            summary: 'Đăng nhập thành công',
-            detail: `Chào mừng ${user.name} quay trở lại!`,
-            life: 3000
-        });
+    try {
+        // Sử dụng AuthService.loginClient để đăng nhập
+        const user = await AuthService.loginClient(loginData.username, loginData.password);
 
-        emit('update:modelValue', false);
-        emit('login-success', user);
+        if (user) {
+            toast.add({
+                severity: 'success',
+                summary: 'Login Successful',
+                detail: `Welcome back!`,
+                life: 3000
+            });
 
-        // Chuyển hướng nếu cần
-        const redirectPath = route.query.redirect;
-        if (redirectPath) {
-            router.push(redirectPath);
+            emit('update:modelValue', false);
+            emit('login-success', user);
+
+            // Chuyển hướng nếu cần
+            const redirectPath = route.query.redirect;
+            if (redirectPath) {
+                router.push(redirectPath);
+            }
+        } else {
+            toast.add({
+                severity: 'error',
+                summary: 'Login Failed',
+                detail: 'Username or password is incorrect',
+                life: 3000
+            });
         }
-    } else {
+    } catch (error) {
         toast.add({
             severity: 'error',
-            summary: 'Đăng nhập thất bại',
-            detail: 'Email hoặc mật khẩu không đúng',
+            summary: 'Login Failed',
+            detail: error.message || 'An error occurred during login',
             life: 3000
         });
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -157,6 +113,47 @@ const forgotPassword = () => {
     emit('forgot-password');
 };
 </script>
+
+<template>
+    <Dialog :visible="modelValue" @update:visible="$emit('update:modelValue', $event)" modal :style="{ width: '450px' }" class="p-fluid login-dialog">
+        <template #header>
+            <div class="text-center w-full">
+                <h3 class="text-xl font-bold text-gray-800 m-0">Sign In</h3>
+            </div>
+        </template>
+
+        <div class="text-center mb-6">
+            <h3 class="text-lg font-semibold"><span class="text-amber-600">LUXURY</span><span class="text-slate-800">HOTEL</span></h3>
+            <p class="text-sm text-gray-600 mt-2">Sign in to manage bookings and receive benefits</p>
+        </div>
+
+        <div class="field mb-4">
+            <label for="username" class="block text-sm font-medium mb-2">Username</label>
+            <InputText id="username" v-model="loginData.username" type="text" class="w-full p-2" required />
+            <small v-if="isSubmitted && !loginData.username" class="p-error">Username is required</small>
+        </div>
+
+        <div class="field mb-4">
+            <label for="password" class="block text-sm font-medium mb-2">Password</label>
+            <Password id="password" v-model="loginData.password" toggleMask class="w-full" :feedback="false" required />
+            <small v-if="isSubmitted && !loginData.password" class="p-error">Password is required</small>
+        </div>
+
+        <div class="field-checkbox mb-4">
+            <Checkbox id="remember" v-model="loginData.rememberMe" :binary="true" />
+            <label for="remember" class="ml-2">Remember me</label>
+        </div>
+
+        <div class="flex flex-col">
+            <Button type="button" label="Sign In" class="w-full mb-3 py-2 font-medium bg-amber-600 hover:bg-amber-700 border-amber-600" @click="login" :loading="loading" />
+
+            <div class="flex justify-between items-center mt-3">
+                <Button type="button" label="Forgot Password?" class="p-button-link p-button-sm text-amber-600" @click="forgotPassword" />
+                <Button type="button" label="Register Account" class="p-button-link p-button-sm text-amber-600" @click="register" />
+            </div>
+        </div>
+    </Dialog>
+</template>
 
 <style scoped>
 :deep(.login-dialog) {
