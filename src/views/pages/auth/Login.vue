@@ -1,41 +1,45 @@
 <script setup>
 import AuthService from '@/services/AuthService';
 import Button from 'primevue/button';
+import Checkbox from 'primevue/checkbox';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
 import { useToast } from 'primevue/usetoast';
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 const router = useRouter();
 const route = useRoute();
-const redirectPath = route.query.redirect || '/';
-const isClientAuth = ref(!!route.query.clientAuth);
 const toast = useToast();
 
-const loginForm = reactive({
-    username: '',
-    email: '',
-    password: '',
-    rememberMe: false
-});
-
+const username = ref('');
+const password = ref('');
+const rememberMe = ref(false);
 const loading = ref(false);
 const errorMessage = ref('');
-const submitted = ref(false);
 
-const validateForm = () => {
-    submitted.value = true;
-
-    if (isClientAuth.value) {
-        return !!loginForm.email && !!loginForm.password;
-    } else {
-        return !!loginForm.username && !!loginForm.password;
+onMounted(() => {
+    // Kiểm tra nếu đã đăng nhập admin, chuyển hướng đến dashboard
+    if (AuthService.isAdminAuthenticated()) {
+        router.push('/admin/dashboard');
     }
-};
 
-const handleLogin = async () => {
-    if (!validateForm()) {
+    // Nếu có lưu thông tin đăng nhập
+    const savedUsername = localStorage.getItem('admin_username');
+    if (savedUsername) {
+        username.value = savedUsername;
+        rememberMe.value = true;
+    }
+});
+
+const login = async () => {
+    if (!username.value || !password.value) {
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Please enter username and password',
+            life: 3000
+        });
         return;
     }
 
@@ -43,109 +47,86 @@ const handleLogin = async () => {
     errorMessage.value = '';
 
     try {
-        if (isClientAuth.value) {
-            // Đăng nhập client
-            await AuthService.loginClient({
-                email: loginForm.email,
-                password: loginForm.password
+        console.log('Attempting admin login with:', username.value);
+
+        // Thử trực tiếp gọi API để kiểm tra
+        const response = await fetch(`http://103.82.24.35:9000/api/v1/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: username.value,
+                password: password.value
+            })
+        });
+
+        console.log('Login response status:', response.status);
+
+        if (!response.ok) {
+            errorMessage.value = `Login failed with status: ${response.status}`;
+            toast.add({
+                severity: 'error',
+                summary: 'Login Failed',
+                detail: errorMessage.value,
+                life: 3000
             });
-        router.push(redirectPath);
-        } else {
-            // Đăng nhập admin
-            await AuthService.loginAdmin({
-                username: loginForm.username,
-                password: loginForm.password
-            });
-            router.push(redirectPath.startsWith('/admin') ? redirectPath : '/admin');
+            loading.value = false;
+            return;
         }
+
+        const data = await response.json();
+        console.log('Login response data:', data);
+
+        if (!data || !data.accessToken) {
+            errorMessage.value = 'Invalid response format from server';
+            toast.add({
+                severity: 'error',
+                summary: 'Login Failed',
+                detail: errorMessage.value,
+                life: 3000
+            });
+            loading.value = false;
+            return;
+        }
+
+        // Lưu thông tin vào localStorage
+        const adminInfo = {
+            id: data.userId || 0,
+            username: username.value,
+            accessToken: data.accessToken,
+            token: data.token || data.accessToken,
+            role: data.role || 'ROLE_ADMIN'
+        };
+
+        localStorage.setItem(TOKEN_KEY_ADMIN, JSON.stringify(adminInfo));
+
+        if (rememberMe.value) {
+            localStorage.setItem('admin_username', username.value);
+        }
+
+        toast.add({
+            severity: 'success',
+            summary: 'Login Successful',
+            detail: 'Welcome to the administration system',
+            life: 3000
+        });
+
+        // Chuyển hướng đến trang dashboard hoặc trang chỉ định
+        const redirectPath = route.query.redirect || '/admin/dashboard';
+        router.push(redirectPath);
     } catch (error) {
-        errorMessage.value = error.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
+        console.error('Login error:', error);
+        errorMessage.value = error.message || 'An error occurred during login';
+        toast.add({
+            severity: 'error',
+            summary: 'Login Failed',
+            detail: errorMessage.value,
+            life: 3000
+        });
     } finally {
         loading.value = false;
     }
-};
-
-const navigateToRegister = () => {
-    router.push('/auth/register');
-};
-
-const navigateToForgotPassword = () => {
-    router.push('/auth/forgot-password');
-};
-
-// Tự động chuyển sang chế độ Client/Admin tùy thuộc vào URL
-const toggleAuthType = () => {
-    isClientAuth.value = !isClientAuth.value;
-    submitted.value = false;
-    errorMessage.value = '';
-};
-
-const username = ref('');
-const password = ref('');
-const rememberMe = ref(false);
-
-onMounted(() => {
-  // Kiểm tra nếu đã đăng nhập admin, chuyển hướng đến dashboard
-  if (AuthService.isAdminAuthenticated()) {
-    router.push('/admin/dashboard');
-  }
-
-  // Nếu có lưu thông tin đăng nhập
-  const savedUsername = localStorage.getItem('admin_username');
-  if (savedUsername) {
-    username.value = savedUsername;
-    rememberMe.value = true;
-  }
-
-  // Log để debug
-  console.log('Login component mounted');
-});
-
-const login = () => {
-  if (!username.value || !password.value) {
-    toast.add({
-      severity: 'error',
-      summary: 'Lỗi',
-      detail: 'Vui lòng nhập tên đăng nhập và mật khẩu',
-      life: 3000
-    });
-    return;
-  }
-
-  loading.value = true;
-  console.log('Đang thử đăng nhập với:', username.value, password.value);
-
-  // Sử dụng AuthService.loginAdmin
-  const adminUser = AuthService.loginAdmin(username.value, password.value);
-
-  if (adminUser) {
-    // Lưu username nếu chọn "Ghi nhớ đăng nhập"
-    if (rememberMe.value) {
-      localStorage.setItem('admin_username', username.value);
-    } else {
-      localStorage.removeItem('admin_username');
-    }
-
-    toast.add({
-      severity: 'success',
-      summary: 'Đăng nhập thành công',
-      detail: 'Chào mừng bạn đến với hệ thống quản trị',
-      life: 3000
-    });
-
-    // Chuyển hướng đến trang dashboard hoặc trang chỉ định
-    const redirectPath = route.query.redirect || '/admin/dashboard';
-    router.push(redirectPath);
-  } else {
-    toast.add({
-      severity: 'error',
-      summary: 'Đăng nhập thất bại',
-      detail: 'Tên đăng nhập hoặc mật khẩu không đúng',
-      life: 3000
-    });
-  }
-
-  loading.value = false;
 };
 
 function goToClientSite() {
@@ -156,36 +137,40 @@ function goToClientSite() {
 <template>
     <div class="login-container">
         <div class="login-card">
-                    <div class="text-center mb-6">
-                <h5 class="text-2xl font-bold mb-2">
-                    <span class="text-amber-600">LUXURY</span><span class="text-slate-800">HOTEL</span>
-                </h5>
-                <p class="text-slate-600">Đăng nhập vào hệ thống quản trị</p>
-                        </div>
+            <div class="text-center mb-6">
+                <h5 class="text-2xl font-bold mb-2"><span class="text-amber-600">LUXURY</span><span class="text-slate-800">HOTEL</span></h5>
+                <p class="text-slate-600">Sign in to the administration system</p>
+            </div>
 
-                        <div class="mb-4">
-                <label for="username" class="block font-medium text-gray-700 mb-1">Tên đăng nhập</label>
-                <InputText id="username" v-model="username" type="text" class="w-full" placeholder="Nhập tên đăng nhập" />
-                        </div>
+            <div v-if="errorMessage" class="p-3 bg-red-50 text-red-600 rounded-lg mb-4 text-sm">
+                {{ errorMessage }}
+            </div>
 
-                            <div class="mb-4">
-                <label for="password" class="block font-medium text-gray-700 mb-1">Mật khẩu</label>
-                <Password id="password" v-model="password" :feedback="false" toggleMask class="w-full" placeholder="Nhập mật khẩu" />
-                            </div>
+            <div class="mb-4">
+                <label for="username" class="block font-medium text-gray-700 mb-1">Username</label>
+                <InputText id="username" v-model="username" type="text" class="w-full" placeholder="Enter username" />
+            </div>
+
+            <div class="mb-4">
+                <label for="password" class="block font-medium text-gray-700 mb-1">Password</label>
+                <Password id="password" v-model="password" :feedback="false" toggleMask class="w-full" placeholder="Enter password" />
+            </div>
 
             <div class="flex items-center justify-between mb-4">
-                                <div class="flex items-center">
+                <div class="flex items-center">
                     <Checkbox id="rememberme" v-model="rememberMe" :binary="true" />
-                    <label for="rememberme" class="ml-2 text-sm text-gray-600">Ghi nhớ đăng nhập</label>
+                    <label for="rememberme" class="ml-2 text-sm text-gray-600">Remember me</label>
                 </div>
-                <a href="/auth/forgot-password" class="text-sm text-blue-600 hover:underline">Quên mật khẩu?</a>
+                <a href="/auth/forgot-password" class="text-sm text-blue-600 hover:underline">Forgot password?</a>
             </div>
 
-            <Button label="Đăng nhập" @click="login" class="login-button w-full" />
+            <Button label="Sign In" @click="login" class="login-button w-full" :loading="loading" />
 
-            <div class="text-center mt-4 text-sm text-gray-600">
-                © 2023 LUXURY HOTEL. Bản quyền thuộc về chúng tôi.
+            <div class="text-center mt-4">
+                <Button label="Back to Main Site" class="p-button-link" @click="goToClientSite" />
             </div>
+
+            <div class="text-center mt-4 text-sm text-gray-600">© 2023 LUXURY HOTEL. All rights reserved.</div>
         </div>
     </div>
 </template>
@@ -197,7 +182,7 @@ function goToClientSite() {
     align-items: center;
     min-height: 100vh;
     padding: 1rem;
-    background-image: url('/images/hotel-background.jpg'); /* Thêm đường dẫn đến ảnh nền */
+    background-image: url('/images/hotel-background.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -210,7 +195,7 @@ function goToClientSite() {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(240, 240, 240, 0.7); /* Lớp overlay để làm mờ ảnh nền */
+    background-color: rgba(240, 240, 240, 0.7);
     z-index: -1;
 }
 
@@ -218,7 +203,7 @@ function goToClientSite() {
     width: 100%;
     max-width: 400px;
     background: white;
-    border-radius: 20px; /* Bo góc mạnh hơn */
+    border-radius: 20px;
     padding: 2rem;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     z-index: 10;
@@ -260,4 +245,3 @@ function goToClientSite() {
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 </style>
-
