@@ -1,6 +1,6 @@
 import AuthService from './AuthService';
 
-const API_URL = 'http://103.82.24.35:9000/api/v1';
+const API_URL = 'http://127.0.0.1:9000/api/v1';
 
 /**
  * Service để gọi API với xử lý token tự động

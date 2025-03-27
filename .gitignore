@@ -109,7 +109,7 @@ dist
 
 # vitepress cache directory
 **/.vitepress/cache
-
+/api-docs
 # Docusaurus cache and generated files
 .docusaurus
 

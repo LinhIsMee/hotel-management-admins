@@ -231,7 +231,7 @@ class AuthService {
             const response = await fetch(`${API_URL}/user`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${userInfo.accessToken}`,
+                    Authorization: `Bearer ${userInfo.accessToken}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -375,9 +375,9 @@ class AuthService {
             fetch(`${API_URL}/logout`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${admin.accessToken}`
+                    Authorization: `Bearer ${admin.accessToken}`
                 }
-            }).catch(error => {
+            }).catch((error) => {
                 console.error('Logout error:', error);
             });
         }
@@ -396,9 +396,9 @@ class AuthService {
             fetch(`${API_URL}/logout`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${user.accessToken}`
+                    Authorization: `Bearer ${user.accessToken}`
                 }
-            }).catch(error => {
+            }).catch((error) => {
                 console.error('Logout error:', error);
             });
         }
@@ -429,7 +429,7 @@ class AuthService {
     getAuthHeader() {
         const user = this.getCurrentUser();
         if (user && user.accessToken) {
-            return { 'Authorization': `Bearer ${user.accessToken}` };
+            return { Authorization: `Bearer ${user.accessToken}` };
         }
         return {};
     }
