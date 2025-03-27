@@ -279,26 +279,47 @@ const router = createRouter({
 
 // Middleware để kiểm tra đăng nhập user cho các trang yêu cầu
 router.beforeEach((to, from, next) => {
-    const userStore = JSON.parse(localStorage.getItem('userInfo'));
+    const isClientAuthenticated = AuthService.isClientAuthenticated();
+    const isAdminAuthenticated = AuthService.isAdminAuthenticated();
 
-    // Nếu route yêu cầu auth nhưng user chưa đăng nhập
+    // Nếu route yêu cầu auth admin nhưng chưa đăng nhập admin
+    if (to.matched.some((record) => record.meta.requiresAdminAuth)) {
+        if (!isAdminAuthenticated) {
+            return next({
+                path: '/auth/login',
+                query: { redirect: to.fullPath }
+            });
+        }
+        return next();
+    }
+
+    // Nếu route yêu cầu auth client nhưng chưa đăng nhập
     if (to.matched.some((record) => record.meta.requiresAuth)) {
-        if (!userStore) {
+        if (!isClientAuthenticated) {
             // Lưu lại trang muốn truy cập để redirect sau khi đăng nhập
             const loginComponent = document.querySelector('.layout-wrapper');
             if (loginComponent) {
                 // Trigger login dialog thay vì chuyển hướng
                 loginComponent.__vue__?.showLoginDialog();
+            } else {
+                return next({
+                    path: '/',
+                    query: { redirect: to.fullPath }
+                });
             }
+            return false; // Ở lại trang hiện tại
+        }
+        return next();
+    }
 
-            if (from.name) {
-                return false; // Ở lại trang hiện tại
-        } else {
-                return next({ path: '/' });
-        }
-        } else {
-            return next();
-        }
+    // Nếu đã đăng nhập user và cố truy cập trang login/register
+    if ((to.path === '/auth/login' || to.path === '/auth/register') && isClientAuthenticated) {
+        return next('/');
+    }
+
+    // Nếu đã đăng nhập admin và cố truy cập trang login admin
+    if (to.path === '/auth/login' && !to.query.clientAuth && isAdminAuthenticated) {
+        return next('/admin/dashboard');
     }
 
     return next();
