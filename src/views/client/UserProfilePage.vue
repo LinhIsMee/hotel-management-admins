@@ -1,18 +1,20 @@
 <script setup>
 import AuthService from '@/services/AuthService';
 import Button from 'primevue/button';
+import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+const toast = useToast();
 
 // Thông tin người dùng
 const user = reactive({
-    fullName: 'Nguyễn Văn A',
-    email: 'nguyenvana@example.com',
-    phone: '0901234567',
-    address: 'Hà Nội, Việt Nam',
-    identityNumber: '012345678',
+    fullName: '',
+    email: '',
+    phone: '',
+    address: '',
+    identityNumber: '',
     birthdate: null
 });
 
@@ -48,14 +50,46 @@ onMounted(async () => {
         return;
     }
 
-    // Lấy thông tin user
-    const currentUser = AuthService.getCurrentUser();
-    if (currentUser) {
-        user.fullName = currentUser.name || 'Người dùng';
-        user.email = currentUser.email || '';
+    // Lấy thông tin user từ API
+    try {
+        loading.value = true;
+        const userProfile = await AuthService.getCurrentUserProfile();
+
+        if (userProfile) {
+            // Cập nhật đầy đủ tất cả các trường thông tin
+            user.fullName = userProfile.name || userProfile.fullName || '';
+            user.email = userProfile.email || '';
+            user.phone = userProfile.phone || userProfile.phoneNumber || '';
+            user.address = userProfile.address || '';
+            user.identityNumber = userProfile.identityNumber || userProfile.nationalId || '';
+            user.birthdate = userProfile.birthdate || userProfile.dateOfBirth || null;
+
+            // Gửi sự kiện để cập nhật navbar
+            window.dispatchEvent(new CustomEvent('update-user-profile'));
+
+            console.log('User profile loaded in profile page:', userProfile);
+        } else {
+            // Nếu không lấy được từ API, thử lấy từ localStorage
+            const storedUser = AuthService.getCurrentUser();
+            if (storedUser) {
+                user.fullName = storedUser.name || '';
+                user.email = storedUser.email || '';
+            }
+            console.log('Using stored user data:', storedUser);
+        }
+    } catch (error) {
+        console.error('Error fetching user profile in profile page:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error Loading Profile',
+            detail: 'Could not load your profile information. Please try again later.',
+            life: 3000
+        });
+    } finally {
+        loading.value = false;
     }
 
-    // Lấy danh sách đặt phòng của người dùng (giả lập)
+    // Lấy danh sách đặt phòng của người dùng
     try {
         const completedBooking = localStorage.getItem('completedBooking');
         if (completedBooking) {
@@ -93,38 +127,65 @@ onMounted(async () => {
 });
 
 // Cập nhật thông tin cá nhân
-const updateProfile = () => {
+const updateProfile = async () => {
     isUpdatingProfile.value = true;
 
-    // Giả lập API cập nhật
-    setTimeout(() => {
+    try {
+        // Gọi API để cập nhật thông tin người dùng
+        await AuthService.updateUserProfile({
+            fullName: user.fullName,
+            phone: user.phone,
+            address: user.address,
+            identityNumber: user.identityNumber,
+            birthdate: user.birthdate
+        });
+
         profileUpdateSuccess.value = true;
-        isUpdatingProfile.value = false;
+
+        // Gửi sự kiện để cập nhật navbar
+        window.dispatchEvent(new CustomEvent('update-user-profile'));
+
+        // Hiển thị thông báo thành công
+        toast.add({
+            severity: 'success',
+            summary: 'Profile Updated',
+            detail: 'Your profile has been updated successfully',
+            life: 3000
+        });
 
         // Ẩn thông báo thành công sau 3 giây
         setTimeout(() => {
             profileUpdateSuccess.value = false;
         }, 3000);
-    }, 1000);
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Update Failed',
+            detail: error.message || 'An error occurred while updating your profile',
+            life: 3000
+        });
+    } finally {
+        isUpdatingProfile.value = false;
+    }
 };
 
 // Cập nhật mật khẩu
-const updatePassword = () => {
+const updatePassword = async () => {
     // Xác thực
     passwordErrors.value = {};
 
     if (!passwords.current) {
-        passwordErrors.value.current = 'Vui lòng nhập mật khẩu hiện tại';
+        passwordErrors.value.current = 'Current password is required';
     }
 
     if (!passwords.new) {
-        passwordErrors.value.new = 'Vui lòng nhập mật khẩu mới';
+        passwordErrors.value.new = 'New password is required';
     } else if (passwords.new.length < 6) {
-        passwordErrors.value.new = 'Mật khẩu phải có ít nhất 6 ký tự';
+        passwordErrors.value.new = 'Password must be at least 6 characters';
     }
 
     if (passwords.new !== passwords.confirm) {
-        passwordErrors.value.confirm = 'Mật khẩu xác nhận không khớp';
+        passwordErrors.value.confirm = 'Confirm password does not match';
     }
 
     if (Object.keys(passwordErrors.value).length > 0) {
@@ -133,19 +194,37 @@ const updatePassword = () => {
 
     isUpdatingPassword.value = true;
 
-    // Giả lập API cập nhật
-    setTimeout(() => {
+    try {
+        // Gọi API cập nhật mật khẩu
+        await AuthService.changePassword(passwords.current, passwords.new);
+
         passwords.current = '';
         passwords.new = '';
         passwords.confirm = '';
         passwordUpdateSuccess.value = true;
-        isUpdatingPassword.value = false;
+
+        // Hiển thị thông báo thành công
+        toast.add({
+            severity: 'success',
+            summary: 'Password Updated',
+            detail: 'Your password has been changed successfully',
+            life: 3000
+        });
 
         // Ẩn thông báo thành công sau 3 giây
         setTimeout(() => {
             passwordUpdateSuccess.value = false;
         }, 3000);
-    }, 1000);
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Password Update Failed',
+            detail: error.message || 'An error occurred while updating your password',
+            life: 3000
+        });
+    } finally {
+        isUpdatingPassword.value = false;
+    }
 };
 
 // Format tình trạng đặt phòng
@@ -234,13 +313,17 @@ const viewBookingDetails = (bookingId) => {
                     <div v-if="activeTab === 'profile'" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <!-- Thông tin cá nhân -->
                         <div class="lg:col-span-2">
-                            <h2 class="text-xl font-semibold mb-4">Thông tin cá nhân</h2>
+                            <h2 class="text-xl font-semibold mb-4">Personal Information</h2>
 
-                            <div class="bg-amber-50 text-amber-700 px-4 py-3 rounded mb-4" v-if="profileUpdateSuccess"><i class="pi pi-check-circle mr-2"></i> Cập nhật thông tin thành công!</div>
+                            <div class="bg-amber-50 text-amber-700 px-4 py-3 rounded mb-4" v-if="profileUpdateSuccess"><i class="pi pi-check-circle mr-2"></i> Profile updated successfully!</div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div v-if="loading" class="flex justify-center py-8">
+                                <i class="pi pi-spin pi-spinner text-3xl text-amber-500"></i>
+                            </div>
+
+                            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                                     <input type="text" v-model="user.fullName" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
                                 </div>
 
@@ -250,28 +333,28 @@ const viewBookingDetails = (bookingId) => {
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                                     <input type="tel" v-model="user.phone" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Số CMND/CCCD</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
                                     <input type="text" v-model="user.identityNumber" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Ngày sinh</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Birth Date</label>
                                     <input type="date" v-model="user.birthdate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
                                     <input type="text" v-model="user.address" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
                                 </div>
                             </div>
 
                             <div class="flex justify-end">
-                                <Button @click="updateProfile" :disabled="isUpdatingProfile" :loading="isUpdatingProfile" label="Cập nhật thông tin" />
+                                <Button @click="updateProfile" :disabled="isUpdatingProfile" :loading="isUpdatingProfile" label="Update Profile" />
                             </div>
                         </div>
 
@@ -312,32 +395,32 @@ const viewBookingDetails = (bookingId) => {
 
                     <!-- Tab Đổi mật khẩu -->
                     <div v-if="activeTab === 'password'" class="max-w-xl mx-auto">
-                        <h2 class="text-xl font-semibold mb-4">Đổi mật khẩu</h2>
+                        <h2 class="text-xl font-semibold mb-4">Change Password</h2>
 
-                        <div class="bg-green-50 text-green-700 px-4 py-3 rounded mb-4" v-if="passwordUpdateSuccess"><i class="pi pi-check-circle mr-2"></i> Đổi mật khẩu thành công!</div>
+                        <div class="bg-green-50 text-green-700 px-4 py-3 rounded mb-4" v-if="passwordUpdateSuccess"><i class="pi pi-check-circle mr-2"></i> Password updated successfully!</div>
 
                         <div class="space-y-4 mb-6">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu hiện tại</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
                                 <input type="password" v-model="passwords.current" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
                                 <p v-if="passwordErrors.current" class="mt-1 text-sm text-red-600">{{ passwordErrors.current }}</p>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
                                 <input type="password" v-model="passwords.new" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
                                 <p v-if="passwordErrors.new" class="mt-1 text-sm text-red-600">{{ passwordErrors.new }}</p>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nhập lại mật khẩu mới</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
                                 <input type="password" v-model="passwords.confirm" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
                                 <p v-if="passwordErrors.confirm" class="mt-1 text-sm text-red-600">{{ passwordErrors.confirm }}</p>
                             </div>
                         </div>
 
                         <div class="flex justify-end">
-                            <Button @click="updatePassword" :disabled="isUpdatingPassword" :loading="isUpdatingPassword" label="Cập nhật mật khẩu" />
+                            <Button @click="updatePassword" :disabled="isUpdatingPassword" :loading="isUpdatingPassword" label="Update Password" />
                         </div>
                     </div>
                 </div>

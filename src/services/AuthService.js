@@ -189,11 +189,14 @@ class AuthService {
             }
 
             const data = await response.json();
+            console.log('Login response:', data);
 
-            // Lưu token vào localStorage
+            // Lưu token và thông tin người dùng vào localStorage
             const userInfo = {
                 id: data.userId,
                 username: username,
+                name: data.name || data.fullName || username, // Lưu tên người dùng nếu API trả về
+                email: data.email || '',
                 accessToken: data.accessToken,
                 token: data.token,
                 role: data.role
@@ -225,11 +228,16 @@ class AuthService {
      */
     async getCurrentUserProfile() {
         const userInfo = this.getCurrentUser();
-        if (!userInfo) return null;
+        if (!userInfo || !userInfo.accessToken) {
+            console.error('No user token found for getCurrentUserProfile');
+            return null;
+        }
 
         try {
+            console.log('Fetching user profile with token:', userInfo.accessToken);
+
             const response = await fetch(`${API_URL}/user`, {
-                method: 'GET',
+                method: 'POST',
                 headers: {
                     Authorization: `Bearer ${userInfo.accessToken}`,
                     'Content-Type': 'application/json'
@@ -237,13 +245,28 @@ class AuthService {
             });
 
             if (!response.ok) {
+                console.error('Failed to get user profile, status:', response.status);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
                 throw new Error('Failed to get user profile');
             }
 
-            return await response.json();
+            const userData = await response.json();
+            console.log('User profile received:', userData);
+
+            // Cập nhật thông tin trong localStorage
+            const updatedUserInfo = {
+                ...userInfo,
+                name: userData.name || userData.fullName,
+                email: userData.email
+            };
+
+            localStorage.setItem(TOKEN_KEY_USER, JSON.stringify(updatedUserInfo));
+
+            return userData;
         } catch (error) {
             console.error('Get user profile error:', error);
-            return null;
+            throw error;
         }
     }
 
@@ -389,21 +412,35 @@ class AuthService {
     /**
      * Đăng xuất client
      */
-    logoutClient() {
+    async logoutClient() {
         const user = this.getCurrentUser();
         if (user && user.accessToken) {
-            // Gọi API đăng xuất
-            fetch(`${API_URL}/logout`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${user.accessToken}`
+            try {
+                // Gọi API đăng xuất
+                const response = await fetch(`${API_URL}/logout`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${user.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    console.warn('Logout API call failed, but proceeding with local logout');
                 }
-            }).catch((error) => {
+            } catch (error) {
                 console.error('Logout error:', error);
-            });
+                // Tiếp tục xóa dữ liệu người dùng dù có lỗi
+            }
         }
 
+        // Xóa thông tin người dùng khỏi localStorage
         localStorage.removeItem(TOKEN_KEY_USER);
+
+        // Gửi event để thông báo đã logout
+        window.dispatchEvent(new CustomEvent('user-logged-out'));
+
+        return true;
     }
 
     /**
@@ -468,6 +505,91 @@ class AuthService {
             console.error('Refresh token error:', error);
             this.logoutClient();
             return false;
+        }
+    }
+
+    /**
+     * Cập nhật thông tin hồ sơ người dùng
+     * @param {object} userData - Thông tin người dùng cần cập nhật
+     * @returns {Promise<object>} - Thông tin người dùng đã cập nhật
+     */
+    async updateUserProfile(userData) {
+        const user = this.getCurrentUser();
+        if (!user || !user.accessToken) {
+            throw new Error('User not authenticated');
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/user/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${user.accessToken}`
+                },
+                body: JSON.stringify(userData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to update profile');
+            }
+
+            const data = await response.json();
+
+            // Cập nhật thông tin user trong localStorage
+            const updatedUser = {
+                ...user,
+                name: userData.fullName || user.name,
+                phone: userData.phone || user.phone
+                // Không cập nhật email vì đó là thông tin đăng nhập không thay đổi
+            };
+
+            localStorage.setItem(TOKEN_KEY_USER, JSON.stringify(updatedUser));
+
+            // Dispatch event thông báo user profile đã được cập nhật
+            window.dispatchEvent(new CustomEvent('update-user-profile'));
+
+            return data;
+        } catch (error) {
+            console.error('Update profile error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Thay đổi mật khẩu người dùng
+     * @param {string} currentPassword - Mật khẩu hiện tại
+     * @param {string} newPassword - Mật khẩu mới
+     * @returns {Promise<object>} - Kết quả thay đổi mật khẩu
+     */
+    async changePassword(currentPassword, newPassword) {
+        const user = this.getCurrentUser();
+        if (!user || !user.accessToken) {
+            throw new Error('User not authenticated');
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/user/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${user.accessToken}`
+                },
+                body: JSON.stringify({
+                    currentPassword,
+                    newPassword
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to change password');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Change password error:', error);
+            throw error;
         }
     }
 }

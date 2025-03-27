@@ -91,13 +91,23 @@ useHead(() => ({
     ]
 }));
 
-onMounted(() => {
-    // Kiểm tra nếu người dùng đã đăng nhập
-    updateCurrentUser();
+onMounted(async () => {
+    // Kiểm tra nếu người dùng đã đăng nhập và lấy thông tin
+    await updateCurrentUser();
 
     // Lắng nghe sự kiện hiển thị dialog đăng nhập
     window.addEventListener('show-login-dialog', () => {
         showLoginModal.value = true;
+    });
+
+    // Lắng nghe sự kiện cập nhật profile
+    window.addEventListener('update-user-profile', async () => {
+        await updateCurrentUser();
+    });
+
+    // Lắng nghe sự kiện đăng xuất
+    window.addEventListener('user-logged-out', () => {
+        currentUser.value = null;
     });
 });
 
@@ -134,12 +144,16 @@ const openLoginModal = () => {
     showLoginModal.value = true;
 };
 
-const handleLoginSuccess = (user) => {
-    currentUser.value = user;
+const handleLoginSuccess = async (user) => {
+    console.log('Login success with user:', user);
+
+    // Lấy thông tin người dùng đầy đủ từ API
+    await updateCurrentUser();
+
     toast.add({
         severity: 'success',
-        summary: 'Đăng nhập thành công',
-        detail: `Chào mừng ${user.name || 'bạn'} đã quay trở lại!`,
+        summary: 'Login Successful',
+        detail: `Welcome back ${currentUser.value?.name || currentUser.value?.username || 'User'}!`,
         life: 3000
     });
 
@@ -176,15 +190,15 @@ const handleForgotPasswordSuccess = () => {
     forgotPasswordModalVisible.value = false;
 };
 
-const handleLogout = () => {
-    AuthService.logoutClient();
+const handleLogout = async () => {
+    await AuthService.logoutClient();
     currentUser.value = null;
     userMenuVisible.value = false;
 
     toast.add({
         severity: 'info',
-        summary: 'Đăng xuất thành công',
-        detail: 'Bạn đã đăng xuất khỏi tài khoản',
+        summary: 'Logout Successful',
+        detail: 'You have been logged out',
         life: 3000
     });
 
@@ -204,8 +218,27 @@ const closeUserMenu = () => {
 };
 
 // Cập nhật thông tin người dùng hiện tại
-const updateCurrentUser = () => {
-    currentUser.value = AuthService.getCurrentUser();
+const updateCurrentUser = async () => {
+    // Kiểm tra xem có token không trước khi gọi API
+    if (AuthService.isClientAuthenticated()) {
+        try {
+            // Lấy thông tin người dùng từ API
+            const userProfile = await AuthService.getCurrentUserProfile();
+            if (userProfile) {
+                currentUser.value = userProfile;
+                console.log('User profile loaded:', userProfile);
+            } else {
+                console.error('User profile returned null');
+                currentUser.value = AuthService.getCurrentUser();
+            }
+        } catch (error) {
+            console.error('Error fetching user profile:', error);
+            // Nếu có lỗi, sử dụng thông tin từ local storage
+            currentUser.value = AuthService.getCurrentUser();
+        }
+    } else {
+        currentUser.value = null;
+    }
 };
 
 // Quên mật khẩu
@@ -245,13 +278,20 @@ const isLoggedIn = computed(() => {
 });
 
 const userName = computed(() => {
-    const user = currentUser.value || AuthService.getCurrentUser();
-    return user ? user.name || 'Người dùng' : 'Người dùng';
+    if (currentUser.value) {
+        return currentUser.value.name || currentUser.value.fullName || currentUser.value.username || 'User';
+    }
+
+    // Backup: lấy từ localStorage nếu currentUser.value là null
+    const storedUser = AuthService.getCurrentUser();
+    return storedUser?.name || storedUser?.username || 'User';
 });
 
 const userAvatar = computed(() => {
-    const user = currentUser.value || AuthService.getCurrentUser();
-    return user && user.avatar ? user.avatar : 'https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/top-36-anh-dai-dien-dep-cho-nu/anh-dai-dien-dep-cho-nu-che-mat-anime.jpg?1708401649581';
+    if (currentUser.value?.avatar) {
+        return currentUser.value.avatar;
+    }
+    return 'https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/top-36-anh-dai-dien-dep-cho-nu/anh-dai-dien-dep-cho-nu-che-mat-anime.jpg?1708401649581';
 });
 
 // Provide các giá trị và phương thức để các component con có thể truy cập

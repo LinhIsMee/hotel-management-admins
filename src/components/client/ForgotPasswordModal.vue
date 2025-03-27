@@ -1,10 +1,10 @@
 <script setup>
 import AuthService from '@/services/AuthService';
-import { ref, watch } from 'vue';
-import { useToast } from 'primevue/usetoast';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
+import { useToast } from 'primevue/usetoast';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
     modelValue: {
@@ -42,13 +42,13 @@ const sendRequest = async () => {
     loading.value = true;
 
     try {
-        // Giả lập API
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Sử dụng AuthService.requestPasswordReset để gọi API
+        const result = await AuthService.requestPasswordReset(email.value);
 
         toast.add({
             severity: 'success',
-            summary: 'Yêu cầu đã được gửi',
-            detail: 'Vui lòng kiểm tra email của bạn để đặt lại mật khẩu',
+            summary: 'Request Sent',
+            detail: result.message || 'Password reset instructions sent to your email',
             life: 3000
         });
 
@@ -58,8 +58,8 @@ const sendRequest = async () => {
     } catch (error) {
         toast.add({
             severity: 'error',
-            summary: 'Đã xảy ra lỗi',
-            detail: 'Không thể gửi yêu cầu. Vui lòng thử lại sau.',
+            summary: 'Request Failed',
+            detail: error.message || 'Could not process your request. Please try again later.',
             life: 3000
         });
     } finally {
@@ -88,7 +88,7 @@ const login = () => {
     >
         <template #header>
             <div class="text-center w-full">
-                <h3 class="text-xl font-bold text-gray-800 m-0">Quên mật khẩu</h3>
+                <h3 class="text-xl font-bold text-gray-800 m-0">Forgot Password</h3>
             </div>
         </template>
 
@@ -96,25 +96,25 @@ const login = () => {
             <h3 class="text-lg font-semibold">
                 <span class="text-amber-600">LUXURY</span><span class="text-slate-800">HOTEL</span>
             </h3>
-            <p class="text-sm text-gray-600 mt-2">Vui lòng nhập email để nhận hướng dẫn đặt lại mật khẩu</p>
+            <p class="text-sm text-gray-600 mt-2">Please enter your email to receive password reset instructions</p>
         </div>
 
         <div class="field mb-4">
             <label for="forgot-email" class="block text-sm font-medium mb-2">Email</label>
-            <InputText id="forgot-email" v-model="email" type="email" class="w-full p-2" placeholder="Nhập email đã đăng ký" required />
-            <small v-if="isSubmitted && !email" class="p-error">Vui lòng nhập email</small>
+            <InputText id="forgot-email" v-model="email" type="email" class="w-full p-2" placeholder="Enter your registered email" required />
+            <small v-if="isSubmitted && !email" class="p-error">Email is required</small>
         </div>
 
         <div class="flex justify-between items-center mt-6">
             <Button
                 type="button"
-                label="Quay lại đăng nhập"
+                label="Back to Login"
                 class="p-button-link text-amber-600"
                 @click="login"
             />
             <Button
                 type="button"
-                label="Gửi yêu cầu"
+                label="Send Request"
                 class="bg-amber-600 hover:bg-amber-700 border-amber-600"
                 @click="sendRequest"
                 :loading="loading"
