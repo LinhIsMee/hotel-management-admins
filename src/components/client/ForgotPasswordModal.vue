@@ -47,8 +47,8 @@ const sendRequest = async () => {
 
         toast.add({
             severity: 'success',
-            summary: 'Request Sent',
-            detail: result.message || 'Password reset instructions sent to your email',
+            summary: 'Yêu cầu đã gửi',
+            detail: result.message || 'Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn',
             life: 3000
         });
 
@@ -58,8 +58,8 @@ const sendRequest = async () => {
     } catch (error) {
         toast.add({
             severity: 'error',
-            summary: 'Request Failed',
-            detail: error.message || 'Could not process your request. Please try again later.',
+            summary: 'Yêu cầu thất bại',
+            detail: error.message || 'Không thể xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
             life: 3000
         });
     } finally {

@@ -43,8 +43,8 @@ const resetPassword = async () => {
 
         toast.add({
             severity: 'success',
-            summary: 'Password Reset Successful',
-            detail: result.message || 'Your password has been reset successfully',
+            summary: 'Đặt lại mật khẩu thành công',
+            detail: result.message || 'Mật khẩu của bạn đã được đặt lại thành công',
             life: 3000
         });
 
@@ -55,8 +55,8 @@ const resetPassword = async () => {
     } catch (error) {
         toast.add({
             severity: 'error',
-            summary: 'Reset Failed',
-            detail: error.message || 'An error occurred during password reset',
+            summary: 'Đặt lại mật khẩu thất bại',
+            detail: error.message || 'Đã xảy ra lỗi trong quá trình đặt lại mật khẩu',
             life: 3000
         });
     } finally {

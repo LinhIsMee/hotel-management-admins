@@ -71,8 +71,8 @@ const login = async () => {
 
         toast.add({
             severity: 'success',
-            summary: 'Login Successful',
-            detail: `Welcome back!`,
+            summary: 'Đăng nhập thành công',
+            detail: `Chào mừng bạn quay trở lại!`,
             life: 3000
         });
 
@@ -87,8 +87,8 @@ const login = async () => {
     } catch (error) {
         toast.add({
             severity: 'error',
-            summary: 'Login Failed',
-            detail: error.message || 'An error occurred during login',
+            summary: 'Đăng nhập thất bại',
+            detail: error.message || 'Đã xảy ra lỗi trong quá trình đăng nhập',
             life: 3000
         });
     } finally {

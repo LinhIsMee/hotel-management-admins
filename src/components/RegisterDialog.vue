@@ -92,8 +92,8 @@ const register = async () => {
 
         toast.add({
             severity: 'success',
-            summary: 'Registration Successful',
-            detail: 'Your account has been created successfully',
+            summary: 'Đăng ký thành công',
+            detail: 'Tài khoản của bạn đã được tạo thành công',
             life: 3000
         });
 
@@ -107,8 +107,8 @@ const register = async () => {
         console.error('Registration error:', error);
         toast.add({
             severity: 'error',
-            summary: 'Registration Failed',
-            detail: error.message || 'An error occurred during registration. Please try again.',
+            summary: 'Đăng ký thất bại',
+            detail: error.message || 'Đã xảy ra lỗi trong quá trình đăng ký. Vui lòng thử lại.',
             life: 3000
         });
     } finally {

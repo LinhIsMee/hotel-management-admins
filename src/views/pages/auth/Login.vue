@@ -1,5 +1,5 @@
 <script setup>
-import AuthService, { TOKEN_KEY_ADMIN } from '@/services/AuthService';
+import AuthService from '@/services/AuthService';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
 import InputText from 'primevue/inputtext';
@@ -36,8 +36,8 @@ const login = async () => {
     if (!username.value || !password.value) {
         toast.add({
             severity: 'error',
-            summary: 'Error',
-            detail: 'Please enter username and password',
+            summary: 'Lỗi',
+            detail: 'Vui lòng nhập tên đăng nhập và mật khẩu',
             life: 3000
         });
         return;
@@ -60,8 +60,8 @@ const login = async () => {
 
             toast.add({
                 severity: 'success',
-                summary: 'Login Successful',
-                detail: 'Welcome to the administration system',
+                summary: 'Đăng nhập thành công',
+                detail: 'Chào mừng bạn đến với hệ thống quản trị',
                 life: 3000
             });
 
@@ -69,19 +69,19 @@ const login = async () => {
             const redirectPath = route.query.redirect || '/admin/dashboard';
             router.push(redirectPath);
         } else {
-            errorMessage.value = 'Login failed. Please check your credentials or permissions.';
+            errorMessage.value = 'Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập hoặc quyền truy cập.';
             toast.add({
                 severity: 'error',
-                summary: 'Login Failed',
-                detail: 'Username or password is incorrect, or you do not have admin privileges',
+                summary: 'Đăng nhập thất bại',
+                detail: 'Tên đăng nhập hoặc mật khẩu không chính xác, hoặc bạn không có quyền quản trị',
                 life: 3000
             });
         }
     } catch (error) {
-        errorMessage.value = error.message || 'An error occurred during login';
+        errorMessage.value = error.message || 'Đã xảy ra lỗi trong quá trình đăng nhập';
         toast.add({
             severity: 'error',
-            summary: 'Login Failed',
+            summary: 'Đăng nhập thất bại',
             detail: errorMessage.value,
             life: 3000
         });

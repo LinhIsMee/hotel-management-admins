@@ -61,8 +61,8 @@ const register = async () => {
         if (result) {
             toast.add({
                 severity: 'success',
-                summary: 'Registration Successful',
-                detail: 'Your account has been created successfully',
+                summary: 'Đăng ký thành công',
+                detail: 'Tài khoản của bạn đã được tạo thành công',
                 life: 3000
             });
 
@@ -72,10 +72,10 @@ const register = async () => {
                 query: { type: 'register' }
             });
         } else {
-            errorMessage.value = 'Registration failed. Please try again.';
+            errorMessage.value = 'Đăng ký thất bại. Vui lòng thử lại.';
         }
     } catch (error) {
-        errorMessage.value = error.message || 'An error occurred. Please try again later.';
+        errorMessage.value = error.message || 'Đã xảy ra lỗi. Vui lòng thử lại sau.';
     } finally {
         isSubmitting.value = false;
     }
