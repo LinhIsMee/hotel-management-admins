@@ -152,8 +152,8 @@ const handleLoginSuccess = async (user) => {
 
     toast.add({
         severity: 'success',
-        summary: 'Login Successful',
-        detail: `Welcome back ${currentUser.value?.name || currentUser.value?.username || 'User'}!`,
+        summary: 'Đăng nhập thành công',
+        detail: 'Chào mừng bạn quay trở lại!',
         life: 3000
     });
 
@@ -168,7 +168,7 @@ const handleRegisterSuccess = () => {
     toast.add({
         severity: 'success',
         summary: 'Đăng ký thành công',
-        detail: 'Vui lòng đăng nhập với tài khoản mới của bạn',
+        detail: 'Tài khoản của bạn đã được tạo thành công. Vui lòng đăng nhập để tiếp tục.',
         life: 3000
     });
 
@@ -176,14 +176,14 @@ const handleRegisterSuccess = () => {
 
     setTimeout(() => {
         showLoginModal.value = true;
-    }, 300);
+    }, 500);
 };
 
 const handleForgotPasswordSuccess = () => {
     toast.add({
-        severity: 'success',
-        summary: 'Yêu cầu đã được gửi',
-        detail: 'Vui lòng kiểm tra email của bạn để đặt lại mật khẩu',
+        severity: 'info',
+        summary: 'Yêu cầu đã gửi',
+        detail: 'Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn.',
         life: 3000
     });
 
@@ -197,8 +197,8 @@ const handleLogout = async () => {
 
     toast.add({
         severity: 'info',
-        summary: 'Logout Successful',
-        detail: 'You have been logged out',
+        summary: 'Đăng xuất thành công',
+        detail: 'Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi.',
         life: 3000
     });
 

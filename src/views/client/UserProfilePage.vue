@@ -81,8 +81,8 @@ onMounted(async () => {
         console.error('Error fetching user profile in profile page:', error);
         toast.add({
             severity: 'error',
-            summary: 'Error Loading Profile',
-            detail: 'Could not load your profile information. Please try again later.',
+            summary: 'Lỗi tải dữ liệu',
+            detail: 'Không thể tải thông tin người dùng. Vui lòng thử lại sau.',
             life: 3000
         });
     } finally {
@@ -160,8 +160,8 @@ const updateProfile = async () => {
         // Hiển thị thông báo thành công
         toast.add({
             severity: 'success',
-            summary: 'Profile Updated',
-            detail: 'Your profile has been updated successfully',
+            summary: 'Cập nhật thành công',
+            detail: 'Thông tin cá nhân của bạn đã được cập nhật',
             life: 3000
         });
 
@@ -172,8 +172,8 @@ const updateProfile = async () => {
     } catch (error) {
         toast.add({
             severity: 'error',
-            summary: 'Update Failed',
-            detail: error.message || 'An error occurred while updating your profile',
+            summary: 'Cập nhật thất bại',
+            detail: error.message || 'Không thể cập nhật thông tin cá nhân. Vui lòng thử lại sau.',
             life: 3000
         });
     } finally {
@@ -220,8 +220,8 @@ const updatePassword = async () => {
         // Hiển thị thông báo thành công
         toast.add({
             severity: 'success',
-            summary: 'Password Updated',
-            detail: 'Your password has been changed successfully',
+            summary: 'Đổi mật khẩu thành công',
+            detail: 'Mật khẩu của bạn đã được cập nhật',
             life: 3000
         });
 
@@ -232,8 +232,8 @@ const updatePassword = async () => {
     } catch (error) {
         toast.add({
             severity: 'error',
-            summary: 'Password Update Failed',
-            detail: error.message || 'An error occurred while updating your password',
+            summary: 'Đổi mật khẩu thất bại',
+            detail: error.message || 'Không thể đổi mật khẩu. Vui lòng thử lại sau.',
             life: 3000
         });
     } finally {
