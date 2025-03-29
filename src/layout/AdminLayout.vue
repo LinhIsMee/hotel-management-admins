@@ -156,7 +156,7 @@ watch(
 
 .layout-main {
     flex: 1 1 auto;
-    padding: 2rem;
+    /* padding: 2rem; */
 }
 
 .layout-topbar-button {
