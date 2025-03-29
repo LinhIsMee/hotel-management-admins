@@ -126,6 +126,32 @@ onMounted(() => {
     fetchData();
 });
 
+// Khởi tạo dữ liệu loại phòng từ file JSON
+const initRoomTypes = async () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types/init`, {
+            method: 'POST',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`Lỗi khi khởi tạo dữ liệu loại phòng: ${response.statusText} (${response.status})`);
+        }
+
+        const result = await response.text();
+        toast.add({ severity: 'success', summary: 'Thành công', detail: result, life: 3000 });
+
+        // Tải lại dữ liệu sau khi khởi tạo
+        fetchData();
+    } catch (error) {
+        console.error('Lỗi khi khởi tạo dữ liệu:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+    }
+};
+
 const openNew = () => {
     roomType.value = {
         isActive: true,
@@ -344,6 +370,7 @@ const getSeverity = (status) => {
                     <div class="my-2">
                         <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
                         <Button label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedRoomTypes || !selectedRoomTypes.length" />
+                        <Button label="Khởi tạo dữ liệu mẫu" icon="pi pi-sync" severity="help" @click="initRoomTypes" />
                     </div>
                 </template>
 
