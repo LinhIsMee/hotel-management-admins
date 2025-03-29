@@ -15,6 +15,7 @@ import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 import { onMounted, ref } from 'vue';
+import { useToast } from 'primevue/usetoast';
 
 // Khai báo biến
 const rooms = ref([]);
@@ -29,19 +30,17 @@ const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 const submitted = ref(false);
+const toast = useToast();
+
+// Định nghĩa địa chỉ cơ sở của API backend
+const API_BASE_URL = 'http://localhost:9000';
 
 // Trạng thái và sạch sẽ
 const statuses = ref([
     { label: 'Trống', value: 'VACANT' },
-    { label: 'Đã đặt', value: 'BOOKED' },
-    { label: 'Đang sử dụng', value: 'OCCUPIED' },
-    { label: 'Bảo trì', value: 'MAINTENANCE' }
-]);
-
-const cleanStatuses = ref([
-    { label: 'Cần dọn dẹp', value: 'NEEDS_CLEANING' },
-    { label: 'Đang dọn dẹp', value: 'CLEANING' },
-    { label: 'Đã dọn dẹp', value: 'CLEANED' }
+    { label: 'Đang có khách', value: 'OCCUPIED' },
+    { label: 'Bảo trì', value: 'MAINTENANCE' },
+    { label: 'Đang dọn dẹp', value: 'CLEANING' }
 ]);
 
 // Đặc điểm đặc biệt có sẵn
@@ -57,19 +56,118 @@ const availableSpecialFeatures = ref([
     { name: 'Bồn tắm spa', value: 'Bồn tắm spa' }
 ]);
 
-// Lấy dữ liệu từ file JSON
+// Hàm helper lấy token từ localStorage
+const getAuthToken = () => {
+    try {
+        // Lấy dữ liệu từ admin_token trong localStorage
+        const adminTokenData = localStorage.getItem('admin_token');
+
+        if (!adminTokenData) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi xác thực',
+                detail: 'Không tìm thấy token đăng nhập, vui lòng đăng nhập lại',
+                life: 3000
+            });
+            return null;
+        }
+
+        // Parse chuỗi JSON
+        const adminTokenObj = JSON.parse(adminTokenData);
+
+        // Lấy accessToken từ object
+        const accessToken = adminTokenObj.accessToken;
+
+        if (!accessToken) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi xác thực',
+                detail: 'Token không hợp lệ, vui lòng đăng nhập lại',
+                life: 3000
+            });
+            return null;
+        }
+
+        return accessToken;
+    } catch (error) {
+        console.error('Lỗi khi lấy token:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi xác thực',
+            detail: 'Có lỗi xảy ra khi xác thực, vui lòng đăng nhập lại',
+            life: 3000
+        });
+        return null;
+    }
+};
+
+// Thêm hàm helper để tạo header xác thực
+const getAuthHeaders = (contentType = false) => {
+    const token = getAuthToken();
+    if (!token) return null;
+
+    const headers = {
+        Authorization: `Bearer ${token}`
+    };
+
+    if (contentType) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    return headers;
+};
+
+// Lấy danh sách loại phòng từ API
+const fetchRoomTypes = async () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types`, {
+            headers: headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`Lỗi khi tải dữ liệu loại phòng: ${response.statusText} (${response.status})`);
+        }
+
+        const data = await response.json();
+        roomTypes.value = Array.isArray(data) ? data : [];
+    } catch (error) {
+        console.error('Lỗi khi tải dữ liệu loại phòng:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Không thể tải danh sách loại phòng', life: 3000 });
+        roomTypes.value = [];
+    }
+};
+
+// Lấy dữ liệu phòng từ API
 const fetchData = async () => {
     try {
         loading.value = true;
-        const [roomsResponse, roomTypesResponse] = await Promise.all([fetch('/demo/data/rooms.json'), fetch('/demo/data/room-types.json')]);
+        const headers = getAuthHeaders();
+        if (!headers) {
+            loading.value = false;
+            return;
+        }
 
-        const roomsData = await roomsResponse.json();
-        const roomTypesData = await roomTypesResponse.json();
+        // Tải loại phòng và phòng cùng lúc
+        await Promise.all([
+            fetchRoomTypes(),
+            fetch(`${API_BASE_URL}/api/v1/admin/rooms`, {
+                headers: headers
+            }).then(async (response) => {
+                if (!response.ok) {
+                    throw new Error(`Lỗi khi tải dữ liệu phòng: ${response.statusText} (${response.status})`);
+                }
 
-        rooms.value = roomsData.data;
-        roomTypes.value = roomTypesData.data;
+                const data = await response.json();
+                rooms.value = Array.isArray(data) ? data : [];
+            })
+        ]);
     } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Lỗi khi tải dữ liệu phòng:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Không thể tải danh sách phòng', life: 3000 });
+        rooms.value = [];
     } finally {
         loading.value = false;
     }
@@ -83,13 +181,14 @@ onMounted(() => {
 // Mở dialog thêm mới
 const openNew = () => {
     room.value = {
+        roomNumber: '',
+        roomTypeId: null,
         status: 'VACANT',
-        cleanStatus: 'CLEANED',
+        floor: '1',
         isActive: true,
-        floor: 1,
-        specialFeatures: [],
-        maxOccupancy: 1,
-        pricePerNight: 500000
+        notes: '',
+        pricePerNight: 500000,
+        specialFeatures: []
     };
     submitted.value = false;
     roomDialog.value = true;
@@ -103,69 +202,194 @@ const hideDialog = () => {
 };
 
 // Lưu phòng
-const saveRoom = () => {
+const saveRoom = async () => {
     submitted.value = true;
 
     if (!room.value.roomNumber?.trim() || !room.value.roomTypeId) {
+        toast.add({ severity: 'warn', summary: 'Thiếu thông tin', detail: 'Vui lòng điền đầy đủ các trường bắt buộc', life: 3000 });
         return;
     }
 
-    const roomData = { ...room.value };
+    try {
+        let url;
+        let method;
+        let body;
 
-    if (roomData.id) {
-        // Cập nhật phòng
-        const index = rooms.value.findIndex((r) => r.id === roomData.id);
-        if (index !== -1) {
-            rooms.value[index] = roomData;
+        if (room.value.id) {
+            // Cập nhật phòng hiện có
+            url = `${API_BASE_URL}/api/v1/admin/rooms/${room.value.id}`;
+            method = 'PUT';
+        } else {
+            // Tạo phòng mới
+            url = `${API_BASE_URL}/api/v1/admin/rooms`;
+            method = 'POST';
         }
-    } else {
-        // Thêm mới phòng
-        roomData.id = rooms.value.length ? Math.max(...rooms.value.map((r) => r.id)) + 1 : 1;
-        roomData.createdAt = new Date().toISOString().split('T')[0];
-        roomData.lastCleaningDate = roomData.lastCleaningDate || new Date().toISOString().split('T')[0];
-        rooms.value.push(roomData);
-    }
 
-    roomDialog.value = false;
-    room.value = {};
+        // Chuẩn bị dữ liệu gửi đi
+        body = JSON.stringify({
+            roomNumber: room.value.roomNumber,
+            roomTypeId: room.value.roomTypeId,
+            status: room.value.status,
+            floor: room.value.floor,
+            isActive: room.value.isActive,
+            notes: room.value.notes,
+            specialFeatures: room.value.specialFeatures
+        });
+
+        const headers = getAuthHeaders(true);
+        if (!headers) return;
+
+        const response = await fetch(url, {
+            method: method,
+            headers: headers,
+            body: body
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('Server response:', errorData);
+            throw new Error(`Lỗi khi ${room.value.id ? 'cập nhật' : 'tạo'} phòng: ${response.statusText} (${response.status})`);
+        }
+
+        const result = await response.json();
+
+        if (room.value.id) {
+            // Cập nhật phòng trong danh sách
+            const index = findIndexById(room.value.id);
+            if (index !== -1) {
+                rooms.value[index] = result;
+            }
+            toast.add({ severity: 'success', summary: 'Thành công', detail: 'Cập nhật phòng thành công', life: 3000 });
+        } else {
+            // Thêm phòng mới vào danh sách
+            rooms.value.push(result);
+            toast.add({ severity: 'success', summary: 'Thành công', detail: 'Thêm phòng thành công', life: 3000 });
+        }
+
+        roomDialog.value = false;
+        room.value = {};
+    } catch (error) {
+        console.error('Lỗi khi lưu dữ liệu phòng:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+    }
 };
 
 // Chỉnh sửa phòng
-const editRoom = (editRoom) => {
-    room.value = { ...editRoom };
-    roomDialog.value = true;
+const editRoom = async (editRoom) => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/admin/rooms/${editRoom.id}`, {
+            headers: headers
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('Server response:', errorData);
+            throw new Error(`Không thể tải thông tin phòng: ${response.statusText} (${response.status})`);
+        }
+
+        room.value = await response.json();
+        roomDialog.value = true;
+    } catch (error) {
+        console.error('Lỗi khi tải thông tin phòng:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+    }
 };
 
-// Xóa phòng
+// Xác nhận xóa phòng
 const confirmDeleteRoom = (editRoom) => {
     room.value = editRoom;
     deleteRoomDialog.value = true;
 };
 
-const deleteRoom = () => {
-    rooms.value = rooms.value.filter((val) => val.id !== room.value.id);
-    deleteRoomDialog.value = false;
-    room.value = {};
+// Xóa phòng
+const deleteRoom = async () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/admin/rooms/${room.value.id}`, {
+            method: 'DELETE',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('Server response:', errorData);
+            throw new Error(`Không thể xóa phòng: ${response.statusText} (${response.status})`);
+        }
+
+        // Cập nhật danh sách phòng sau khi xóa
+        rooms.value = rooms.value.filter((val) => val.id !== room.value.id);
+        deleteRoomDialog.value = false;
+        room.value = {};
+        toast.add({ severity: 'success', summary: 'Thành công', detail: 'Xóa phòng thành công', life: 3000 });
+    } catch (error) {
+        console.error('Lỗi khi xóa phòng:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+    }
 };
 
-// Xóa nhiều phòng
+// Xác nhận xóa nhiều phòng
 const confirmDeleteSelected = () => {
     if (selectedRooms.value?.length) {
         deleteRoomsDialog.value = true;
     }
 };
 
-const deleteSelectedRooms = () => {
-    rooms.value = rooms.value.filter((val) => !selectedRooms.value.some((sr) => sr.id === val.id));
-    deleteRoomsDialog.value = false;
-    selectedRooms.value = null;
+// Xóa nhiều phòng
+const deleteSelectedRooms = async () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const deletePromises = selectedRooms.value.map((roomToDelete) =>
+            fetch(`${API_BASE_URL}/api/v1/admin/rooms/${roomToDelete.id}`, {
+                method: 'DELETE',
+                headers: headers
+            }).then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Lỗi khi xóa phòng ID ${roomToDelete.id}: ${response.statusText}`);
+                }
+                return response;
+            })
+        );
+
+        await Promise.all(deletePromises);
+
+        rooms.value = rooms.value.filter((val) => !selectedRooms.value.some((r) => r.id === val.id));
+        deleteRoomsDialog.value = false;
+        selectedRooms.value = null;
+        toast.add({ severity: 'success', summary: 'Thành công', detail: `Xóa ${deletePromises.length} phòng thành công`, life: 3000 });
+    } catch (error) {
+        console.error('Lỗi khi xóa nhiều phòng:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Có lỗi xảy ra khi xóa phòng', life: 3000 });
+    }
+};
+
+// Tìm index của phòng theo ID
+const findIndexById = (id) => {
+    let index = -1;
+    for (let i = 0; i < rooms.value.length; i++) {
+        if (rooms.value[i].id === id) {
+            index = i;
+            break;
+        }
+    }
+    return index;
 };
 
 // Format helpers
 const formatDate = (value) => {
     if (value) {
         const date = new Date(value);
-        return date.toLocaleDateString('vi-VN');
+        return new Intl.DateTimeFormat('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(date);
     }
     return '';
 };
@@ -175,30 +399,27 @@ const formatCurrency = (value) => {
 };
 
 const getRoomTypeName = (roomTypeId) => {
-    return roomTypes.value.find((rt) => rt.id === roomTypeId)?.name || '';
+    const roomType = roomTypes.value.find((rt) => rt.id === roomTypeId);
+    return roomType ? roomType.name : '';
 };
 
 const getStatusSeverity = (status) => {
     const statusMap = {
         VACANT: 'success',
-        BOOKED: 'info',
         OCCUPIED: 'warning',
-        MAINTENANCE: 'danger'
+        MAINTENANCE: 'danger',
+        CLEANING: 'info'
     };
     return statusMap[status] || null;
 };
 
-const getCleanStatusSeverity = (status) => {
-    const cleanStatusMap = {
-        CLEANED: 'success',
-        CLEANING: 'warning',
-        NEEDS_CLEANING: 'danger'
-    };
-    return cleanStatusMap[status] || null;
+const getStatusLabel = (status) => {
+    return statuses.value.find((s) => s.value === status)?.label || status;
 };
 
 const formatSpecialFeatures = (features) => {
-    return features?.length ? features.join(', ') : 'Không có';
+    if (!features) return 'Không có';
+    return Array.isArray(features) && features.length > 0 ? features.join(', ') : 'Không có';
 };
 </script>
 
@@ -217,67 +438,79 @@ const formatSpecialFeatures = (features) => {
             </template>
         </Toolbar>
 
-        <DataTable
-            :value="rooms"
-            v-model:selection="selectedRooms"
-            dataKey="id"
-            :paginator="true"
-            :rows="10"
-            :loading="loading"
-            :filters="filters"
-            :rowsPerPageOptions="[5, 10, 25]"
-            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-            currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} phòng"
-        >
-            <template #empty>Không có dữ liệu</template>
-            <template #loading>Đang tải dữ liệu...</template>
+        <div v-if="loading" class="text-center py-4">
+            <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+            <div class="mt-2">Đang tải dữ liệu...</div>
+        </div>
 
-            <Column selectionMode="multiple" style="width: 3rem" />
-            <Column field="roomNumber" header="Số phòng" sortable />
-            <Column field="floor" header="Tầng" sortable />
-            <Column field="roomTypeId" header="Loại phòng" sortable>
-                <template #body="{ data }">
-                    {{ getRoomTypeName(data.roomTypeId) }}
-                </template>
-            </Column>
-            <Column field="status" header="Trạng thái" sortable>
-                <template #body="{ data }">
-                    <Tag :value="statuses.find((s) => s.value === data.status)?.label" :severity="getStatusSeverity(data.status)" />
-                </template>
-            </Column>
-            <Column field="cleanStatus" header="Trạng thái dọn dẹp" sortable>
-                <template #body="{ data }">
-                    <Tag :value="cleanStatuses.find((cs) => cs.value === data.cleanStatus)?.label" :severity="getCleanStatusSeverity(data.cleanStatus)" />
-                </template>
-            </Column>
-            <Column field="pricePerNight" header="Giá/đêm" sortable>
-                <template #body="{ data }">
-                    {{ formatCurrency(data.pricePerNight) }}
-                </template>
-            </Column>
-            <Column field="maxOccupancy" header="Sức chứa" sortable />
-            <Column field="specialFeatures" header="Đặc điểm">
-                <template #body="{ data }">
-                    {{ formatSpecialFeatures(data.specialFeatures) }}
-                </template>
-            </Column>
-            <Column field="lastCleaningDate" header="Ngày dọn dẹp" sortable>
-                <template #body="{ data }">
-                    {{ formatDate(data.lastCleaningDate) }}
-                </template>
-            </Column>
-            <Column field="isActive" header="Hoạt động" sortable>
-                <template #body="{ data }">
-                    <i :class="['pi', data.isActive ? 'pi-check' : 'pi-times']" />
-                </template>
-            </Column>
-            <Column style="width: 8rem">
-                <template #body="{ data }">
-                    <Button icon="pi pi-pencil" class="mr-2" @click="editRoom(data)" />
-                    <Button icon="pi pi-trash" severity="danger" @click="confirmDeleteRoom(data)" />
-                </template>
-            </Column>
-        </DataTable>
+        <div v-else>
+            <div v-if="rooms.length === 0" class="text-center py-4">Không có phòng nào được tìm thấy.</div>
+            <div v-else>
+                <div class="text-sm mb-2">Tổng số: {{ rooms.length }} phòng</div>
+
+                <DataTable
+                    :value="rooms"
+                    v-model:selection="selectedRooms"
+                    dataKey="id"
+                    :paginator="true"
+                    :rows="10"
+                    :filters="filters"
+                    :rowsPerPageOptions="[5, 10, 25]"
+                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
+                    currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} phòng"
+                    class="p-datatable-sm"
+                >
+                    <template #empty>Không có dữ liệu</template>
+                    <template #loading>Đang tải dữ liệu...</template>
+
+                    <Column selectionMode="multiple" style="width: 3rem" />
+                    <Column field="id" header="ID" sortable />
+                    <Column field="roomNumber" header="Số phòng" sortable />
+                    <Column field="floor" header="Tầng" sortable />
+                    <Column field="roomTypeId" header="Loại phòng" sortable>
+                        <template #body="{ data }">
+                            {{ getRoomTypeName(data.roomTypeId) }}
+                        </template>
+                    </Column>
+                    <Column field="status" header="Trạng thái" sortable>
+                        <template #body="{ data }">
+                            <Tag :value="getStatusLabel(data.status)" :severity="getStatusSeverity(data.status)" />
+                        </template>
+                    </Column>
+                    <Column field="pricePerNight" header="Giá/đêm" sortable>
+                        <template #body="{ data }">
+                            {{ formatCurrency(data.pricePerNight) }}
+                        </template>
+                    </Column>
+                    <Column field="notes" header="Ghi chú">
+                        <template #body="{ data }">
+                            {{ data.notes || '—' }}
+                        </template>
+                    </Column>
+                    <Column field="specialFeatures" header="Đặc điểm">
+                        <template #body="{ data }">
+                            {{ formatSpecialFeatures(data.specialFeatures) }}
+                        </template>
+                    </Column>
+                    <Column field="createdAt" header="Ngày tạo" sortable>
+                        <template #body="{ data }">
+                            {{ formatDate(data.createdAt) }}
+                        </template>
+                    </Column>
+                    <Column field="isActive" header="Hoạt động" sortable>
+                        <template #body="{ data }">
+                            <i :class="['pi', data.isActive ? 'pi-check' : 'pi-times']" />
+                        </template>
+                    </Column>
+                    <Column style="width: 8rem">
+                        <template #body="{ data }">
+                            <Button icon="pi pi-pencil" class="mr-2" @click="editRoom(data)" />
+                            <Button icon="pi pi-trash" severity="danger" @click="confirmDeleteRoom(data)" />
+                        </template>
+                    </Column>
+                </DataTable>
+            </div>
+        </div>
 
         <Dialog v-model:visible="roomDialog" header="Thông tin phòng" :style="{ width: '800px' }" :modal="true" class="p-fluid">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -290,16 +523,16 @@ const formatSpecialFeatures = (features) => {
                         </div>
                         <div class="mb-4">
                             <label>Tầng</label>
-                            <InputNumber v-model="room.floor" :min="1" class="w-full" />
+                            <InputText v-model.trim="room.floor" class="w-full" />
                         </div>
                         <div class="mb-4">
                             <label>Loại phòng</label>
-                            <Dropdown v-model="room.roomTypeId" :options="roomTypes" optionLabel="name" optionValue="id" class="w-full" :class="{ 'p-invalid': submitted && !room.roomTypeId }" />
+                            <Dropdown v-model="room.roomTypeId" :options="roomTypes" optionLabel="name" optionValue="id" class="w-full" :class="{ 'p-invalid': submitted && !room.roomTypeId }" placeholder="Chọn loại phòng" />
                             <small v-if="submitted && !room.roomTypeId" class="p-error">Bắt buộc chọn</small>
                         </div>
-                        <div class="">
-                            <label>Ngày dọn dẹp</label>
-                            <Calendar v-model="room.lastCleaningDate" dateFormat="dd/mm/yy" class="w-full" showIcon />
+                        <div class="mb-4">
+                            <label>Giá/đêm</label>
+                            <InputNumber v-model="room.pricePerNight" mode="currency" currency="VND" locale="vi-VN" class="w-full" />
                         </div>
                     </div>
                 </div>
@@ -307,27 +540,15 @@ const formatSpecialFeatures = (features) => {
                     <div class="p-4 rounded-lg">
                         <div class="mb-4">
                             <label>Trạng thái</label>
-                            <Dropdown v-model="room.status" :options="statuses" optionLabel="label" optionValue="value" class="w-full" />
+                            <Dropdown v-model="room.status" :options="statuses" optionLabel="label" optionValue="value" class="w-full" placeholder="Chọn trạng thái" />
                         </div>
                         <div class="mb-4">
-                            <label>Giá/đêm</label>
-                            <InputNumber v-model="room.pricePerNight" mode="currency" currency="VND" locale="vi-VN" class="w-full" />
+                            <label>Ghi chú</label>
+                            <InputText v-model="room.notes" class="w-full" />
                         </div>
-                        <div class="mb-4">
-                            <label>Sức chứa</label>
-                            <InputNumber v-model="room.maxOccupancy" :min="1" class="w-full" />
-                        </div>
-                        <div class="">
-                            <label>Trạng thái dọn dẹp</label>
-                            <Dropdown v-model="room.cleanStatus" :options="cleanStatuses" optionLabel="label" optionValue="value" class="w-full" />
-                        </div>
-                    </div>
-                </div>
-                <div class="col-span-2 mt-[-2em]">
-                    <div class="p-4 rounded-lg">
                         <div class="mb-4">
                             <label>Đặc điểm</label>
-                            <MultiSelect v-model="room.specialFeatures" :options="availableSpecialFeatures" optionLabel="name" optionValue="value" display="chip" class="w-full" />
+                            <MultiSelect v-model="room.specialFeatures" :options="availableSpecialFeatures" optionLabel="name" optionValue="value" display="chip" class="w-full" placeholder="Chọn đặc điểm" />
                         </div>
                         <div class="mb-4">
                             <label>Hoạt động</label>
