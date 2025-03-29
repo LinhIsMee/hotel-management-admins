@@ -151,14 +151,22 @@ const createId = () => {
 
 const formatDate = (value) => {
     if (value) {
-        const date = new Date(value);
-        return new Intl.DateTimeFormat('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(date);
+        try {
+            const date = new Date(value);
+            if (isNaN(date.getTime())) {
+                return '—';
+            }
+            return new Intl.DateTimeFormat('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(date);
+        } catch (error) {
+            console.error('Lỗi khi format ngày:', error);
+            return '—';
+        }
     }
-    return '';
+    return '—';
 };
 
 const formatCurrency = (value) => {
@@ -173,7 +181,7 @@ const formatCurrency = (value) => {
 };
 
 const formatAmenities = (amenities) => {
-    if (amenities && amenities.length > 0) {
+    if (amenities && Array.isArray(amenities) && amenities.length > 0) {
         return amenities.join(', ');
     }
     return 'Không có';
@@ -268,7 +276,7 @@ const getSeverity = (status) => {
                 <Column field="amenities" header="Tiện nghi" style="min-width: 12rem">
                     <template #body="{ data }">
                         <div class="flex align-items-center gap-2">
-                            <Tooltip v-if="data.amenities.length > 3">
+                            <Tooltip v-if="data.amenities && Array.isArray(data.amenities) && data.amenities.length > 3">
                                 <template #target>
                                     <span>{{ data.amenities.slice(0, 3).join(', ') }} <i class="pi pi-ellipsis-h ml-1"></i></span>
                                 </template>
