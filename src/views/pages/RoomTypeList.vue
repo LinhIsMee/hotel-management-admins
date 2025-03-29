@@ -17,7 +17,6 @@ import Tag from 'primevue/tag';
 import Textarea from 'primevue/textarea';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
-import Tooltip from 'primevue/tooltip';
 
 const API_BASE_URL = 'http://localhost:5173';
 const toast = useToast();
@@ -372,14 +371,14 @@ const getSeverity = (status) => {
                 <template #empty>Không có loại phòng nào được tìm thấy.</template>
                 <template #loading>Đang tải dữ liệu loại phòng. Vui lòng đợi.</template>
 
-                <Column selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
+                <Column selectionMode="multiple" :exportable="false" style="min-width: 3rem"></Column>
 
                 <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
 
                 <Column field="name" header="Tên loại phòng" sortable style="min-width: 14rem">
                     <template #body="{ data }">
                         <div class="flex align-items-center gap-2">
-                            <img :src="'' + data.imageUrl" :alt="data.name" class="h-16 shadow-4 rounded-lg" />
+                            <img :src="data.imageUrl" :alt="data.name" class="h-16 shadow-4 rounded-lg" />
                             <span>{{ data.name }}</span>
                         </div>
                     </template>
@@ -405,17 +404,7 @@ const getSeverity = (status) => {
 
                 <Column field="amenities" header="Tiện nghi" style="min-width: 12rem">
                     <template #body="{ data }">
-                        <div class="flex align-items-center gap-2">
-                            <Tooltip v-if="data.amenities && Array.isArray(data.amenities) && data.amenities.length > 3">
-                                <template #target>
-                                    <span>{{ data.amenities.slice(0, 3).join(', ') }} <i class="pi pi-ellipsis-h ml-1"></i></span>
-                                </template>
-                                <div>
-                                    {{ formatAmenities(data.amenities) }}
-                                </div>
-                            </Tooltip>
-                            <span v-else>{{ formatAmenities(data.amenities) }}</span>
-                        </div>
+                        <span>{{ formatAmenities(data.amenities) }}</span>
                     </template>
                 </Column>
 
@@ -431,7 +420,7 @@ const getSeverity = (status) => {
                     </template>
                 </Column>
 
-                <Column exportable="false" style="min-width: 8rem">
+                <Column :exportable="false" style="min-width: 8rem">
                     <template #body="{ data }">
                         <Button icon="pi pi-pencil" outlined class="mr-2" @click="editRoomType(data)" />
                         <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteRoomType(data)" />
