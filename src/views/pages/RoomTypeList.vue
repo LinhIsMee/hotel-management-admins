@@ -36,6 +36,7 @@ const fetchData = async () => {
         loading.value = true;
         const response = await fetch('/demo/data/room-types.json');
         const data = await response.json();
+        console.log('Dữ liệu nhận được:', data);
         roomTypes.value = data.data;
     } catch (error) {
         console.error('Error loading data:', error);
