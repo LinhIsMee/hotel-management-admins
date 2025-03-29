@@ -35,7 +35,7 @@ const toast = useToast();
 // Định nghĩa địa chỉ cơ sở của API backend
 const API_BASE_URL = 'http://localhost:9000';
 
-// Trạng thái và sạch sẽ
+// Trạng thái phòng theo tài liệu API
 const statuses = ref([
     { label: 'Trống', value: 'VACANT' },
     { label: 'Đang có khách', value: 'OCCUPIED' },
@@ -173,6 +173,39 @@ const fetchData = async () => {
     }
 };
 
+// Khởi tạo dữ liệu phòng từ file JSON
+const initRooms = async () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        // Đảm bảo trước tiên phải khởi tạo dữ liệu loại phòng
+        await fetch(`${API_BASE_URL}/api/v1/admin/room-types/init`, {
+            method: 'POST',
+            headers: headers
+        });
+
+        // Sau đó khởi tạo dữ liệu phòng
+        const response = await fetch(`${API_BASE_URL}/api/v1/admin/rooms/init`, {
+            method: 'POST',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`Lỗi khi khởi tạo dữ liệu phòng: ${response.statusText} (${response.status})`);
+        }
+
+        const result = await response.text();
+        toast.add({ severity: 'success', summary: 'Thành công', detail: result, life: 3000 });
+
+        // Tải lại dữ liệu sau khi khởi tạo
+        fetchData();
+    } catch (error) {
+        console.error('Lỗi khi khởi tạo dữ liệu:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+    }
+};
+
 // Gọi API khi component được mount
 onMounted(() => {
     fetchData();
@@ -186,9 +219,7 @@ const openNew = () => {
         status: 'VACANT',
         floor: '1',
         isActive: true,
-        notes: '',
-        pricePerNight: 500000,
-        specialFeatures: []
+        notes: ''
     };
     submitted.value = false;
     roomDialog.value = true;
@@ -232,8 +263,7 @@ const saveRoom = async () => {
             status: room.value.status,
             floor: room.value.floor,
             isActive: room.value.isActive,
-            notes: room.value.notes,
-            specialFeatures: room.value.specialFeatures
+            notes: room.value.notes
         });
 
         const headers = getAuthHeaders(true);
@@ -431,10 +461,14 @@ const formatSpecialFeatures = (features) => {
         <Toolbar class="mb-4">
             <template #start>
                 <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                <Button label="Xóa" icon="pi pi-trash" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedRooms?.length" />
+                <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRooms?.length" />
+                <Button label="Khởi tạo dữ liệu mẫu" icon="pi pi-sync" severity="help" @click="initRooms" />
             </template>
             <template #end>
-                <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." />
+                <span class="p-input-icon-left">
+                    <i class="pi pi-search"></i>
+                    <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." />
+                </span>
             </template>
         </Toolbar>
 
@@ -487,11 +521,6 @@ const formatSpecialFeatures = (features) => {
                             {{ data.notes || '—' }}
                         </template>
                     </Column>
-                    <Column field="specialFeatures" header="Đặc điểm">
-                        <template #body="{ data }">
-                            {{ formatSpecialFeatures(data.specialFeatures) }}
-                        </template>
-                    </Column>
                     <Column field="createdAt" header="Ngày tạo" sortable>
                         <template #body="{ data }">
                             {{ formatDate(data.createdAt) }}
@@ -530,10 +559,6 @@ const formatSpecialFeatures = (features) => {
                             <Dropdown v-model="room.roomTypeId" :options="roomTypes" optionLabel="name" optionValue="id" class="w-full" :class="{ 'p-invalid': submitted && !room.roomTypeId }" placeholder="Chọn loại phòng" />
                             <small v-if="submitted && !room.roomTypeId" class="p-error">Bắt buộc chọn</small>
                         </div>
-                        <div class="mb-4">
-                            <label>Giá/đêm</label>
-                            <InputNumber v-model="room.pricePerNight" mode="currency" currency="VND" locale="vi-VN" class="w-full" />
-                        </div>
                     </div>
                 </div>
                 <div class="field">
@@ -545,10 +570,6 @@ const formatSpecialFeatures = (features) => {
                         <div class="mb-4">
                             <label>Ghi chú</label>
                             <InputText v-model="room.notes" class="w-full" />
-                        </div>
-                        <div class="mb-4">
-                            <label>Đặc điểm</label>
-                            <MultiSelect v-model="room.specialFeatures" :options="availableSpecialFeatures" optionLabel="name" optionValue="value" display="chip" class="w-full" placeholder="Chọn đặc điểm" />
                         </div>
                         <div class="mb-4">
                             <label>Hoạt động</label>
@@ -654,3 +675,5 @@ label {
     min-height: 40px;
 }
 </style>
+
+
