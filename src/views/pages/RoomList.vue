@@ -1,21 +1,18 @@
 <script setup>
 import { FilterMatchMode } from '@primevue/core/api';
 import Button from 'primevue/button';
-import Calendar from 'primevue/calendar';
 import Column from 'primevue/column';
 import ConfirmDialog from 'primevue/confirmdialog';
 import DataTable from 'primevue/datatable';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
-import InputNumber from 'primevue/inputnumber';
 import InputSwitch from 'primevue/inputswitch';
 import InputText from 'primevue/inputtext';
-import MultiSelect from 'primevue/multiselect';
 import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
-import { onMounted, ref } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import { onMounted, ref } from 'vue';
 
 // Khai báo biến
 const rooms = ref([]);
@@ -330,20 +327,28 @@ const editRoom = async (editRoom) => {
 
 // Xác nhận xóa phòng
 const confirmDeleteRoom = (editRoom) => {
+    console.log('Xác nhận xóa phòng với ID:', editRoom.id, 'Phòng số:', editRoom.roomNumber);
     room.value = editRoom;
+    console.log('room.value sau khi gán:', room.value);
     deleteRoomDialog.value = true;
 };
 
 // Xóa phòng
 const deleteRoom = async () => {
     try {
+        console.log('Bắt đầu xóa phòng với ID:', room.value.id, 'Phòng số:', room.value.roomNumber);
         const headers = getAuthHeaders();
         if (!headers) return;
 
-        const response = await fetch(`${API_BASE_URL}/api/v1/admin/rooms/${room.value.id}`, {
+        const apiUrl = `${API_BASE_URL}/api/v1/admin/rooms/${room.value.id}`;
+        console.log('Gọi API:', apiUrl);
+
+        const response = await fetch(apiUrl, {
             method: 'DELETE',
             headers: headers
         });
+
+        console.log('Kết quả API:', response.status, response.statusText);
 
         if (!response.ok) {
             const errorData = await response.text();
@@ -356,6 +361,9 @@ const deleteRoom = async () => {
         deleteRoomDialog.value = false;
         room.value = {};
         toast.add({ severity: 'success', summary: 'Thành công', detail: 'Xóa phòng thành công', life: 3000 });
+
+        // Tải lại dữ liệu sau khi xóa để đảm bảo hiển thị đúng
+        fetchData();
     } catch (error) {
         console.error('Lỗi khi xóa phòng:', error);
         toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
@@ -393,6 +401,9 @@ const deleteSelectedRooms = async () => {
         deleteRoomsDialog.value = false;
         selectedRooms.value = null;
         toast.add({ severity: 'success', summary: 'Thành công', detail: `Xóa ${deletePromises.length} phòng thành công`, life: 3000 });
+
+        // Tải lại dữ liệu sau khi xóa để đảm bảo hiển thị đúng
+        fetchData();
     } catch (error) {
         console.error('Lỗi khi xóa nhiều phòng:', error);
         toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Có lỗi xảy ra khi xóa phòng', life: 3000 });
@@ -683,5 +694,3 @@ label {
     min-height: 40px;
 }
 </style>
-
-

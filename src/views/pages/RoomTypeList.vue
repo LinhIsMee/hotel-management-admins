@@ -18,7 +18,7 @@ import Textarea from 'primevue/textarea';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 
-const API_BASE_URL = 'http://localhost:5173';
+const API_BASE_URL = 'http://localhost:9000';
 const toast = useToast();
 
 const roomTypes = ref([]);
@@ -238,10 +238,14 @@ const deleteRoomType = async () => {
         const headers = getAuthHeaders();
         if (!headers) return;
 
+        console.log('Đang xóa loại phòng có ID:', roomType.value.id, 'và tên:', roomType.value.name);
+
         const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types/${roomType.value.id}`, {
             method: 'DELETE',
             headers: headers
         });
+
+        console.log('Response status:', response.status, response.statusText);
 
         if (!response.ok) {
             throw new Error(`Lỗi khi xóa loại phòng: ${response.statusText}`);
