@@ -1,7 +1,7 @@
 <script setup>
 import { FilterMatchMode } from '@primevue/core/api';
-import { onMounted, ref } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import { onMounted, ref } from 'vue';
 
 // Import các component PrimeVue
 import Button from 'primevue/button';
@@ -9,7 +9,6 @@ import Column from 'primevue/column';
 import ConfirmDialog from 'primevue/confirmdialog';
 import DataTable from 'primevue/datatable';
 import Dialog from 'primevue/dialog';
-import Dropdown from 'primevue/dropdown';
 import InputNumber from 'primevue/inputnumber';
 import InputSwitch from 'primevue/inputswitch';
 import InputText from 'primevue/inputtext';
@@ -20,7 +19,7 @@ import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 import Tooltip from 'primevue/tooltip';
 
-const API_BASE_URL = 'http://localhost:9000';
+const API_BASE_URL = 'http://localhost:5173';
 const toast = useToast();
 
 const roomTypes = ref([]);
@@ -228,14 +227,6 @@ const findIndexById = (id) => {
         }
     }
     return index;
-};
-const createId = () => {
-    let id = 1;
-    if (roomTypes.value && roomTypes.value.length > 0) {
-        const maxId = Math.max(...roomTypes.value.map((roomType) => roomType.id));
-        id = maxId + 1;
-    }
-    return id;
 };
 
 const formatDate = (value) => {
