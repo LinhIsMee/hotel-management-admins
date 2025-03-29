@@ -34,18 +34,64 @@ const filters = ref({
 });
 const submitted = ref(false);
 
-const getAuthHeaders = (contentType = false) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn', life: 3000 });
+// Hàm helper lấy token từ localStorage
+const getAuthToken = () => {
+    try {
+        // Lấy dữ liệu từ admin_token trong localStorage
+        const adminTokenData = localStorage.getItem('admin_token');
+
+        if (!adminTokenData) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi xác thực',
+                detail: 'Không tìm thấy token đăng nhập, vui lòng đăng nhập lại',
+                life: 3000
+            });
+            return null;
+        }
+
+        // Parse chuỗi JSON
+        const adminTokenObj = JSON.parse(adminTokenData);
+
+        // Lấy accessToken từ object
+        const accessToken = adminTokenObj.accessToken;
+
+        if (!accessToken) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi xác thực',
+                detail: 'Token không hợp lệ, vui lòng đăng nhập lại',
+                life: 3000
+            });
+            return null;
+        }
+
+        return accessToken;
+    } catch (error) {
+        console.error('Lỗi khi lấy token:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi xác thực',
+            detail: 'Có lỗi xảy ra khi xác thực, vui lòng đăng nhập lại',
+            life: 3000
+        });
         return null;
     }
+};
 
-    const headers = new Headers();
-    headers.append('Authorization', `Bearer ${token}`);
+// Thêm hàm helper để tạo header xác thực
+const getAuthHeaders = (contentType = false) => {
+    const token = getAuthToken();
+    if (!token) return null;
+
+    const headers = {
+        Authorization: `Bearer ${token}`
+    };
+
     if (contentType) {
-        headers.append('Content-Type', 'application/json');
+        headers['Content-Type'] = 'application/json';
     }
+
     return headers;
 };
 
@@ -53,23 +99,26 @@ const fetchData = async () => {
     try {
         loading.value = true;
         const headers = getAuthHeaders();
-        if (!headers) return;
+        if (!headers) {
+            loading.value = false;
+            return;
+        }
 
         const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types`, {
-            method: 'GET',
             headers: headers
         });
 
         if (!response.ok) {
-            throw new Error(`Lỗi khi tải danh sách loại phòng: ${response.statusText}`);
+            throw new Error(`Lỗi khi tải danh sách loại phòng: ${response.statusText} (${response.status})`);
         }
 
         const data = await response.json();
         console.log('Dữ liệu nhận được từ API:', data);
-        roomTypes.value = data;
+        roomTypes.value = Array.isArray(data) ? data : [];
     } catch (error) {
         console.error('Lỗi khi tải dữ liệu:', error);
         toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Không thể tải danh sách loại phòng', life: 3000 });
+        roomTypes.value = [];
     } finally {
         loading.value = false;
     }
@@ -207,6 +256,7 @@ const deleteSelectedRoomTypes = async () => {
 
         await Promise.all(deletePromises);
 
+        roomTypes.value = roomTypes.value.filter((val) => !selectedRoomTypes.value.some((r) => r.id === val.id));
         toast.add({ severity: 'success', summary: 'Thành công', detail: `Đã vô hiệu hóa ${deletePromises.length} loại phòng`, life: 3000 });
         deleteRoomTypesDialog.value = false;
         selectedRoomTypes.value = null;
