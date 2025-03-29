@@ -7,6 +7,7 @@ import router from './router';
 import Aura from '@primeuix/themes/aura';
 import PrimeVue from 'primevue/config';
 import ConfirmationService from 'primevue/confirmationservice';
+import Styleclass from 'primevue/styleclass';
 import ToastService from 'primevue/toastservice';
 
 import '@/assets/styles.scss';
@@ -31,5 +32,8 @@ app.use(ConfirmationService);
 
 const head = createHead();
 app.use(head);
+
+// Đăng ký directive styleclass
+app.directive('styleclass', Styleclass);
 
 app.mount('#app');

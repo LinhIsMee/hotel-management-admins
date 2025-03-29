@@ -2,6 +2,23 @@
 import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
 
+// Import các component PrimeVue
+import Button from 'primevue/button';
+import Column from 'primevue/column';
+import ConfirmDialog from 'primevue/confirmdialog';
+import DataTable from 'primevue/datatable';
+import Dialog from 'primevue/dialog';
+import Dropdown from 'primevue/dropdown';
+import InputNumber from 'primevue/inputnumber';
+import InputSwitch from 'primevue/inputswitch';
+import InputText from 'primevue/inputtext';
+import MultiSelect from 'primevue/multiselect';
+import Tag from 'primevue/tag';
+import Textarea from 'primevue/textarea';
+import Toast from 'primevue/toast';
+import Toolbar from 'primevue/toolbar';
+import Tooltip from 'primevue/tooltip';
+
 const roomTypes = ref([]);
 const loading = ref(true);
 const roomTypeDialog = ref(false);
