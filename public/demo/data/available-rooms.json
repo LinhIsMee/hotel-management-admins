@@ -1,9 +1,0 @@
-{
-  "data": [
-    { "id": 1, "roomNumber": "101", "roomTypeId": 1 },
-    { "id": 2, "roomNumber": "102", "roomTypeId": 1 },
-    { "id": 3, "roomNumber": "103", "roomTypeId": 2 },
-    { "id": 4, "roomNumber": "201", "roomTypeId": 2 },
-    { "id": 5, "roomNumber": "202", "roomTypeId": 3 }
-  ]
-}
