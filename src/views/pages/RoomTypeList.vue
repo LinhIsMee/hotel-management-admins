@@ -1,6 +1,7 @@
 <script setup>
 import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
+import { useToast } from 'primevue/usetoast';
 
 // Import các component PrimeVue
 import Button from 'primevue/button';
@@ -19,6 +20,9 @@ import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 import Tooltip from 'primevue/tooltip';
 
+const API_BASE_URL = 'http://localhost:9000';
+const toast = useToast();
+
 const roomTypes = ref([]);
 const loading = ref(true);
 const roomTypeDialog = ref(false);
@@ -31,15 +35,42 @@ const filters = ref({
 });
 const submitted = ref(false);
 
+const getAuthHeaders = (contentType = false) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn', life: 3000 });
+        return null;
+    }
+
+    const headers = new Headers();
+    headers.append('Authorization', `Bearer ${token}`);
+    if (contentType) {
+        headers.append('Content-Type', 'application/json');
+    }
+    return headers;
+};
+
 const fetchData = async () => {
     try {
         loading.value = true;
-        const response = await fetch('/demo/data/room-types.json');
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types`, {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`Lỗi khi tải danh sách loại phòng: ${response.statusText}`);
+        }
+
         const data = await response.json();
-        console.log('Dữ liệu nhận được:', data);
-        roomTypes.value = data.data;
+        console.log('Dữ liệu nhận được từ API:', data);
+        roomTypes.value = data;
     } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Lỗi khi tải dữ liệu:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Không thể tải danh sách loại phòng', life: 3000 });
     } finally {
         loading.value = false;
     }
@@ -63,22 +94,59 @@ const hideDialog = () => {
     submitted.value = false;
 };
 
-const saveRoomType = () => {
+const saveRoomType = async () => {
     submitted.value = true;
 
     if (roomType.value.name?.trim() && roomType.value.code?.trim() && roomType.value.pricePerNight > 0) {
-        if (roomType.value.id) {
-            const index = findIndexById(roomType.value.id);
-            roomTypes.value[index] = { ...roomType.value };
-        } else {
-            roomType.value.id = createId();
-            roomType.value.createdAt = new Date().toISOString().split('T')[0];
-            roomType.value.imageUrl = '/assets/images/nha-nghi-1.webp';
-            roomTypes.value.push(roomType.value);
-        }
+        try {
+            const headers = getAuthHeaders(true);
+            if (!headers) return;
 
-        roomTypeDialog.value = false;
-        roomType.value = {};
+            let url = '';
+            let method = '';
+
+            // Kiểm tra xem đang tạo mới hay cập nhật
+            if (roomType.value.id) {
+                // Cập nhật loại phòng
+                url = `${API_BASE_URL}/api/v1/admin/room-types/${roomType.value.id}`;
+                method = 'PUT';
+            } else {
+                // Tạo mới loại phòng
+                url = `${API_BASE_URL}/api/v1/admin/room-types`;
+                method = 'POST';
+            }
+
+            const response = await fetch(url, {
+                method: method,
+                headers: headers,
+                body: JSON.stringify(roomType.value)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Lỗi khi ${roomType.value.id ? 'cập nhật' : 'tạo'} loại phòng`);
+            }
+
+            const savedRoomType = await response.json();
+
+            // Cập nhật dữ liệu trong bảng
+            if (roomType.value.id) {
+                const index = findIndexById(roomType.value.id);
+                if (index !== -1) {
+                    roomTypes.value[index] = savedRoomType;
+                }
+                toast.add({ severity: 'success', summary: 'Thành công', detail: 'Cập nhật loại phòng thành công', life: 3000 });
+            } else {
+                roomTypes.value.push(savedRoomType);
+                toast.add({ severity: 'success', summary: 'Thành công', detail: 'Thêm loại phòng thành công', life: 3000 });
+            }
+
+            roomTypeDialog.value = false;
+            roomType.value = {};
+        } catch (error) {
+            console.error('Lỗi khi lưu loại phòng:', error);
+            toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+        }
     }
 };
 
@@ -92,10 +160,30 @@ const confirmDeleteRoomType = (editRoomType) => {
     deleteRoomTypeDialog.value = true;
 };
 
-const deleteRoomType = () => {
-    roomTypes.value = roomTypes.value.filter((val) => val.id !== roomType.value.id);
-    deleteRoomTypeDialog.value = false;
-    roomType.value = {};
+const deleteRoomType = async () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types/${roomType.value.id}`, {
+            method: 'DELETE',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`Lỗi khi xóa loại phòng: ${response.statusText}`);
+        }
+
+        // Cập nhật trạng thái trong giao diện
+        roomTypes.value = roomTypes.value.filter((val) => val.id !== roomType.value.id);
+        toast.add({ severity: 'success', summary: 'Thành công', detail: 'Xóa loại phòng thành công', life: 3000 });
+
+        deleteRoomTypeDialog.value = false;
+        roomType.value = {};
+    } catch (error) {
+        console.error('Lỗi khi xóa loại phòng:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+    }
 };
 
 const confirmDeleteSelected = () => {
