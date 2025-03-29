@@ -7,11 +7,13 @@ import DataTable from 'primevue/datatable';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
 import InputNumber from 'primevue/inputnumber';
+import InputSwitch from 'primevue/inputswitch';
 import InputText from 'primevue/inputtext';
 import Tag from 'primevue/tag';
 import Textarea from 'primevue/textarea';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
+import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
 
 const services = ref([]);
@@ -25,30 +27,115 @@ const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 const submitted = ref(false);
+const toast = useToast();
 
+// Định nghĩa địa chỉ cơ sở của API backend
+const API_BASE_URL = 'http://localhost:9000';
+
+// Loại dịch vụ theo tài liệu API
 const serviceTypes = ref([
-    { label: 'Đồ ăn & Đồ uống', value: 'FOOD' },
-    { label: 'Giặt ủi', value: 'LAUNDRY' },
-    { label: 'Spa', value: 'SPA' },
-    { label: 'Vận chuyển', value: 'TRANSPORT' },
-    { label: 'Giải trí', value: 'ENTERTAINMENT' }
+    { label: 'Dịch vụ vệ sinh, giặt ủi', value: 'HOUSEKEEPING' },
+    { label: 'Dịch vụ spa, massage', value: 'SPA' },
+    { label: 'Dịch vụ đưa đón, thuê xe', value: 'TRANSPORT' },
+    { label: 'Dịch vụ ăn uống', value: 'FOOD' },
+    { label: 'Dịch vụ kinh doanh', value: 'BUSINESS' },
+    { label: 'Dịch vụ tour, tham quan', value: 'TOUR' },
+    { label: 'Dịch vụ thể dục, thể thao', value: 'FITNESS' },
+    { label: 'Các dịch vụ khác', value: 'OTHER' }
 ]);
 
-const units = ref([
-    { label: 'Theo người', value: 'PER_PERSON' },
-    { label: 'Theo kg', value: 'PER_KG' },
-    { label: 'Theo lần sử dụng', value: 'PER_USE' },
-    { label: 'Theo ngày', value: 'PER_DAY' }
-]);
+// Hàm helper lấy token từ localStorage
+const getAuthToken = () => {
+    try {
+        // Lấy dữ liệu từ admin_token trong localStorage
+        const adminTokenData = localStorage.getItem('admin_token');
+
+        if (!adminTokenData) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi xác thực',
+                detail: 'Không tìm thấy token đăng nhập, vui lòng đăng nhập lại',
+                life: 3000
+            });
+            return null;
+        }
+
+        // Parse chuỗi JSON
+        const adminTokenObj = JSON.parse(adminTokenData);
+
+        // Lấy accessToken từ object
+        const accessToken = adminTokenObj.accessToken;
+
+        if (!accessToken) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi xác thực',
+                detail: 'Token không hợp lệ, vui lòng đăng nhập lại',
+                life: 3000
+            });
+            return null;
+        }
+
+        return accessToken;
+    } catch (error) {
+        console.error('Lỗi khi lấy token:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi xác thực',
+            detail: 'Có lỗi xảy ra khi xác thực, vui lòng đăng nhập lại',
+            life: 3000
+        });
+        return null;
+    }
+};
+
+// Thêm hàm helper để tạo header xác thực
+const getAuthHeaders = (contentType = false) => {
+    const token = getAuthToken();
+    if (!token) return null;
+
+    const headers = {
+        Authorization: `Bearer ${token}`
+    };
+
+    if (contentType) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    return headers;
+};
 
 const fetchData = async () => {
     try {
         loading.value = true;
-        const response = await fetch('/demo/data/services.json');
-        const data = await response.json();
-        services.value = data.data;
+
+        const headers = getAuthHeaders();
+        if (!headers) {
+            loading.value = false;
+            return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/services`, {
+            headers: headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`Lỗi khi tải danh sách dịch vụ: ${response.statusText} (${response.status})`);
+        }
+
+        const result = await response.json();
+        console.log('Dữ liệu nhận được từ API:', result);
+
+        services.value = Array.isArray(result.data) ? result.data : [];
     } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Lỗi khi tải dữ liệu dịch vụ:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: error.message || 'Không thể tải danh sách dịch vụ',
+            life: 3000
+        });
+        services.value = [];
     } finally {
         loading.value = false;
     }
@@ -60,9 +147,9 @@ onMounted(() => {
 
 const openNew = () => {
     service.value = {
-        type: 'FOOD',
+        type: 'HOUSEKEEPING',
         price: 0,
-        unit: 'PER_USE',
+        unit: 'Lần',
         isAvailable: true
     };
     submitted.value = false;
@@ -72,48 +159,157 @@ const openNew = () => {
 const hideDialog = () => {
     serviceDialog.value = false;
     submitted.value = false;
+    service.value = {};
 };
 
-const saveService = () => {
+const saveService = async () => {
     submitted.value = true;
 
     if (service.value.name?.trim() && service.value.code?.trim() && service.value.price > 0) {
-        if (service.value.id) {
-            const index = findIndexById(service.value.id);
-            services.value[index] = { ...service.value };
-        } else {
-            service.value.id = createId();
-            service.value.createdAt = new Date().toISOString().split('T')[0];
-            services.value.push(service.value);
-        }
+        try {
+            const headers = getAuthHeaders(true);
+            if (!headers) return;
 
-        serviceDialog.value = false;
-        service.value = {};
+            let url;
+            let method;
+
+            if (service.value.id) {
+                // Cập nhật dịch vụ hiện có
+                url = `${API_BASE_URL}/api/services/${service.value.id}`;
+                method = 'PUT';
+            } else {
+                // Tạo dịch vụ mới
+                url = `${API_BASE_URL}/api/services`;
+                method = 'POST';
+            }
+
+            const response = await fetch(url, {
+                method: method,
+                headers: headers,
+                body: JSON.stringify(service.value)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error('Server response:', errorData);
+                throw new Error(`Lỗi khi ${service.value.id ? 'cập nhật' : 'tạo'} dịch vụ: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+
+            if (service.value.id) {
+                // Cập nhật dịch vụ trong danh sách
+                const index = findIndexById(service.value.id);
+                if (index !== -1) {
+                    services.value[index] = result.data;
+                }
+                toast.add({ severity: 'success', summary: 'Thành công', detail: 'Cập nhật dịch vụ thành công', life: 3000 });
+            } else {
+                // Thêm dịch vụ mới vào danh sách
+                services.value.push(result.data);
+                toast.add({ severity: 'success', summary: 'Thành công', detail: 'Thêm dịch vụ thành công', life: 3000 });
+            }
+
+            serviceDialog.value = false;
+            service.value = {};
+        } catch (error) {
+            console.error('Lỗi khi lưu dữ liệu dịch vụ:', error);
+            toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+        }
     }
 };
 
-const editService = (editService) => {
-    service.value = { ...editService };
-    serviceDialog.value = true;
+const editService = async (editService) => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/services/${editService.id}`, {
+            headers: headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`Lỗi khi tải thông tin dịch vụ: ${response.statusText} (${response.status})`);
+        }
+
+        const result = await response.json();
+        service.value = result.data;
+        serviceDialog.value = true;
+    } catch (error) {
+        console.error('Lỗi khi tải thông tin dịch vụ:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+    }
 };
+
 const confirmDeleteService = (editService) => {
     service.value = editService;
     deleteServiceDialog.value = true;
 };
-const deleteService = () => {
-    services.value = services.value.filter((val) => val.id !== service.value.id);
-    deleteServiceDialog.value = false;
-    service.value = {};
+
+const deleteService = async () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/services/${service.value.id}`, {
+            method: 'DELETE',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('Server response:', errorData);
+            throw new Error(`Không thể xóa dịch vụ: ${response.statusText} (${response.status})`);
+        }
+
+        // Cập nhật danh sách dịch vụ sau khi xóa
+        services.value = services.value.filter((val) => val.id !== service.value.id);
+        deleteServiceDialog.value = false;
+        service.value = {};
+        toast.add({ severity: 'success', summary: 'Thành công', detail: 'Xóa dịch vụ thành công', life: 3000 });
+
+        // Tải lại dữ liệu sau khi xóa để đảm bảo hiển thị đúng
+        fetchData();
+    } catch (error) {
+        console.error('Lỗi khi xóa dịch vụ:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+    }
 };
 
 const confirmDeleteSelected = () => {
     deleteServicesDialog.value = true;
 };
 
-const deleteSelectedServices = () => {
-    services.value = services.value.filter((val) => !selectedServices.value.includes(val));
-    deleteServicesDialog.value = false;
-    selectedServices.value = null;
+const deleteSelectedServices = async () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const deletePromises = selectedServices.value.map((serviceToDelete) =>
+            fetch(`${API_BASE_URL}/api/services/${serviceToDelete.id}`, {
+                method: 'DELETE',
+                headers: headers
+            }).then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Lỗi khi xóa dịch vụ ID ${serviceToDelete.id}: ${response.statusText}`);
+                }
+                return response;
+            })
+        );
+
+        await Promise.all(deletePromises);
+
+        services.value = services.value.filter((val) => !selectedServices.value.some((s) => s.id === val.id));
+        deleteServicesDialog.value = false;
+        selectedServices.value = null;
+        toast.add({ severity: 'success', summary: 'Thành công', detail: `Xóa ${deletePromises.length} dịch vụ thành công`, life: 3000 });
+
+        // Tải lại dữ liệu sau khi xóa để đảm bảo hiển thị đúng
+        fetchData();
+    } catch (error) {
+        console.error('Lỗi khi xóa nhiều dịch vụ:', error);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Có lỗi xảy ra khi xóa dịch vụ', life: 3000 });
+    }
 };
 
 const findIndexById = (id) => {
@@ -127,25 +323,24 @@ const findIndexById = (id) => {
     return index;
 };
 
-const createId = () => {
-    let id = 1;
-    if (services.value && services.value.length > 0) {
-        const maxId = Math.max(...services.value.map((service) => service.id));
-        id = maxId + 1;
-    }
-    return id;
-};
-
 const formatDate = (value) => {
     if (value) {
-        const date = new Date(value);
-        return new Intl.DateTimeFormat('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(date);
+        try {
+            const date = new Date(value);
+            if (isNaN(date.getTime())) {
+                return '—';
+            }
+            return new Intl.DateTimeFormat('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(date);
+        } catch (error) {
+            console.error('Lỗi khi format ngày:', error);
+            return '—';
+        }
     }
-    return '';
+    return '—';
 };
 
 const formatCurrency = (value) => {
@@ -161,12 +356,7 @@ const formatCurrency = (value) => {
 
 const getServiceTypeName = (typeValue) => {
     const type = serviceTypes.value.find((t) => t.value === typeValue);
-    return type ? type.label : '';
-};
-
-const getUnitName = (unitValue) => {
-    const unit = units.value.find((u) => u.value === unitValue);
-    return unit ? unit.label : '';
+    return type ? type.label : typeValue;
 };
 
 const getSeverity = (available) => {
@@ -180,82 +370,93 @@ const getSeverity = (available) => {
         <ConfirmDialog></ConfirmDialog>
         <div class="">
             <Toolbar class="mb-4">
-                <template v-slot:start>
-                    <div class="my-2">
-                        <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                        <Button label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedServices || !selectedServices.length" />
-                    </div>
+                <template #start>
+                    <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedServices?.length" />
                 </template>
 
-                <template v-slot:end>
+                <template #end>
                     <span class="p-input-icon-left">
+                        <i class="pi pi-search"></i>
                         <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
                     </span>
                 </template>
             </Toolbar>
 
-            <DataTable
-                :value="services"
-                v-model:selection="selectedServices"
-                dataKey="id"
-                :paginator="true"
-                :rows="10"
-                :loading="loading"
-                :filters="filters"
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                :rowsPerPageOptions="[5, 10, 25, 50]"
-                currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} dịch vụ"
-                responsiveLayout="scroll"
-                class="p-datatable-sm"
-            >
-                <template #empty>Không có dịch vụ nào được tìm thấy.</template>
-                <template #loading>Đang tải dữ liệu dịch vụ. Vui lòng đợi.</template>
+            <div v-if="loading" class="text-center py-4">
+                <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+                <div class="mt-2">Đang tải dữ liệu...</div>
+            </div>
 
-                <Column selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
+            <div v-else>
+                <div v-if="services.length === 0" class="text-center py-4">Không có dịch vụ nào được tìm thấy.</div>
+                <div v-else>
+                    <div class="text-sm mb-2">Tổng số: {{ services.length }} dịch vụ</div>
 
-                <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
+                    <DataTable
+                        :value="services"
+                        v-model:selection="selectedServices"
+                        dataKey="id"
+                        :paginator="true"
+                        :rows="10"
+                        :loading="loading"
+                        :filters="filters"
+                        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                        :rowsPerPageOptions="[5, 10, 25, 50]"
+                        currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} dịch vụ"
+                        responsiveLayout="scroll"
+                        class="p-datatable-sm"
+                    >
+                        <template #empty>Không có dịch vụ nào được tìm thấy.</template>
+                        <template #loading>Đang tải dữ liệu dịch vụ. Vui lòng đợi.</template>
 
-                <Column field="name" header="Tên dịch vụ" sortable style="min-width: 14rem"></Column>
+                        <Column selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
 
-                <Column field="code" header="Mã dịch vụ" sortable style="min-width: 8rem"></Column>
+                        <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
 
-                <Column field="type" header="Loại dịch vụ" sortable style="min-width: 10rem">
-                    <template #body="{ data }">
-                        {{ getServiceTypeName(data.type) }}
-                    </template>
-                </Column>
+                        <Column field="name" header="Tên dịch vụ" sortable style="min-width: 14rem"></Column>
 
-                <Column field="price" header="Giá" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        {{ formatCurrency(data.price) }}
-                    </template>
-                </Column>
+                        <Column field="code" header="Mã dịch vụ" sortable style="min-width: 8rem"></Column>
 
-                <Column field="unit" header="Đơn vị tính" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        {{ getUnitName(data.unit) }}
-                    </template>
-                </Column>
+                        <Column field="type" header="Loại dịch vụ" sortable style="min-width: 10rem">
+                            <template #body="{ data }">
+                                {{ getServiceTypeName(data.type) }}
+                            </template>
+                        </Column>
 
-                <Column field="isAvailable" header="Trạng thái" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        <Tag :value="data.isAvailable ? 'Đang cung cấp' : 'Ngưng cung cấp'" :severity="getSeverity(data.isAvailable)" />
-                    </template>
-                </Column>
+                        <Column field="price" header="Giá" sortable style="min-width: 8rem">
+                            <template #body="{ data }">
+                                {{ formatCurrency(data.price) }}
+                            </template>
+                        </Column>
 
-                <Column field="createdAt" header="Ngày tạo" sortable style="min-width: 10rem">
-                    <template #body="{ data }">
-                        {{ formatDate(data.createdAt) }}
-                    </template>
-                </Column>
+                        <Column field="unit" header="Đơn vị tính" sortable style="min-width: 8rem">
+                            <template #body="{ data }">
+                                {{ data.unit }}
+                            </template>
+                        </Column>
 
-                <Column exportable="false" style="min-width: 8rem">
-                    <template #body="{ data }">
-                        <Button icon="pi pi-pencil" outlined class="mr-2" @click="editService(data)" />
-                        <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteService(data)" />
-                    </template>
-                </Column>
-            </DataTable>
+                        <Column field="isAvailable" header="Trạng thái" sortable style="min-width: 8rem">
+                            <template #body="{ data }">
+                                <Tag :value="data.isAvailable ? 'Đang cung cấp' : 'Ngưng cung cấp'" :severity="getSeverity(data.isAvailable)" />
+                            </template>
+                        </Column>
+
+                        <Column field="createdAt" header="Ngày tạo" sortable style="min-width: 10rem">
+                            <template #body="{ data }">
+                                {{ formatDate(data.createdAt) }}
+                            </template>
+                        </Column>
+
+                        <Column exportable="false" style="min-width: 8rem">
+                            <template #body="{ data }">
+                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editService(data)" />
+                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteService(data)" />
+                            </template>
+                        </Column>
+                    </DataTable>
+                </div>
+            </div>
         </div>
 
         <Dialog v-model:visible="serviceDialog" :style="{ width: '800px' }" header="Thông tin dịch vụ" :modal="true" class="p-fluid">
@@ -291,7 +492,7 @@ const getSeverity = (available) => {
 
                         <div class="mb-4">
                             <label for="unit" class="font-bold mb-2 block">Đơn vị tính</label>
-                            <Dropdown id="unit" v-model="service.unit" :options="units" optionLabel="label" optionValue="value" placeholder="Chọn đơn vị" class="w-full" :class="{ 'p-invalid': submitted && !service.unit }" />
+                            <InputText id="unit" v-model="service.unit" class="w-full" :class="{ 'p-invalid': submitted && !service.unit }" placeholder="Ví dụ: Kg, Giờ, Lần, Ngày..." />
                             <small class="p-error" v-if="submitted && !service.unit">Đơn vị tính là bắt buộc.</small>
                         </div>
 
