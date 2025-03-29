@@ -414,14 +414,22 @@ const findIndexById = (id) => {
 // Format helpers
 const formatDate = (value) => {
     if (value) {
-        const date = new Date(value);
-        return new Intl.DateTimeFormat('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(date);
+        try {
+            const date = new Date(value);
+            if (isNaN(date.getTime())) {
+                return '—';
+            }
+            return new Intl.DateTimeFormat('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(date);
+        } catch (error) {
+            console.error('Lỗi khi format ngày:', error);
+            return '—';
+        }
     }
-    return '';
+    return '—';
 };
 
 const formatCurrency = (value) => {
