@@ -253,6 +253,9 @@ const deleteRoomType = async () => {
 
         deleteRoomTypeDialog.value = false;
         roomType.value = {};
+
+        // Tải lại dữ liệu sau khi xóa để đảm bảo hiển thị đúng
+        fetchData();
     } catch (error) {
         console.error('Lỗi khi xóa loại phòng:', error);
         toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
