@@ -18,7 +18,7 @@ import Textarea from 'primevue/textarea';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 
-const API_BASE_URL = 'http://localhost:9000';
+const API_BASE_URL = 'http://localhost:5173';
 const toast = useToast();
 
 const roomTypes = ref([]);
@@ -97,6 +97,7 @@ const getAuthHeaders = (contentType = false) => {
 const fetchData = async () => {
     try {
         loading.value = true;
+
         const headers = getAuthHeaders();
         if (!headers) {
             loading.value = false;
@@ -125,32 +126,6 @@ const fetchData = async () => {
 onMounted(() => {
     fetchData();
 });
-
-// Khởi tạo dữ liệu loại phòng từ file JSON
-const initRoomTypes = async () => {
-    try {
-        const headers = getAuthHeaders();
-        if (!headers) return;
-
-        const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types/init`, {
-            method: 'POST',
-            headers: headers
-        });
-
-        if (!response.ok) {
-            throw new Error(`Lỗi khi khởi tạo dữ liệu loại phòng: ${response.statusText} (${response.status})`);
-        }
-
-        const result = await response.text();
-        toast.add({ severity: 'success', summary: 'Thành công', detail: result, life: 3000 });
-
-        // Tải lại dữ liệu sau khi khởi tạo
-        fetchData();
-    } catch (error) {
-        console.error('Lỗi khi khởi tạo dữ liệu:', error);
-        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
-    }
-};
 
 const openNew = () => {
     roomType.value = {
@@ -238,14 +213,10 @@ const deleteRoomType = async () => {
         const headers = getAuthHeaders();
         if (!headers) return;
 
-        console.log('Đang xóa loại phòng có ID:', roomType.value.id, 'và tên:', roomType.value.name);
-
         const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types/${roomType.value.id}`, {
             method: 'DELETE',
             headers: headers
         });
-
-        console.log('Response status:', response.status, response.statusText);
 
         if (!response.ok) {
             throw new Error(`Lỗi khi xóa loại phòng: ${response.statusText}`);
@@ -373,12 +344,9 @@ const getSeverity = (status) => {
         <ConfirmDialog></ConfirmDialog>
         <div class="">
             <Toolbar class="mb-4">
-                <template v-slot:start>
-                    <div class="my-2">
-                        <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                        <Button label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedRoomTypes || !selectedRoomTypes.length" />
-                        <Button label="Khởi tạo dữ liệu mẫu" icon="pi pi-sync" severity="help" @click="initRoomTypes" />
-                    </div>
+                <template #start>
+                    <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRoomTypes?.length" />
                 </template>
 
                 <template v-slot:end>
