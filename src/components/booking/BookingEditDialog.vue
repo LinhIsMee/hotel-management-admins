@@ -48,88 +48,94 @@ const updateVisible = (val) => {
 </script>
 
 <template>
-    <Dialog :visible="visible" @update:visible="updateVisible" :style="{ width: '750px' }" header="Thông tin đơn đặt phòng" :modal="true" class="p-fluid booking-dialog">
-        <div class="grid">
-            <!-- Cột trái -->
-            <div class="col-12 md:col-6">
-                <h3 class="text-lg font-medium mb-3">Thông tin khách hàng</h3>
+    <Dialog :visible="visible" @update:visible="updateVisible" :style="{ width: '900px', maxWidth: '98vw' }" header="Thông tin đơn đặt phòng" :modal="true" class="booking-dialog p-fluid">
+        <div class="grid formgrid">
+            <!-- Cột 1: Thông tin khách hàng -->
+            <div class="col-12 md:col-4 lg:col-4 field-group">
+                <h3 class="text-lg font-medium mb-2">Thông tin khách hàng</h3>
 
-                <div class="field mb-3">
-                    <label for="fullName" class="block font-medium text-sm mb-1">Họ và tên</label>
-                    <InputText id="fullName" v-model.trim="localBooking.fullName" required class="w-full" :class="{ 'p-invalid': submitted && !localBooking.fullName }" />
+                <div class="field mb-2">
+                    <label for="fullName" class="block text-sm mb-1">Họ và tên</label>
+                    <InputText id="fullName" v-model.trim="localBooking.fullName" required :class="{ 'p-invalid': submitted && !localBooking.fullName }" />
                     <small class="p-error" v-if="submitted && !localBooking.fullName">Họ và tên là bắt buộc.</small>
                 </div>
 
-                <div class="field mb-3">
-                    <label for="email" class="block font-medium text-sm mb-1">Email</label>
-                    <InputText id="email" v-model.trim="localBooking.email" type="email" class="w-full" />
+                <div class="field mb-2">
+                    <label for="email" class="block text-sm mb-1">Email</label>
+                    <InputText id="email" v-model.trim="localBooking.email" type="email" />
                 </div>
 
-                <div class="field mb-3">
-                    <label for="phone" class="block font-medium text-sm mb-1">Số điện thoại</label>
-                    <InputText id="phone" v-model.trim="localBooking.phone" class="w-full" />
+                <div class="field mb-2">
+                    <label for="phone" class="block text-sm mb-1">Số điện thoại</label>
+                    <InputText id="phone" v-model.trim="localBooking.phone" />
                 </div>
 
-                <div class="field mb-3">
-                    <label for="nationalId" class="block font-medium text-sm mb-1">CMND/CCCD</label>
-                    <InputText id="nationalId" v-model.trim="localBooking.nationalId" class="w-full" />
-                </div>
-
-                <h3 class="text-lg font-medium mb-3 mt-4">Thông tin thanh toán</h3>
-
-                <div class="field mb-3">
-                    <label for="totalPrice" class="block font-medium text-sm mb-1">Tổng tiền</label>
-                    <InputNumber id="totalPrice" v-model="localBooking.totalPrice" mode="currency" currency="VND" locale="vi-VN" :minFractionDigits="0" class="w-full" />
-                </div>
-
-                <div class="field mb-3">
-                    <label for="discountCode" class="block font-medium text-sm mb-1">Mã giảm giá</label>
-                    <InputText id="discountCode" v-model.trim="localBooking.discountCode" class="w-full" />
-                </div>
-
-                <div class="field mb-3">
-                    <label for="finalPrice" class="block font-medium text-sm mb-1">Số tiền sau giảm giá</label>
-                    <InputNumber id="finalPrice" v-model="localBooking.finalPrice" mode="currency" currency="VND" locale="vi-VN" :minFractionDigits="0" class="w-full" />
+                <div class="field mb-2">
+                    <label for="nationalId" class="block text-sm mb-1">CMND/CCCD</label>
+                    <InputText id="nationalId" v-model.trim="localBooking.nationalId" />
                 </div>
             </div>
 
-            <!-- Cột phải -->
-            <div class="col-12 md:col-6">
-                <h3 class="text-lg font-medium mb-3">Thông tin đặt phòng</h3>
+            <!-- Cột 2: Thông tin đặt phòng -->
+            <div class="col-12 md:col-4 lg:col-4 field-group">
+                <h3 class="text-lg font-medium mb-2">Thông tin đặt phòng</h3>
 
-                <div class="field mb-3">
-                    <label for="checkInDate" class="block font-medium text-sm mb-1">Ngày nhận phòng</label>
-                    <Calendar id="checkInDate" v-model="localBooking.checkInDate" dateFormat="dd/mm/yy" showIcon required class="w-full" :class="{ 'p-invalid': submitted && !localBooking.checkInDate }" />
+                <div class="field mb-2">
+                    <label for="checkInDate" class="block text-sm mb-1">Ngày nhận phòng</label>
+                    <Calendar id="checkInDate" v-model="localBooking.checkInDate" dateFormat="dd/mm/yy" showIcon required :class="{ 'p-invalid': submitted && !localBooking.checkInDate }" />
                     <small class="p-error" v-if="submitted && !localBooking.checkInDate">Ngày nhận phòng là bắt buộc.</small>
                 </div>
 
-                <div class="field mb-3">
-                    <label for="checkOutDate" class="block font-medium text-sm mb-1">Ngày trả phòng</label>
-                    <Calendar id="checkOutDate" v-model="localBooking.checkOutDate" dateFormat="dd/mm/yy" showIcon required class="w-full" :class="{ 'p-invalid': submitted && !localBooking.checkOutDate }" />
+                <div class="field mb-2">
+                    <label for="checkOutDate" class="block text-sm mb-1">Ngày trả phòng</label>
+                    <Calendar id="checkOutDate" v-model="localBooking.checkOutDate" dateFormat="dd/mm/yy" showIcon required :class="{ 'p-invalid': submitted && !localBooking.checkOutDate }" />
                     <small class="p-error" v-if="submitted && !localBooking.checkOutDate">Ngày trả phòng là bắt buộc.</small>
                 </div>
 
-                <div class="field mb-3">
-                    <label for="status" class="block font-medium text-sm mb-1">Trạng thái</label>
-                    <Dropdown id="status" v-model="localBooking.status" :options="statuses" optionLabel="label" optionValue="value" required class="w-full" :class="{ 'p-invalid': submitted && !localBooking.status }" />
+                <div class="field mb-2">
+                    <label for="status" class="block text-sm mb-1">Trạng thái</label>
+                    <Dropdown id="status" v-model="localBooking.status" :options="statuses" optionLabel="label" optionValue="value" required :class="{ 'p-invalid': submitted && !localBooking.status }" />
                     <small class="p-error" v-if="submitted && !localBooking.status">Trạng thái là bắt buộc.</small>
                 </div>
 
-                <h3 class="text-lg font-medium mb-3 mt-4">Phương thức thanh toán</h3>
+                <div class="field mb-2">
+                    <label for="room" class="block text-sm mb-1">Phòng đặt</label>
+                    <InputText id="room" v-model.trim="localBooking.roomNumber" placeholder="Phòng được chỉ định" disabled />
+                </div>
+            </div>
 
-                <div class="field mb-3">
-                    <label for="paymentMethod" class="block font-medium text-sm mb-1">Phương thức</label>
-                    <Dropdown id="paymentMethod" v-model="localBooking.paymentMethod" :options="paymentMethods" optionLabel="label" optionValue="value" class="w-full" />
+            <!-- Cột 3: Thông tin thanh toán -->
+            <div class="col-12 md:col-4 lg:col-4 field-group">
+                <h3 class="text-lg font-medium mb-2">Thông tin thanh toán</h3>
+
+                <div class="field mb-2">
+                    <label for="totalPrice" class="block text-sm mb-1">Tổng tiền</label>
+                    <InputNumber id="totalPrice" v-model="localBooking.totalPrice" mode="currency" currency="VND" locale="vi-VN" :minFractionDigits="0" />
                 </div>
 
-                <div class="field mb-3">
-                    <label for="paymentStatus" class="block font-medium text-sm mb-1">Trạng thái thanh toán</label>
-                    <Dropdown id="paymentStatus" v-model="localBooking.paymentStatus" :options="paymentStatuses" optionLabel="label" optionValue="value" class="w-full" />
+                <div class="field mb-2">
+                    <label for="discountCode" class="block text-sm mb-1">Mã giảm giá</label>
+                    <InputText id="discountCode" v-model.trim="localBooking.discountCode" />
                 </div>
 
-                <div class="field mb-3">
-                    <label for="paymentDate" class="block font-medium text-sm mb-1">Ngày thanh toán</label>
-                    <Calendar id="paymentDate" v-model="localBooking.paymentDate" dateFormat="dd/mm/yy" showIcon class="w-full" />
+                <div class="field mb-2">
+                    <label for="finalPrice" class="block text-sm mb-1">Số tiền sau giảm giá</label>
+                    <InputNumber id="finalPrice" v-model="localBooking.finalPrice" mode="currency" currency="VND" locale="vi-VN" :minFractionDigits="0" />
+                </div>
+
+                <div class="field mb-2">
+                    <label for="paymentMethod" class="block text-sm mb-1">Phương thức thanh toán</label>
+                    <Dropdown id="paymentMethod" v-model="localBooking.paymentMethod" :options="paymentMethods" optionLabel="label" optionValue="value" />
+                </div>
+
+                <div class="field mb-2">
+                    <label for="paymentStatus" class="block text-sm mb-1">Trạng thái thanh toán</label>
+                    <Dropdown id="paymentStatus" v-model="localBooking.paymentStatus" :options="paymentStatuses" optionLabel="label" optionValue="value" />
+                </div>
+
+                <div class="field mb-2">
+                    <label for="paymentDate" class="block text-sm mb-1">Ngày thanh toán</label>
+                    <Calendar id="paymentDate" v-model="localBooking.paymentDate" dateFormat="dd/mm/yy" showIcon />
                 </div>
             </div>
         </div>
@@ -145,24 +151,30 @@ const updateVisible = (val) => {
 
 <style scoped>
 .booking-dialog :deep(.p-dialog-content) {
-    padding: 1.5rem;
+    padding: 1.25rem;
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
 .booking-dialog :deep(.p-dialog-header) {
     border-bottom: 1px solid var(--surface-border);
-    padding: 1.25rem 1.5rem;
+    padding: 1rem 1.5rem;
 }
 
 .booking-dialog :deep(.p-dialog-footer) {
     border-top: 1px solid var(--surface-border);
-    padding: 1.25rem 1.5rem;
+    padding: 1rem 1.5rem;
+}
+
+.field-group {
+    padding: 0 0.5rem;
 }
 
 .booking-dialog :deep(.p-inputtext),
 .booking-dialog :deep(.p-dropdown),
 .booking-dialog :deep(.p-calendar),
 .booking-dialog :deep(.p-inputnumber) {
-    height: 2.357rem;
+    height: 2.25rem;
     font-size: 0.875rem;
 }
 
@@ -176,16 +188,36 @@ const updateVisible = (val) => {
 }
 
 .booking-dialog :deep(.p-inputnumber-buttons-stacked .p-button) {
-    height: 1.1785rem;
+    height: 1.125rem;
 }
 
 .booking-dialog :deep(.p-inputnumber-buttons-stacked .p-inputnumber-button-group) {
-    width: 2.357rem;
+    width: 2.25rem;
+}
+
+@media screen and (max-width: 992px) {
+    .booking-dialog :deep(.p-dialog-content) {
+        padding: 1rem;
+    }
+
+    .field-group {
+        padding: 0 0.25rem;
+    }
 }
 
 @media screen and (max-width: 768px) {
     .booking-dialog :deep(.p-dialog-content) {
-        padding: 1rem;
+        padding: 0.75rem;
+    }
+
+    .field-group {
+        margin-bottom: 1rem;
+    }
+
+    .field-group h3 {
+        border-bottom: 1px solid var(--surface-border);
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
     }
 }
 </style>
