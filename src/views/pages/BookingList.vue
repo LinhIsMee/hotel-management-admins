@@ -30,6 +30,9 @@ const {
     fetchBookingsByStatus,
     fetchBookingsByDateRange,
     fetchBookingById,
+    fetchUserBookings,
+    createBooking,
+    updateBooking,
     formatCurrency,
     formatDate,
     getStatusLabel,
@@ -131,52 +134,130 @@ const hideDialog = () => {
     submitted.value = false;
 };
 
-// Lưu đơn đặt
-const saveBooking = () => {
+// Xử lý lưu đơn đặt
+const saveBooking = async () => {
     submitted.value = true;
 
-    if (booking.value.fullName?.trim() && booking.value.roomId) {
-        // Tìm thông tin phòng
-        const selectedRoom = availableRooms.value.find((r) => r.id === booking.value.roomId);
-        const selectedRoomType = roomTypes.value.find((t) => t.id === selectedRoom?.roomTypeId);
+    if (booking.value.fullName?.trim()) {
+        try {
+            // Đảm bảo các trường bắt buộc đều có theo mẫu JSON
+            if (!booking.value.userId) {
+                try {
+                    const userData = localStorage.getItem('admin_user');
+                    if (userData) {
+                        const user = JSON.parse(userData);
+                        booking.value.userId = user.id || 0;
+                    } else {
+                        booking.value.userId = 0;
+                    }
+                } catch (e) {
+                    booking.value.userId = 0;
+                }
+            }
 
-        if (booking.value.id) {
-            // Cập nhật đơn đặt hiện có
-            const index = findIndexById(booking.value.id);
-            bookings.value[index] = {
+            // Đảm bảo có roomIds theo mẫu yêu cầu
+            if (!booking.value.roomIds && booking.value.rooms) {
+                booking.value.roomIds = booking.value.rooms.map(room => room.roomId || room.id);
+            }
+
+            // Đảm bảo các trường bắt buộc khác có giá trị mặc định
+            if (!booking.value.status) booking.value.status = 'PENDING';
+            if (!booking.value.paymentStatus) booking.value.paymentStatus = 'UNPAID';
+            if (!booking.value.paymentMethod) booking.value.paymentMethod = 'CASH';
+            if (!booking.value.adults) booking.value.adults = 1;
+            if (!booking.value.children) booking.value.children = 0;
+
+            const bookingData = {
                 ...booking.value,
-                roomNumber: selectedRoom?.roomNumber,
-                roomType: selectedRoomType?.name
+                // Định dạng các trường ngày tháng
+                checkInDate: booking.value.checkInDate instanceof Date ?
+                        booking.value.checkInDate.toISOString().split('T')[0] : booking.value.checkInDate,
+                checkOutDate: booking.value.checkOutDate instanceof Date ?
+                        booking.value.checkOutDate.toISOString().split('T')[0] : booking.value.checkOutDate,
+                paymentDate: booking.value.paymentDate instanceof Date ?
+                        booking.value.paymentDate.toISOString().split('T')[0] : booking.value.paymentDate
             };
+
+            // Tạo mới hoặc cập nhật đơn đặt qua API
+            let result;
+            if (booking.value.id) {
+                // Cập nhật đơn đặt hiện có
+                result = await updateBooking(booking.value.id, bookingData);
         } else {
             // Tạo đơn đặt mới
-            booking.value.id = 'B' + String(bookings.value.length + 1).padStart(3, '0');
-            booking.value.createdAt = new Date().toISOString().split('T')[0];
-            booking.value.roomNumber = selectedRoom?.roomNumber;
-            booking.value.roomType = selectedRoomType?.name;
-            bookings.value.push(booking.value);
-        }
+                result = await createBooking(bookingData);
+            }
 
+            if (result) {
+                toast.add({
+                    severity: 'success',
+                    summary: 'Thành công',
+                    detail: booking.value.id ? 'Cập nhật đơn đặt thành công' : 'Tạo đơn đặt mới thành công',
+                    life: 3000
+                });
+                // Làm mới dữ liệu
+                await fetchAllBookings();
         bookingDialog.value = false;
         booking.value = {};
+            }
+        } catch (error) {
+            console.error('Lỗi khi lưu đặt phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Có lỗi xảy ra khi lưu đặt phòng. Vui lòng thử lại sau.',
+                life: 3000
+            });
+        }
+    } else {
+        toast.add({
+            severity: 'warn',
+            summary: 'Thiếu thông tin',
+            detail: 'Vui lòng điền đầy đủ thông tin bắt buộc.',
+            life: 3000
+        });
     }
 };
 
 // Chỉnh sửa đơn đặt
-const editBooking = (editBooking) => {
-    // Tìm ID phòng dựa trên số phòng
-    const room = availableRooms.value.find((r) => r.roomNumber === editBooking.roomNumber);
+const editBooking = async (editBooking) => {
+    try {
+        // Tải thông tin chi tiết về đơn đặt từ API
+        const fullDetails = await fetchBookingById(editBooking.id);
 
-    booking.value = {
-        ...editBooking,
-        // Đảm bảo các trường được chuyển đổi đúng
-        roomId: room?.id || null,
-        checkInDate: new Date(editBooking.checkInDate),
-        checkOutDate: new Date(editBooking.checkOutDate),
-        additionalServices: editBooking.additionalServices || []
-    };
+        if (fullDetails) {
+            // Sử dụng thông tin chi tiết đầy đủ từ API
+            booking.value = { ...fullDetails };
 
-    bookingDialog.value = true;
+            // Chuyển đổi các chuỗi ngày thành đối tượng Date
+            if (typeof booking.value.checkInDate === 'string') {
+                booking.value.checkInDate = new Date(booking.value.checkInDate);
+            }
+            if (typeof booking.value.checkOutDate === 'string') {
+                booking.value.checkOutDate = new Date(booking.value.checkOutDate);
+            }
+            if (typeof booking.value.paymentDate === 'string' && booking.value.paymentDate) {
+                booking.value.paymentDate = new Date(booking.value.paymentDate);
+            }
+
+            bookingDialog.value = true;
+        } else {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Không thể tải thông tin chi tiết đơn đặt.',
+                life: 3000
+            });
+        }
+    } catch (error) {
+        console.error('Lỗi khi chỉnh sửa đơn đặt:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Có lỗi xảy ra khi tải thông tin đơn đặt.',
+            life: 3000
+        });
+    }
 };
 
 // Mở dialog xem chi tiết

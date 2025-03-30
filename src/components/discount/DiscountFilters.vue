@@ -1,51 +1,71 @@
 <script setup>
-import { ref } from 'vue';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
+import ToggleButton from 'primevue/togglebutton';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
     showActiveOnly: {
         type: Boolean,
         default: false
+    },
+    globalFilter: {
+        type: Object,
+        default: () => ({ value: null })
     }
 });
 
-const emit = defineEmits(['search', 'toggle-active-filter']);
+const emit = defineEmits(['toggle-active-filter', 'search', 'update:globalFilter', 'update:showActiveOnly']);
 
-const searchQuery = ref('');
+const localSearch = ref('');
 
-const onSearch = () => {
-    emit('search', searchQuery.value);
-};
+// Theo dõi thay đổi của localSearch để emit sự kiện tìm kiếm
+watch(localSearch, (newValue) => {
+    emit('search', newValue);
+});
 
 const toggleActiveFilter = () => {
+    // Emit cả 2 sự kiện: một cho v-model và một cho logic cũ
+    emit('update:showActiveOnly', !props.showActiveOnly);
     emit('toggle-active-filter');
+};
+
+// Xóa tìm kiếm
+const clearSearch = () => {
+    localSearch.value = '';
+    emit('search', '');
 };
 </script>
 
 <template>
-    <div class="flex flex-col sm:flex-row gap-2 justify-between items-center mb-4">
-        <div>
-            <Button :outlined="!showActiveOnly" :severity="showActiveOnly ? 'success' : 'secondary'" icon="pi pi-check-circle" label="Chỉ mã đang hoạt động" class="mr-2" @click="toggleActiveFilter" />
-        </div>
-
-        <div class="search-container">
-            <span class="p-input-icon-left">
-                <InputText v-model="searchQuery" placeholder="Tìm kiếm..." class="p-inputtext-sm" @keyup.enter="onSearch" />
-            </span>
-            <Button icon="pi pi-search" class="search-button" @click="onSearch" />
-        </div>
+    <div class="flex align-items-center justify-content-end gap-2">
+        <ToggleButton
+            :modelValue="showActiveOnly"
+            @update:modelValue="$emit('update:showActiveOnly', $event)"
+            onLabel="Chỉ hiện đang hoạt động"
+            offLabel="Hiện tất cả"
+            @click="toggleActiveFilter"
+            class="mr-2"
+        />
+        <span class="p-input-icon-left search-wrapper">
+            <InputText v-model="localSearch" placeholder="Tìm kiếm mã giảm giá..." />
+            <Button v-if="localSearch" icon="pi pi-times" class="p-button-rounded p-button-text p-button-sm" @click="clearSearch" />
+        </span>
     </div>
 </template>
 
 <style scoped>
-.search-container {
+.search-wrapper {
     position: relative;
-    display: flex;
+    display: inline-flex;
     align-items: center;
 }
 
-.search-button {
-    margin-left: 0.5rem;
+.search-wrapper .p-button {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
 }
 </style>

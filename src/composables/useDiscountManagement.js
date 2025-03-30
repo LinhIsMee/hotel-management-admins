@@ -1,14 +1,12 @@
-import { ref, reactive } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import { ref } from 'vue';
 
 // Import axios từ file service
-import apiService from '@/services/apiService';
 
 export function useDiscountManagement() {
     const toast = useToast();
-    const apiUrl = '/api/discounts';
     const discounts = ref([]);
-    const loading = ref(false);
+    const loading = ref(true);
     const totalRecords = ref(0);
     const discountDialog = ref(false);
     const deleteDiscountDialog = ref(false);
@@ -18,228 +16,447 @@ export function useDiscountManagement() {
     const submitted = ref(false);
     const discount = ref(initNewDiscount());
 
+    // Định nghĩa API_BASE_URL
+    const API_BASE_URL = 'http://localhost:9000';
+
     // Định nghĩa các loại giảm giá
     const discountTypes = [
         { label: 'Phần trăm', value: 'PERCENT' },
         { label: 'Số tiền cố định', value: 'FIXED' }
     ];
 
-    // Lấy tất cả mã giảm giá
-    const fetchDiscounts = async () => {
-        loading.value = true;
+    // Hàm helper lấy token từ localStorage
+    const getAuthToken = () => {
         try {
-            // Sử dụng mock data khi đang phát triển
-            // Trong môi trường thực tế, bạn sẽ sử dụng: const response = await apiService.get(apiUrl);
-            setTimeout(() => {
-                discounts.value = mockDiscounts;
-                totalRecords.value = mockDiscounts.length;
-                loading.value = false;
-            }, 500);
-        } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải danh sách mã giảm giá', life: 3000 });
-            console.error('Lỗi khi tải mã giảm giá:', error);
-            loading.value = false;
-        }
-    };
-
-    // Lấy mã giảm giá theo ID
-    const fetchDiscountById = async (id) => {
-        try {
-            // Trong môi trường thực tế: return await apiService.get(`${apiUrl}/${id}`);
-            return mockDiscounts.find(d => d.id === id);
-        } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: `Không thể tải mã giảm giá ID: ${id}`, life: 3000 });
-            console.error('Lỗi khi tải mã giảm giá theo ID:', error);
-            return null;
-        }
-    };
-
-    // Lấy mã giảm giá theo code
-    const fetchDiscountByCode = async (code) => {
-        try {
-            // Trong môi trường thực tế: return await apiService.get(`${apiUrl}/code/${code}`);
-            return mockDiscounts.find(d => d.code === code);
-        } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: `Không thể tải mã giảm giá: ${code}`, life: 3000 });
-            console.error('Lỗi khi tải mã giảm giá theo code:', error);
-            return null;
-        }
-    };
-
-    // Lấy danh sách mã giảm giá đang hoạt động
-    const fetchActiveDiscounts = async () => {
-        loading.value = true;
-        try {
-            // Trong môi trường thực tế: const response = await apiService.get(`${apiUrl}/active`);
-            setTimeout(() => {
-                const now = new Date();
-                discounts.value = mockDiscounts.filter(d => {
-                    const startDate = new Date(d.validFrom);
-                    const endDate = new Date(d.validTo);
-                    return d.valid && now >= startDate && now <= endDate && d.usedCount < d.maxUses;
+            const adminTokenData = localStorage.getItem('admin_token');
+            if (!adminTokenData) {
+                toast.add({
+                    severity: 'error',
+                    summary: 'Lỗi xác thực',
+                    detail: 'Không tìm thấy token đăng nhập, vui lòng đăng nhập lại',
+                    life: 3000
                 });
-                totalRecords.value = discounts.value.length;
-                loading.value = false;
-            }, 500);
-        } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải danh sách mã giảm giá đang hoạt động', life: 3000 });
-            console.error('Lỗi khi tải mã giảm giá đang hoạt động:', error);
-            loading.value = false;
-        }
-    };
-
-    // Tạo mã giảm giá mới
-    const createDiscount = async (discountData) => {
-        try {
-            // Trong môi trường thực tế: return await apiService.post(apiUrl, discountData);
-            const newDiscount = {
-                id: mockDiscounts.length + 1,
-                ...discountData
-            };
-            mockDiscounts.push(newDiscount);
-            toast.add({ severity: 'success', summary: 'Thành công', detail: 'Tạo mã giảm giá thành công', life: 3000 });
-            return newDiscount;
-        } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tạo mã giảm giá', life: 3000 });
-            console.error('Lỗi khi tạo mã giảm giá:', error);
-            return null;
-        }
-    };
-
-    // Tạo nhiều mã giảm giá ngẫu nhiên
-    const generateDiscounts = async (generateData) => {
-        try {
-            // Trong môi trường thực tế: return await apiService.post(`${apiUrl}/generate`, generateData);
-            const generatedDiscounts = [];
-            for (let i = 0; i < generateData.count; i++) {
-                const randomCode = `${generateData.prefix}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-                const newDiscount = {
-                    id: mockDiscounts.length + i + 1,
-                    code: randomCode,
-                    discountType: generateData.discountType,
-                    discountValue: generateData.discountValue,
-                    validFrom: generateData.validFrom,
-                    validTo: generateData.validTo,
-                    maxUses: generateData.maxUses,
-                    usedCount: 0,
-                    valid: true
-                };
-                generatedDiscounts.push(newDiscount);
-            }
-            mockDiscounts.push(...generatedDiscounts);
-            toast.add({ severity: 'success', summary: 'Thành công', detail: `Đã tạo ${generateData.count} mã giảm giá`, life: 3000 });
-            return generatedDiscounts;
-        } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tạo mã giảm giá ngẫu nhiên', life: 3000 });
-            console.error('Lỗi khi tạo mã giảm giá ngẫu nhiên:', error);
-            return null;
-        }
-    };
-
-    // Cập nhật mã giảm giá
-    const updateDiscount = async (id, discountData) => {
-        try {
-            // Trong môi trường thực tế: return await apiService.put(`${apiUrl}/${id}`, discountData);
-            const index = mockDiscounts.findIndex(d => d.id === id);
-            if (index !== -1) {
-                mockDiscounts[index] = { ...mockDiscounts[index], ...discountData };
-                toast.add({ severity: 'success', summary: 'Thành công', detail: 'Cập nhật mã giảm giá thành công', life: 3000 });
-                return mockDiscounts[index];
-            }
-            return null;
-        } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể cập nhật mã giảm giá', life: 3000 });
-            console.error('Lỗi khi cập nhật mã giảm giá:', error);
-            return null;
-        }
-    };
-
-    // Xóa mã giảm giá
-    const deleteDiscount = async (id) => {
-        try {
-            // Trong môi trường thực tế: await apiService.delete(`${apiUrl}/${id}`);
-            const index = mockDiscounts.findIndex(d => d.id === id);
-            if (index !== -1) {
-                mockDiscounts.splice(index, 1);
-                toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã xóa mã giảm giá', life: 3000 });
-                return true;
-            }
-            return false;
-        } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể xóa mã giảm giá', life: 3000 });
-            console.error('Lỗi khi xóa mã giảm giá:', error);
-            return false;
-        }
-    };
-
-    // Kiểm tra tính hợp lệ của mã giảm giá
-    const validateDiscount = async (code) => {
-        try {
-            // Trong môi trường thực tế: return await apiService.get(`${apiUrl}/validate/${code}`);
-            const discount = mockDiscounts.find(d => d.code === code);
-            if (!discount) return false;
-
-            const now = new Date();
-            const startDate = new Date(discount.validFrom);
-            const endDate = new Date(discount.validTo);
-
-            return discount.valid && now >= startDate && now <= endDate && discount.usedCount < discount.maxUses;
-        } catch (error) {
-            console.error('Lỗi khi kiểm tra mã giảm giá:', error);
-            return false;
-        }
-    };
-
-    // Áp dụng mã giảm giá
-    const applyDiscount = async (code, amount) => {
-        try {
-            // Trong môi trường thực tế: return await apiService.get(`${apiUrl}/apply?code=${code}&amount=${amount}`);
-            const discount = mockDiscounts.find(d => d.code === code);
-            if (!discount) return null;
-
-            if (!validateDiscount(code)) {
-                toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Mã giảm giá không hợp lệ hoặc đã hết hạn', life: 3000 });
                 return null;
             }
 
-            let discountAmount = 0;
-            if (discount.discountType === 'PERCENT') {
-                discountAmount = amount * discount.discountValue;
-            } else {
-                discountAmount = discount.discountValue;
+            const adminTokenObj = JSON.parse(adminTokenData);
+            const accessToken = adminTokenObj.accessToken;
+            if (!accessToken) {
+                toast.add({
+                    severity: 'error',
+                    summary: 'Lỗi xác thực',
+                    detail: 'Token không hợp lệ, vui lòng đăng nhập lại',
+                    life: 3000
+                });
+                return null;
             }
 
-            const result = {
-                originalAmount: amount,
-                discountedAmount: amount - discountAmount,
-                discountAmount: discountAmount,
-                discountCode: code
-            };
-
-            toast.add({ severity: 'success', summary: 'Thành công', detail: 'Áp dụng mã giảm giá thành công', life: 3000 });
-            return result;
+            return accessToken;
         } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể áp dụng mã giảm giá', life: 3000 });
-            console.error('Lỗi khi áp dụng mã giảm giá:', error);
+            console.error('Lỗi khi lấy token:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi xác thực',
+                detail: 'Có lỗi xảy ra khi xác thực, vui lòng đăng nhập lại',
+                life: 3000
+            });
             return null;
         }
     };
 
-    // Sử dụng mã giảm giá
-    const useDiscount = async (code) => {
+    // Thêm hàm helper để tạo header xác thực
+    const getAuthHeaders = (contentType = false) => {
+        const token = getAuthToken();
+        if (!token) return null;
+
+        const headers = {
+            Authorization: `Bearer ${token}`
+        };
+
+        if (contentType) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        return headers;
+    };
+
+    // 1. Lấy tất cả mã giảm giá
+    const fetchDiscounts = async () => {
+        loading.value = true;
         try {
-            // Trong môi trường thực tế: return await apiService.post(`${apiUrl}/use/${code}`);
-            const index = mockDiscounts.findIndex(d => d.code === code);
-            if (index !== -1) {
-                mockDiscounts[index].usedCount++;
-                toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã sử dụng mã giảm giá', life: 3000 });
-                return { message: `Đã cập nhật số lần sử dụng của mã giảm giá: ${code}` };
+            const headers = getAuthHeaders();
+            if (!headers) {
+                loading.value = false;
+                return;
             }
-            return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts`, {
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi tải danh sách mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            discounts.value = Array.isArray(result) ? result : result.data || [];
         } catch (error) {
-            toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể sử dụng mã giảm giá', life: 3000 });
-            console.error('Lỗi khi sử dụng mã giảm giá:', error);
+            console.error('Lỗi khi tải dữ liệu mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tải danh sách mã giảm giá',
+                life: 3000
+            });
+            discounts.value = [];
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    // 2. Lấy mã giảm giá theo ID
+    const fetchDiscountById = async (id) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/discounts/${id}`, {
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi tải thông tin mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi tải thông tin mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tải thông tin mã giảm giá',
+                life: 3000
+            });
             return null;
+        }
+    };
+
+    // 3. Lấy mã giảm giá theo code
+    const fetchDiscountByCode = async (code) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts/code/${code}`, {
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi tải thông tin mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi tải thông tin mã giảm giá theo mã:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tải thông tin mã giảm giá',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // 4. Lấy mã giảm giá đang hoạt động
+    const fetchActiveDiscounts = async () => {
+        loading.value = true;
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) {
+                loading.value = false;
+                return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts/active`, {
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi tải danh sách mã giảm giá đang hoạt động: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            discounts.value = Array.isArray(result) ? result : result.data || [];
+        } catch (error) {
+            console.error('Lỗi khi tải dữ liệu mã giảm giá đang hoạt động:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tải danh sách mã giảm giá đang hoạt động',
+                life: 3000
+            });
+            discounts.value = [];
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    // 5. Tạo mã giảm giá mới
+    const createDiscount = async (discountData) => {
+        try {
+            const headers = getAuthHeaders(true);
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(discountData)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server response:', errorText);
+                throw new Error(`Lỗi khi tạo mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Tạo mã giảm giá mới thành công',
+                life: 3000
+            });
+
+            // Cập nhật danh sách mã giảm giá
+            await fetchDiscounts();
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi tạo mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tạo mã giảm giá mới',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // 6. Tạo nhiều mã giảm giá ngẫu nhiên
+    const generateDiscounts = async (generateOptions) => {
+        try {
+            const headers = getAuthHeaders(true);
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts/generate`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(generateOptions)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server response:', errorText);
+                throw new Error(`Lỗi khi tạo mã giảm giá hàng loạt: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: `Đã tạo ${result.length || 'nhiều'} mã giảm giá mới`,
+                life: 3000
+            });
+
+            // Cập nhật danh sách mã giảm giá
+            await fetchDiscounts();
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi tạo mã giảm giá hàng loạt:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tạo mã giảm giá hàng loạt',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // 7. Cập nhật mã giảm giá
+    const updateDiscount = async (id, discountData) => {
+        try {
+            const headers = getAuthHeaders(true);
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts/${id}`, {
+                method: 'PUT',
+                headers: headers,
+                body: JSON.stringify(discountData)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server response:', errorText);
+                throw new Error(`Lỗi khi cập nhật mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Cập nhật mã giảm giá thành công',
+                life: 3000
+            });
+
+            // Cập nhật danh sách mã giảm giá
+            await fetchDiscounts();
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi cập nhật mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể cập nhật mã giảm giá',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // 8. Xóa mã giảm giá
+    const deleteDiscount = async (id) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return false;
+
+            console.log('Đang gọi API xóa mã giảm giá với ID:', id);
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts/${id}`, {
+                method: 'DELETE',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi xóa mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Xóa mã giảm giá thành công',
+                life: 3000
+            });
+
+            // Cập nhật danh sách mã giảm giá
+            await fetchDiscounts();
+
+            console.log('Đã xóa mã giảm giá thành công với ID:', id);
+            return true;
+        } catch (error) {
+            console.error('Lỗi khi xóa mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể xóa mã giảm giá',
+                life: 3000
+            });
+            return false;
+        }
+    };
+
+    // 9. Kiểm tra tính hợp lệ của mã giảm giá
+    const validateDiscountCode = async (code) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts/validate/${code}`, {
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi kiểm tra mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi kiểm tra mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể kiểm tra mã giảm giá',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // 10. Áp dụng mã giảm giá
+    const applyDiscount = async (code, amount) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const url = `${API_BASE_URL}/api/v1/discounts/apply?code=${code}&amount=${amount}`;
+            const response = await fetch(url, {
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi áp dụng mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi áp dụng mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể áp dụng mã giảm giá',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // 11. Sử dụng mã giảm giá
+    const useDiscountCode = async (code) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return false;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts/use/${code}`, {
+                method: 'POST',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi sử dụng mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi sử dụng mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể sử dụng mã giảm giá',
+                life: 3000
+            });
+            return false;
         }
     };
 
@@ -253,45 +470,83 @@ export function useDiscountManagement() {
             validTo: new Date(new Date().setMonth(new Date().getMonth() + 1)),
             maxUses: 100,
             usedCount: 0,
-            valid: true
+            minOrderValue: 0,
+            isActive: true
         };
     }
 
     // Định dạng giá trị giảm giá
-    const formatDiscountValue = (discount) => {
-        if (discount.discountType === 'PERCENT') {
-            return (discount.discountValue * 100).toFixed(0) + '%';
+    const formatDiscountValue = (discountItem) => {
+        if (!discountItem) return '';
+
+        if (discountItem.discountType === 'PERCENT') {
+            return `${discountItem.discountValue}%`;
         } else {
-            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(discount.discountValue);
+            return new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND',
+                minimumFractionDigits: 0
+            }).format(discountItem.discountValue);
         }
     };
 
     // Tính số ngày còn lại
     const calculateDaysRemaining = (validTo) => {
-        const currentDate = new Date();
+        if (!validTo) return 0;
+
         const endDate = new Date(validTo);
-        const timeDiff = endDate.getTime() - currentDate.getTime();
-        const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
-        return daysRemaining > 0 ? daysRemaining : 0;
+        const today = new Date();
+
+        // Xóa thời gian để chỉ so sánh ngày
+        endDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        const diffTime = endDate.getTime() - today.getTime();
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     };
 
     // Đánh giá trạng thái của mã giảm giá
-    const getDiscountStatus = (discount) => {
-        const now = new Date();
-        const startDate = new Date(discount.validFrom);
-        const endDate = new Date(discount.validTo);
-
-        if (!discount.valid) {
-            return { label: 'Vô hiệu', severity: 'danger' };
-        } else if (now < startDate) {
-            return { label: 'Chưa bắt đầu', severity: 'warning' };
-        } else if (now > endDate) {
-            return { label: 'Hết hạn', severity: 'danger' };
-        } else if (discount.usedCount >= discount.maxUses) {
-            return { label: 'Hết lượt', severity: 'danger' };
-        } else {
-            return { label: 'Đang hoạt động', severity: 'success' };
+    const getDiscountStatus = (discountItem) => {
+        if (!discountItem) {
+            return { label: 'Không xác định', severity: 'secondary' };
         }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const startDate = new Date(discountItem.validFrom);
+        const endDate = new Date(discountItem.validTo);
+
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
+
+        if (discountItem.usedCount >= discountItem.maxUses) {
+            return { label: 'Đã hết lượt', severity: 'danger' };
+        }
+
+        if (today < startDate) {
+            return { label: 'Chưa bắt đầu', severity: 'info' };
+        }
+
+        if (today > endDate) {
+            return { label: 'Đã hết hạn', severity: 'danger' };
+        }
+
+        if (!discountItem.isActive) {
+            return { label: 'Đã tắt', severity: 'warning' };
+        }
+
+        return { label: 'Đang hoạt động', severity: 'success' };
+    };
+
+    // Đánh giá mức độ sử dụng mã giảm giá
+    const getUsagePercentage = (discountItem) => {
+        if (!discountItem || discountItem.maxUses === 0) {
+            return 0;
+        }
+
+        const usagePercent = (discountItem.usedCount / discountItem.maxUses) * 100;
+        return Math.min(Math.round(usagePercent), 100);
     };
 
     // Mở dialog tạo mã giảm giá mới
@@ -321,69 +576,90 @@ export function useDiscountManagement() {
 
     // Lưu mã giảm giá
     const saveDiscount = async () => {
-        submitted.value = true;
+        try {
+            submitted.value = true;
 
-        if (discount.value.code?.trim() && discount.value.discountValue > 0) {
-            const discountData = {
-                ...discount.value,
-                validFrom: discount.value.validFrom instanceof Date
-                    ? discount.value.validFrom.toISOString().split('T')[0]
-                    : discount.value.validFrom,
-                validTo: discount.value.validTo instanceof Date
-                    ? discount.value.validTo.toISOString().split('T')[0]
-                    : discount.value.validTo
-            };
-
-            if (discount.value.id) {
-                // Cập nhật mã giảm giá
-                const updated = await updateDiscount(discount.value.id, discountData);
-                if (updated) {
-                    // Cập nhật mảng discounts
-                    const index = discounts.value.findIndex(d => d.id === discount.value.id);
-                    if (index !== -1) {
-                        discounts.value[index] = updated;
-                    }
-                }
-            } else {
-                // Tạo mới mã giảm giá
-                const created = await createDiscount(discountData);
-                if (created) {
-                    discounts.value.push(created);
-                }
+            if (!validateDiscountForm()) {
+                return;
             }
 
-            discountDialog.value = false;
-            discount.value = initNewDiscount();
+            const discountData = { ...discount.value };
+
+            // Chuyển đổi đối tượng Date thành chuỗi ngày
+            if (discountData.validFrom instanceof Date) {
+                discountData.validFrom = discountData.validFrom.toISOString().split('T')[0];
+            }
+            if (discountData.validTo instanceof Date) {
+                discountData.validTo = discountData.validTo.toISOString().split('T')[0];
+            }
+
+            let result;
+            if (discountData.id) {
+                // Cập nhật mã giảm giá hiện có
+                result = await updateDiscount(discountData.id, discountData);
+            } else {
+                // Tạo mã giảm giá mới
+                result = await createDiscount(discountData);
+            }
+
+            if (result) {
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Lỗi khi lưu mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Có lỗi xảy ra khi lưu mã giảm giá',
+                life: 3000
+            });
+            return false;
         }
     };
 
     // Tạo nhiều mã giảm giá
     const saveGeneratedDiscounts = async () => {
-        submitted.value = true;
+        try {
+            submitted.value = true;
 
-        if (discount.value.prefix?.trim() && discount.value.discountValue > 0 && discount.value.count > 0) {
-            const generateData = {
-                prefix: discount.value.prefix,
-                discountType: discount.value.discountType,
-                discountValue: discount.value.discountValue,
-                validFrom: discount.value.validFrom instanceof Date
-                    ? discount.value.validFrom.toISOString().split('T')[0]
-                    : discount.value.validFrom,
-                validTo: discount.value.validTo instanceof Date
-                    ? discount.value.validTo.toISOString().split('T')[0]
-                    : discount.value.validTo,
-                maxUses: discount.value.maxUses,
-                count: discount.value.count
-            };
-
-            const generated = await generateDiscounts(generateData);
-            if (generated) {
-                // Thêm mã mới vào danh sách
-                discounts.value = [...discounts.value, ...generated];
+            if (!discount.value.discountType || !discount.value.discountValue || !discount.value.validFrom || !discount.value.validTo) {
+                toast.add({
+                    severity: 'error',
+                    summary: 'Lỗi',
+                    detail: 'Vui lòng điền đầy đủ thông tin',
+                    life: 3000
+                });
+                return false;
             }
 
-            generateDiscountDialog.value = false;
-            discount.value = initNewDiscount();
+            const generateOptions = {
+                prefix: discount.value.prefix || 'PROMO',
+                count: discount.value.count || 5,
+                length: discount.value.length || 8,
+                discountType: discount.value.discountType,
+                discountValue: discount.value.discountValue,
+                validFrom: discount.value.validFrom instanceof Date ? discount.value.validFrom.toISOString().split('T')[0] : discount.value.validFrom,
+                validTo: discount.value.validTo instanceof Date ? discount.value.validTo.toISOString().split('T')[0] : discount.value.validTo,
+                maxUses: discount.value.maxUses || 100,
+                minOrderValue: discount.value.minOrderValue || 0,
+                isActive: discount.value.isActive !== undefined ? discount.value.isActive : true
+            };
+
+            const result = await generateDiscounts(generateOptions);
+            if (result) {
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Lỗi khi tạo mã giảm giá hàng loạt:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Có lỗi xảy ra khi tạo mã giảm giá hàng loạt',
+                life: 3000
+            });
+            return false;
         }
     };
 
@@ -410,80 +686,111 @@ export function useDiscountManagement() {
 
     // Thực hiện xóa mã giảm giá
     const confirmDelete = async (discountToDelete) => {
-        if (discountToDelete && discountToDelete.id) {
+        try {
+            console.log('Xác nhận xóa mã giảm giá:', discountToDelete);
+
+            if (!discountToDelete || !discountToDelete.id) {
+                console.error('Không thể xóa mã giảm giá - không có ID', discountToDelete);
+                toast.add({
+                    severity: 'error',
+                    summary: 'Lỗi',
+                    detail: 'Không thể xóa mã giảm giá do thiếu ID',
+                    life: 3000
+                });
+                return false;
+            }
+
             const success = await deleteDiscount(discountToDelete.id);
             if (success) {
-                discounts.value = discounts.value.filter(d => d.id !== discountToDelete.id);
+                // Không cần lọc lại mảng discounts vì fetchDiscounts đã được gọi trong deleteDiscount
                 deleteDiscountDialog.value = false;
                 selectedDiscount.value = null;
+                return true;
             }
+            return false;
+        } catch (error) {
+            console.error('Lỗi trong quá trình xóa mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Có lỗi xảy ra khi xóa mã giảm giá',
+                life: 3000
+            });
+            return false;
         }
     };
 
-    // Đánh giá mức độ sử dụng mã giảm giá
-    const getUsagePercentage = (discount) => {
-        if (discount.maxUses === 0) return 0;
-        return (discount.usedCount / discount.maxUses) * 100;
-    };
+    const validateDiscountForm = () => {
+        const { code, discountType, discountValue, validFrom, validTo } = discount.value;
 
-    // Dữ liệu mẫu để thử nghiệm
-    const mockDiscounts = [
-        {
-            id: 1,
-            code: 'SUMMER2023',
-            discountType: 'PERCENT',
-            discountValue: 0.15,
-            validFrom: '2023-06-01',
-            validTo: '2023-12-31',
-            maxUses: 100,
-            usedCount: 45,
-            valid: true
-        },
-        {
-            id: 2,
-            code: 'WELCOME',
-            discountType: 'FIXED',
-            discountValue: 100000,
-            validFrom: '2023-01-01',
-            validTo: '2023-12-31',
-            maxUses: 1000,
-            usedCount: 387,
-            valid: true
-        },
-        {
-            id: 3,
-            code: 'NEWYEAR2024',
-            discountType: 'PERCENT',
-            discountValue: 0.20,
-            validFrom: '2023-12-25',
-            validTo: '2024-01-15',
-            maxUses: 500,
-            usedCount: 123,
-            valid: true
-        },
-        {
-            id: 4,
-            code: 'SPECIALVIP',
-            discountType: 'FIXED',
-            discountValue: 500000,
-            validFrom: '2023-01-01',
-            validTo: '2023-12-31',
-            maxUses: 50,
-            usedCount: 50,
-            valid: true
-        },
-        {
-            id: 5,
-            code: 'TESTDISCOUNT',
-            discountType: 'PERCENT',
-            discountValue: 0.05,
-            validFrom: '2023-01-01',
-            validTo: '2023-06-30',
-            maxUses: 100,
-            usedCount: 15,
-            valid: false
+        if (!code || !discountType || !discountValue || !validFrom || !validTo) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Vui lòng điền đầy đủ thông tin bắt buộc',
+                life: 3000
+            });
+            return false;
         }
-    ];
+
+        // Kiểm tra định dạng mã giảm giá
+        if (!/^[A-Z0-9_-]{3,20}$/.test(code)) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Mã giảm giá chỉ được chứa chữ hoa, số, gạch dưới hoặc gạch ngang, độ dài từ 3-20 ký tự',
+                life: 3000
+            });
+            return false;
+        }
+
+        // Kiểm tra ngày hợp lệ
+        const fromDate = validFrom instanceof Date ? validFrom : new Date(validFrom);
+        const toDate = validTo instanceof Date ? validTo : new Date(validTo);
+
+        if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Ngày không hợp lệ',
+                life: 3000
+            });
+            return false;
+        }
+
+        if (fromDate > toDate) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Ngày bắt đầu phải trước ngày kết thúc',
+                life: 3000
+            });
+            return false;
+        }
+
+        // Kiểm tra giá trị giảm giá
+        if (discountType === 'PERCENT' && (discountValue <= 0 || discountValue > 100)) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Phần trăm giảm giá phải nằm trong khoảng 1-100%',
+                life: 3000
+            });
+            return false;
+        }
+
+        if (discountType === 'FIXED' && discountValue <= 0) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Giá trị giảm phải lớn hơn 0',
+                life: 3000
+            });
+            return false;
+        }
+
+        return true;
+    };
 
     return {
         discounts,
@@ -506,9 +813,9 @@ export function useDiscountManagement() {
         generateDiscounts,
         updateDiscount,
         deleteDiscount,
-        validateDiscount,
+        validateDiscountCode,
         applyDiscount,
-        useDiscount,
+        useDiscountCode,
 
         formatDiscountValue,
         calculateDaysRemaining,
@@ -522,6 +829,7 @@ export function useDiscountManagement() {
         saveGeneratedDiscounts,
         editDiscount,
         confirmDeleteDiscount,
-        confirmDelete
+        confirmDelete,
+        validateDiscountForm
     };
 }

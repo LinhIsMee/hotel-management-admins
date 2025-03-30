@@ -426,7 +426,6 @@ const getSeverity = (status) => {
 
                 <template v-slot:end>
                     <span class="p-input-icon-left">
-                        <i class="pi pi-search"></i>
                         <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
                     </span>
                 </template>

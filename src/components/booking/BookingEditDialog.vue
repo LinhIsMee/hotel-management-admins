@@ -5,7 +5,7 @@ import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
 import InputNumber from 'primevue/inputnumber';
 import InputText from 'primevue/inputtext';
-import { computed, onMounted, ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 // Khai báo props
 const props = defineProps({
@@ -31,7 +31,6 @@ const defaultPaymentMethods = ref([
 ]);
 
 // Kiểm tra và sử dụng paymentMethods từ props nếu có, nếu không thì dùng giá trị mặc định
-// Di chuyển lên trước hàm watch để tránh lỗi reference
 const actualPaymentMethods = computed(() => {
     return props.paymentMethods && props.paymentMethods.length > 0 ? props.paymentMethods : defaultPaymentMethods.value;
 });
@@ -40,23 +39,33 @@ const actualPaymentMethods = computed(() => {
 const normalizePaymentMethod = (method) => {
     if (!method) return null;
 
-    // Chuẩn hóa các trường hợp khác nhau
-    const methodUpper = typeof method === 'string' ? method.toUpperCase() : '';
+    try {
+        // Xử lý các kiểu dữ liệu khác nhau
+        if (typeof method === 'object' && method !== null) {
+            return method.value || null;
+        }
 
-    // Map các giá trị khác nhau về một giá trị chuẩn
-    const methodMap = {
-        VNPAY: 'VNPAY',
-        VN_PAY: 'VNPAY',
-        VNPAY_PAYMENT: 'VNPAY',
-        CASH: 'CASH',
-        'TIỀN MẶT': 'CASH',
-        CREDIT_CARD: 'CREDIT_CARD',
-        CREDIT: 'CREDIT_CARD',
-        BANK_TRANSFER: 'BANK_TRANSFER',
-        TRANSFER: 'BANK_TRANSFER'
-    };
+        // Nếu là chuỗi, chuẩn hóa thành chữ hoa
+        const methodUpper = typeof method === 'string' ? method.toUpperCase() : '';
 
-    return methodMap[methodUpper] || method;
+        // Map các giá trị khác nhau về một giá trị chuẩn
+        const methodMap = {
+            VNPAY: 'VNPAY',
+            VN_PAY: 'VNPAY',
+            VNPAY_PAYMENT: 'VNPAY',
+            CASH: 'CASH',
+            'TIỀN MẶT': 'CASH',
+            CREDIT_CARD: 'CREDIT_CARD',
+            CREDIT: 'CREDIT_CARD',
+            BANK_TRANSFER: 'BANK_TRANSFER',
+            TRANSFER: 'BANK_TRANSFER'
+        };
+
+        return methodMap[methodUpper] || method;
+    } catch (error) {
+        console.error('Lỗi khi chuẩn hóa phương thức thanh toán:', error);
+        return method; // Trả về giá trị gốc nếu có lỗi
+    }
 };
 
 // Cập nhật dữ liệu cục bộ khi props thay đổi
@@ -65,31 +74,79 @@ watch(
     (newVal) => {
         if (newVal) {
             try {
+                // Tạo bản sao sâu của đối tượng để tránh thay đổi trực tiếp props
                 const bookingCopy = JSON.parse(JSON.stringify(newVal));
 
-                // Chuẩn hóa phương thức thanh toán
+                // Chuẩn hóa phương thức thanh toán trước khi sử dụng
                 if (bookingCopy.paymentMethod) {
                     bookingCopy.paymentMethod = normalizePaymentMethod(bookingCopy.paymentMethod);
                 }
 
-                localBooking.value = bookingCopy;
+                // Đảm bảo có các trường bắt buộc theo mẫu
+                if (!bookingCopy.userId) bookingCopy.userId = getCurrentUserId();
+                if (!bookingCopy.adults) bookingCopy.adults = 1;
+                if (!bookingCopy.children) bookingCopy.children = 0;
+                if (!bookingCopy.status) bookingCopy.status = 'PENDING';
+                if (!bookingCopy.paymentStatus) bookingCopy.paymentStatus = 'UNPAID';
+                if (!bookingCopy.paymentMethod) bookingCopy.paymentMethod = 'CASH';
 
-                // Log để debug - đảm bảo không gây lỗi
-                console.log('Original paymentMethod:', newVal.paymentMethod);
-                console.log('Normalized paymentMethod:', localBooking.value.paymentMethod);
-                console.log('Available methods:', actualPaymentMethods.value.map((m) => m.value).join(', '));
+                // Chuyển đổi định dạng roomIds nếu cần
+                if (bookingCopy.rooms && Array.isArray(bookingCopy.rooms) && !bookingCopy.roomIds) {
+                    bookingCopy.roomIds = bookingCopy.rooms.map(room => room.roomId || room.id);
+                }
+
+                localBooking.value = bookingCopy;
             } catch (error) {
-                console.error('Error processing booking data:', error);
-                localBooking.value = newVal || {};
+                console.error('Lỗi khi xử lý dữ liệu đặt phòng:', error);
+                localBooking.value = { ...newVal } || {};
             }
         }
     },
     { immediate: true, deep: true }
 );
 
+// Hàm lấy ID người dùng hiện tại từ localStorage
+const getCurrentUserId = () => {
+    try {
+        const userData = localStorage.getItem('admin_user');
+        if (userData) {
+            const user = JSON.parse(userData);
+            return user.id || 0;
+        }
+        return 0;
+    } catch (error) {
+        console.error('Lỗi khi lấy ID người dùng:', error);
+        return 0;
+    }
+};
+
+// Trước khi lưu, đảm bảo dữ liệu đúng định dạng
 const save = () => {
-    emit('update:bookingData', localBooking.value);
-    emit('save');
+    try {
+        // Xác nhận rằng tất cả các trường bắt buộc đều có giá trị
+        if (!localBooking.value.fullName?.trim()) {
+            console.warn('Thiếu tên khách hàng');
+            return;
+        }
+
+        // Định dạng lại các trường cho phù hợp với API
+        const updatedBooking = {
+            ...localBooking.value,
+            // Đảm bảo các định dạng ngày tháng đúng
+            checkInDate: localBooking.value.checkInDate instanceof Date ?
+                        localBooking.value.checkInDate.toISOString().split('T')[0] : localBooking.value.checkInDate,
+            checkOutDate: localBooking.value.checkOutDate instanceof Date ?
+                        localBooking.value.checkOutDate.toISOString().split('T')[0] : localBooking.value.checkOutDate,
+            paymentDate: localBooking.value.paymentDate instanceof Date ?
+                        localBooking.value.paymentDate.toISOString().split('T')[0] : localBooking.value.paymentDate
+        };
+
+        // Cập nhật lại đối tượng gốc
+        emit('update:bookingData', updatedBooking);
+        emit('save');
+    } catch (error) {
+        console.error('Lỗi khi lưu dữ liệu:', error);
+    }
 };
 
 const hideDialog = () => {
@@ -99,124 +156,140 @@ const hideDialog = () => {
 const updateVisible = (val) => {
     emit('update:visible', val);
 };
-
-// Debug khi component mounted
-onMounted(() => {
-    console.log('Component mounted - Payment Methods:', actualPaymentMethods.value);
-    if (localBooking.value?.paymentMethod) {
-        console.log('Initial paymentMethod:', localBooking.value.paymentMethod);
-    }
-});
 </script>
 
 <template>
-    <Dialog :visible="visible" @update:visible="updateVisible" :style="{ width: '1000px' }" header="Thông tin đơn đặt phòng" :modal="true" class="p-fluid booking-dialog">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-            <!-- Thông tin khách hàng - Cột 1 -->
-            <div class="field w-full">
-                <div class="p-4 rounded-lg border-1 border-gray-200 w-full">
-                    <h3 class="text-lg font-medium mb-3">Thông tin khách hàng</h3>
+    <Dialog v-model:visible="visible" :style="{ width: '650px' }" header="Chi tiết đặt phòng" :modal="true" class="p-fluid" @update:visible="updateVisible">
+        <div class="grid">
+            <!-- Thông tin khách hàng -->
+            <div class="col-12">
+                <h5>Thông tin khách hàng</h5>
+            </div>
 
-                    <div class="mb-3 w-full">
-                        <label for="fullName" class="block font-medium text-sm mb-1">Họ và tên</label>
-                        <InputText id="fullName" v-model.trim="localBooking.fullName" required class="w-full" :class="{ 'p-invalid': submitted && !localBooking.fullName }" />
-                        <small class="p-error" v-if="submitted && !localBooking.fullName">Họ và tên là bắt buộc.</small>
-                    </div>
-
-                    <div class="mb-3 w-full">
-                        <label for="email" class="block font-medium text-sm mb-1">Email</label>
-                        <InputText id="email" v-model.trim="localBooking.email" type="email" class="w-full" />
-                    </div>
-
-                    <div class="mb-3 w-full">
-                        <label for="phone" class="block font-medium text-sm mb-1">Số điện thoại</label>
-                        <InputText id="phone" v-model.trim="localBooking.phone" class="w-full" />
-                    </div>
-
-                    <div class="mb-3 w-full">
-                        <label for="nationalId" class="block font-medium text-sm mb-1">CMND/CCCD</label>
-                        <InputText id="nationalId" v-model.trim="localBooking.nationalId" class="w-full" />
-                    </div>
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="fullName">Họ tên khách hàng <span class="text-red-500">*</span></label>
+                    <InputText id="fullName" v-model="localBooking.fullName" required :class="{ 'p-invalid': submitted && !localBooking.fullName }" />
+                    <small class="p-error" v-if="submitted && !localBooking.fullName">Họ tên là bắt buộc.</small>
                 </div>
             </div>
 
-            <!-- Thông tin đặt phòng - Cột 2 -->
-            <div class="field w-full">
-                <div class="p-4 rounded-lg border-1 border-gray-200 w-full">
-                    <h3 class="text-lg font-medium mb-3">Thông tin đặt phòng</h3>
-
-                    <div class="mb-3 w-full">
-                        <label for="checkInDate" class="block font-medium text-sm mb-1">Ngày nhận phòng</label>
-                        <Calendar id="checkInDate" v-model="localBooking.checkInDate" dateFormat="dd/mm/yy" showIcon required class="w-full" :class="{ 'p-invalid': submitted && !localBooking.checkInDate }" />
-                        <small class="p-error" v-if="submitted && !localBooking.checkInDate">Ngày nhận phòng là bắt buộc.</small>
-                    </div>
-
-                    <div class="mb-3 w-full">
-                        <label for="checkOutDate" class="block font-medium text-sm mb-1">Ngày trả phòng</label>
-                        <Calendar id="checkOutDate" v-model="localBooking.checkOutDate" dateFormat="dd/mm/yy" showIcon required class="w-full" :class="{ 'p-invalid': submitted && !localBooking.checkOutDate }" />
-                        <small class="p-error" v-if="submitted && !localBooking.checkOutDate">Ngày trả phòng là bắt buộc.</small>
-                    </div>
-
-                    <div class="mb-3 w-full">
-                        <label for="status" class="block font-medium text-sm mb-1">Trạng thái</label>
-                        <Dropdown id="status" v-model="localBooking.status" :options="statuses" optionLabel="label" optionValue="value" required class="w-full" :class="{ 'p-invalid': submitted && !localBooking.status }" />
-                        <small class="p-error" v-if="submitted && !localBooking.status">Trạng thái là bắt buộc.</small>
-                    </div>
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="phone">Số điện thoại <span class="text-red-500">*</span></label>
+                    <InputText id="phone" v-model="localBooking.phone" required :class="{ 'p-invalid': submitted && !localBooking.phone }" />
+                    <small class="p-error" v-if="submitted && !localBooking.phone">Số điện thoại là bắt buộc.</small>
                 </div>
             </div>
 
-            <!-- Thông tin thanh toán - Cột 3 -->
-            <div class="field w-full">
-                <div class="p-4 rounded-lg border-1 border-gray-200 w-full">
-                    <h3 class="text-lg font-medium mb-3">Thông tin thanh toán</h3>
-
-                    <div class="mb-3 w-full">
-                        <label for="totalPrice" class="block font-medium text-sm mb-1">Tổng tiền</label>
-                        <InputNumber id="totalPrice" v-model="localBooking.totalPrice" mode="currency" currency="VND" locale="vi-VN" :minFractionDigits="0" class="w-full" />
-                    </div>
-
-                    <div class="mb-3 w-full">
-                        <label for="discountCode" class="block font-medium text-sm mb-1">Mã giảm giá</label>
-                        <InputText id="discountCode" v-model.trim="localBooking.discountCode" class="w-full" />
-                    </div>
-
-                    <div class="mb-3 w-full">
-                        <label for="finalPrice" class="block font-medium text-sm mb-1">Số tiền sau giảm giá</label>
-                        <InputNumber id="finalPrice" v-model="localBooking.finalPrice" mode="currency" currency="VND" locale="vi-VN" :minFractionDigits="0" class="w-full" />
-                    </div>
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="email">Email</label>
+                    <InputText id="email" v-model="localBooking.email" type="email" />
                 </div>
             </div>
 
-            <!-- Phương thức thanh toán - Cột 4 -->
-            <div class="field w-full">
-                <div class="p-4 rounded-lg border-1 border-gray-200 w-full">
-                    <h3 class="text-lg font-medium mb-3">Phương thức thanh toán</h3>
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="nationalId">CMND/CCCD</label>
+                    <InputText id="nationalId" v-model="localBooking.nationalId" />
+                </div>
+            </div>
 
-                    <div class="mb-3 w-full">
-                        <label for="paymentMethod" class="block font-medium text-sm mb-1">Phương thức</label>
-                        <Dropdown id="paymentMethod" v-model="localBooking.paymentMethod" :options="actualPaymentMethods" optionLabel="label" optionValue="value" class="w-full" placeholder="Chọn phương thức thanh toán" />
-                        <!-- Debug payment method -->
-                        <small v-if="false" class="text-blue-500"> Selected: {{ localBooking.paymentMethod }} | Options: {{ actualPaymentMethods.map((m) => m.value).join(', ') }} </small>
-                    </div>
+            <!-- Thông tin đặt phòng -->
+            <div class="col-12">
+                <h5>Thông tin đặt phòng</h5>
+            </div>
 
-                    <div class="mb-3 w-full">
-                        <label for="paymentStatus" class="block font-medium text-sm mb-1">Trạng thái thanh toán</label>
-                        <Dropdown id="paymentStatus" v-model="localBooking.paymentStatus" :options="paymentStatuses" optionLabel="label" optionValue="value" class="w-full" />
-                    </div>
+            <div class="col-6 md:col-3">
+                <div class="field">
+                    <label for="adults">Số người lớn</label>
+                    <InputNumber id="adults" v-model="localBooking.adults" :min="1" :showButtons="true" />
+                </div>
+            </div>
 
-                    <div class="mb-3 w-full">
-                        <label for="paymentDate" class="block font-medium text-sm mb-1">Ngày thanh toán</label>
-                        <Calendar id="paymentDate" v-model="localBooking.paymentDate" dateFormat="dd/mm/yy" showIcon class="w-full" />
-                    </div>
+            <div class="col-6 md:col-3">
+                <div class="field">
+                    <label for="children">Số trẻ em</label>
+                    <InputNumber id="children" v-model="localBooking.children" :min="0" :showButtons="true" />
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="userId">ID Người dùng</label>
+                    <InputNumber id="userId" v-model="localBooking.userId" :min="0" />
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="checkInDate">Ngày nhận phòng <span class="text-red-500">*</span></label>
+                    <Calendar id="checkInDate" v-model="localBooking.checkInDate" :showIcon="true" dateFormat="dd/mm/yy" :class="{ 'p-invalid': submitted && !localBooking.checkInDate }" />
+                    <small class="p-error" v-if="submitted && !localBooking.checkInDate">Ngày nhận phòng là bắt buộc.</small>
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="checkOutDate">Ngày trả phòng <span class="text-red-500">*</span></label>
+                    <Calendar id="checkOutDate" v-model="localBooking.checkOutDate" :showIcon="true" dateFormat="dd/mm/yy" :class="{ 'p-invalid': submitted && !localBooking.checkOutDate }" />
+                    <small class="p-error" v-if="submitted && !localBooking.checkOutDate">Ngày trả phòng là bắt buộc.</small>
+                </div>
+            </div>
+
+            <!-- Thông tin thanh toán -->
+            <div class="col-12">
+                <h5>Thông tin thanh toán</h5>
+            </div>
+
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="totalPrice">Tổng tiền <span class="text-red-500">*</span></label>
+                    <InputNumber id="totalPrice" v-model="localBooking.totalPrice" mode="currency" currency="VND" locale="vi-VN" :min="0" :class="{ 'p-invalid': submitted && !localBooking.totalPrice }" />
+                    <small class="p-error" v-if="submitted && !localBooking.totalPrice">Tổng tiền là bắt buộc.</small>
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="finalPrice">Giá thanh toán cuối cùng</label>
+                    <InputNumber id="finalPrice" v-model="localBooking.finalPrice" mode="currency" currency="VND" locale="vi-VN" :min="0" />
+                </div>
+            </div>
+
+            <div class="col-12 md:col-4">
+                <div class="field">
+                    <label for="status">Trạng thái đặt phòng</label>
+                    <Dropdown id="status" v-model="localBooking.status" :options="statuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái" />
+                </div>
+            </div>
+
+            <div class="col-12 md:col-4">
+                <div class="field">
+                    <label for="paymentStatus">Trạng thái thanh toán</label>
+                    <Dropdown id="paymentStatus" v-model="localBooking.paymentStatus" :options="paymentStatuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái thanh toán" />
+                </div>
+            </div>
+
+            <div class="col-12 md:col-4">
+                <div class="field">
+                    <label for="paymentMethod">Phương thức thanh toán</label>
+                    <Dropdown id="paymentMethod" v-model="localBooking.paymentMethod" :options="actualPaymentMethods" optionLabel="label" optionValue="value" placeholder="Chọn phương thức thanh toán" />
+                </div>
+            </div>
+
+            <div class="col-12 md:col-6">
+                <div class="field">
+                    <label for="paymentDate">Ngày thanh toán</label>
+                    <Calendar id="paymentDate" v-model="localBooking.paymentDate" :showIcon="true" dateFormat="dd/mm/yy" />
                 </div>
             </div>
         </div>
 
         <template #footer>
-            <div class="flex justify-content-end gap-2">
-                <Button label="Hủy" icon="pi pi-times" outlined @click="hideDialog" class="p-button-sm" />
-                <Button label="Lưu" icon="pi pi-check" @click="save" class="p-button-sm" />
-            </div>
+            <Button label="Hủy" icon="pi pi-times" class="p-button-text" @click="hideDialog" />
+            <Button label="Lưu" icon="pi pi-check" class="p-button-text" @click="save" />
         </template>
     </Dialog>
 </template>

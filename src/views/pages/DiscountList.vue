@@ -2,27 +2,28 @@
 import { useDiscountManagement } from '@/composables/useDiscountManagement';
 import { usePermissions } from '@/composables/usePermissions';
 import { FilterMatchMode } from '@/utils/primeUtils';
-import { onMounted, ref, computed } from 'vue';
+import { useToast } from 'primevue/usetoast';
+import { computed, onMounted, ref } from 'vue';
 
 // Import PrimeVue components
 import Button from 'primevue/button';
 import Column from 'primevue/column';
 import ConfirmDialog from 'primevue/confirmdialog';
 import DataTable from 'primevue/datatable';
-import InputText from 'primevue/inputtext';
 import ProgressBar from 'primevue/progressbar';
 import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 
 // Import custom components
-import DiscountEditDialog from '@/components/discount/DiscountEditDialog.vue';
-import DiscountGenerateDialog from '@/components/discount/DiscountGenerateDialog.vue';
-import DiscountFilters from '@/components/discount/DiscountFilters.vue';
 import DiscountDeleteDialog from '@/components/discount/DiscountDeleteDialog.vue';
+import DiscountEditDialog from '@/components/discount/DiscountEditDialog.vue';
+import DiscountFilters from '@/components/discount/DiscountFilters.vue';
+import DiscountGenerateDialog from '@/components/discount/DiscountGenerateDialog.vue';
 
 // Lấy phân quyền
 const { can } = usePermissions();
+const toast = useToast();
 
 // Lấy các hàm và biến từ composable
 const {
@@ -32,27 +33,28 @@ const {
     selectedDiscounts,
     submitted,
     discountTypes,
+    discountDialog,
+    deleteDiscountDialog,
+    generateDiscountDialog,
 
     fetchDiscounts,
+    fetchDiscountById,
     fetchActiveDiscounts,
+
+    editDiscount: composableEditDiscount,
+    openNew: composableOpenNew,
+    openGenerateDialog: composableOpenGenerateDialog,
+    hideDialog: composableHideDialog,
+    saveDiscount: composableSaveDiscount,
+    saveGeneratedDiscounts: composableSaveGeneratedDiscounts,
+    confirmDelete: composableConfirmDelete,
+    confirmDeleteDiscount: composableConfirmDeleteDiscount,
 
     formatDiscountValue,
     calculateDaysRemaining,
     getDiscountStatus,
-    getUsagePercentage,
-
-    openNew: composableOpenNew,
-    saveDiscount: composableSaveDiscount,
-    saveGeneratedDiscounts: composableSaveGeneratedDiscounts,
-    confirmDelete: composableConfirmDelete
+    getUsagePercentage
 } = useDiscountManagement();
-
-// Khai báo biến cho dialogs
-const discountDialog = ref(false);
-const generateDiscountDialog = ref(false);
-const deleteDiscountDialog = ref(false);
-const deleteSelectedDialog = ref(false);
-const selectedDiscount = ref(null);
 
 // Khai báo biến cho filters
 const filters = ref({
@@ -61,6 +63,8 @@ const filters = ref({
     discountType: { value: null, matchMode: FilterMatchMode.EQUALS }
 });
 const showActiveOnly = ref(false);
+const selectedDiscount = ref(null);
+const deleteSelectedDialog = ref(false);
 
 // Gọi API khi component được mount
 onMounted(() => {
@@ -72,7 +76,7 @@ const toggleActiveFilter = () => {
     showActiveOnly.value = !showActiveOnly.value;
     if (showActiveOnly.value) {
         fetchActiveDiscounts();
-    } else {
+        } else {
         fetchDiscounts();
     }
 };
@@ -96,42 +100,28 @@ const existingCodes = computed(() => {
 // Mở dialog thêm mới mã giảm giá
 const openNew = () => {
     composableOpenNew();
-    discountDialog.value = true;
 };
 
 // Mở dialog tạo hàng loạt mã giảm giá
 const openGenerateDialog = () => {
-    composableOpenNew();
-    discount.value.prefix = 'PROMO';
-    discount.value.count = 5;
-    generateDiscountDialog.value = true;
+    composableOpenGenerateDialog();
 };
 
 // Xử lý lưu mã giảm giá
 const saveDiscount = async () => {
-    submitted.value = true;
-    await composableSaveDiscount();
-    discountDialog.value = false;
+    const result = await composableSaveDiscount();
+    return result;
 };
 
 // Xử lý tạo hàng loạt mã giảm giá
 const saveGeneratedDiscounts = async () => {
-    submitted.value = true;
-    await composableSaveGeneratedDiscounts();
-    generateDiscountDialog.value = false;
+    const result = await composableSaveGeneratedDiscounts();
+    return result;
 };
 
 // Chỉnh sửa mã giảm giá
-const editDiscount = (data) => {
-    discount.value = { ...data };
-    // Chuyển đổi string thành Date object cho các trường ngày tháng
-    if (typeof discount.value.validFrom === 'string') {
-        discount.value.validFrom = new Date(discount.value.validFrom);
-    }
-    if (typeof discount.value.validTo === 'string') {
-        discount.value.validTo = new Date(discount.value.validTo);
-    }
-    discountDialog.value = true;
+const editDiscount = async (data) => {
+    composableEditDiscount(data);
 };
 
 // Xác nhận xóa mã giảm giá
@@ -141,6 +131,7 @@ const confirmDeleteDiscount = (data, isMultiple = false) => {
             deleteSelectedDialog.value = true;
         }
     } else {
+        console.log('Mở dialog xác nhận xóa mã giảm giá:', data);
         selectedDiscount.value = data;
         deleteDiscountDialog.value = true;
     }
@@ -148,27 +139,45 @@ const confirmDeleteDiscount = (data, isMultiple = false) => {
 
 // Xóa mã giảm giá
 const deleteDiscount = async () => {
-    await composableConfirmDelete(selectedDiscount.value);
-    deleteDiscountDialog.value = false;
-    selectedDiscount.value = null;
+    console.log('Người dùng đã xác nhận xóa mã:', selectedDiscount.value);
+    if (selectedDiscount.value) {
+        await composableConfirmDelete(selectedDiscount.value);
+    } else {
+        console.error('Không có mã giảm giá được chọn để xóa');
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Không có mã giảm giá được chọn để xóa',
+            life: 3000
+        });
+    }
 };
 
 // Xóa nhiều mã giảm giá đã chọn
 const deleteSelectedDiscounts = async () => {
+    console.log('Xác nhận xóa nhiều mã giảm giá:', selectedDiscounts.value?.length);
     if (selectedDiscounts.value && selectedDiscounts.value.length > 0) {
+        let successCount = 0;
         for (const item of selectedDiscounts.value) {
-            await composableConfirmDelete(item);
+            const success = await composableConfirmDelete(item);
+            if (success) successCount++;
         }
+
+        toast.add({
+            severity: 'success',
+            summary: 'Thành công',
+            detail: `Đã xóa ${successCount}/${selectedDiscounts.value.length} mã giảm giá`,
+            life: 3000
+        });
+
         deleteSelectedDialog.value = false;
         selectedDiscounts.value = [];
     }
 };
 
-// Ẩn các dialog
+// Định nghĩa hàm hideDialog
 const hideDialog = () => {
-    discountDialog.value = false;
-    generateDiscountDialog.value = false;
-    submitted.value = false;
+    composableHideDialog();
 };
 
 // Tính phần trăm sử dụng
@@ -192,7 +201,7 @@ const calculateUsagePercentage = (discount) => {
                 </template>
 
             <template #end>
-                <DiscountFilters :showActiveOnly="showActiveOnly" @toggle-active-filter="toggleActiveFilter" @search="handleSearch" />
+                <DiscountFilters v-model:showActiveOnly="showActiveOnly" @toggle-active-filter="toggleActiveFilter" @search="handleSearch" />
                 </template>
             </Toolbar>
 
@@ -279,7 +288,7 @@ const calculateUsagePercentage = (discount) => {
                 </Column>
             </DataTable>
 
-        <!-- Dialog chỉnh sửa mã giảm giá -->
+        <!-- Sử dụng các dialog từ composable -->
         <DiscountEditDialog
             v-model:visible="discountDialog"
             :discount="discount"

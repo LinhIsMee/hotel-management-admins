@@ -378,10 +378,30 @@ export function useBookingManagement() {
             const headers = getAuthHeaders(true);
             if (!headers) return null;
 
+            // Chuẩn bị dữ liệu cho API theo đúng mẫu yêu cầu
+            const apiData = {
+                userId: bookingData.userId,
+                roomIds: Array.isArray(bookingData.roomIds) ? bookingData.roomIds : Array.isArray(bookingData.rooms) ? bookingData.rooms.map((room) => room.roomId || room.id) : [],
+                status: bookingData.status || 'PENDING',
+                paymentStatus: bookingData.paymentStatus || 'UNPAID',
+                paymentMethod: bookingData.paymentMethod || 'CASH',
+                adults: bookingData.adults || 1,
+                children: bookingData.children || 0,
+                fullName: bookingData.fullName,
+                phone: bookingData.phone,
+                email: bookingData.email,
+                nationalId: bookingData.nationalId,
+                checkInDate: bookingData.checkInDate instanceof Date ? bookingData.checkInDate.toISOString().split('T')[0] : bookingData.checkInDate,
+                checkOutDate: bookingData.checkOutDate instanceof Date ? bookingData.checkOutDate.toISOString().split('T')[0] : bookingData.checkOutDate,
+                totalPrice: bookingData.totalPrice,
+                finalPrice: bookingData.finalPrice,
+                paymentDate: bookingData.paymentDate instanceof Date ? bookingData.paymentDate.toISOString().split('T')[0] : bookingData.paymentDate
+            };
+
             const response = await fetch(`${API_BASE_URL}/api/v1/bookings/create`, {
                 method: 'POST',
                 headers: headers,
-                body: JSON.stringify(bookingData)
+                body: JSON.stringify(apiData)
             });
 
             if (!response.ok) {
@@ -427,10 +447,30 @@ export function useBookingManagement() {
             const headers = getAuthHeaders(true);
             if (!headers) return null;
 
+            // Chuẩn bị dữ liệu cho API theo đúng mẫu yêu cầu
+            const apiData = {
+                userId: bookingData.userId,
+                roomIds: Array.isArray(bookingData.roomIds) ? bookingData.roomIds : Array.isArray(bookingData.rooms) ? bookingData.rooms.map((room) => room.roomId || room.id) : [],
+                status: bookingData.status || 'PENDING',
+                paymentStatus: bookingData.paymentStatus || 'UNPAID',
+                paymentMethod: bookingData.paymentMethod || 'CASH',
+                adults: bookingData.adults || 1,
+                children: bookingData.children || 0,
+                fullName: bookingData.fullName,
+                phone: bookingData.phone,
+                email: bookingData.email,
+                nationalId: bookingData.nationalId,
+                checkInDate: bookingData.checkInDate instanceof Date ? bookingData.checkInDate.toISOString().split('T')[0] : bookingData.checkInDate,
+                checkOutDate: bookingData.checkOutDate instanceof Date ? bookingData.checkOutDate.toISOString().split('T')[0] : bookingData.checkOutDate,
+                totalPrice: bookingData.totalPrice,
+                finalPrice: bookingData.finalPrice,
+                paymentDate: bookingData.paymentDate instanceof Date ? bookingData.paymentDate.toISOString().split('T')[0] : bookingData.paymentDate
+            };
+
             const response = await fetch(`${API_BASE_URL}/api/v1/bookings/update/${id}`, {
                 method: 'PUT',
                 headers: headers,
-                body: JSON.stringify(bookingData)
+                body: JSON.stringify(apiData)
             });
 
             if (!response.ok) {
@@ -801,18 +841,18 @@ export function useBookingManagement() {
     // Sửa hàm updateStats để xử lý dữ liệu đúng
     const updateStats = () => {
         // Đếm trạng thái theo đúng cấu trúc dữ liệu API
-        const pendingCount = bookings.value.filter(b => b.status === 'PENDING').length;
-        const confirmedCount = bookings.value.filter(b => b.status === 'CONFIRMED').length;
-        const checkedInCount = bookings.value.filter(b => b.status === 'CHECKED_IN').length;
-        const checkedOutCount = bookings.value.filter(b => b.status === 'CHECKED_OUT').length;
-        const cancelledCount = bookings.value.filter(b => b.status === 'CANCELLED').length;
+        const pendingCount = bookings.value.filter((b) => b.status === 'PENDING').length;
+        const confirmedCount = bookings.value.filter((b) => b.status === 'CONFIRMED').length;
+        const checkedInCount = bookings.value.filter((b) => b.status === 'CHECKED_IN').length;
+        const checkedOutCount = bookings.value.filter((b) => b.status === 'CHECKED_OUT').length;
+        const cancelledCount = bookings.value.filter((b) => b.status === 'CANCELLED').length;
 
         // Tính tổng doanh thu (chỉ tính các đơn đã check-out và đã thanh toán)
         let revenue = 0;
 
         bookings.value
-            .filter(b => b.status === 'CHECKED_OUT' && b.paymentStatus === 'PAID')
-            .forEach(booking => {
+            .filter((b) => b.status === 'CHECKED_OUT' && b.paymentStatus === 'PAID')
+            .forEach((booking) => {
                 // Xử lý vấn đề giá trị finalPrice bị âm
                 const price = booking.finalPrice;
 
@@ -843,7 +883,37 @@ export function useBookingManagement() {
             totalRevenue: revenue
         };
 
-        console.log("Đã cập nhật thống kê:", stats.value);
+        console.log('Đã cập nhật thống kê:', stats.value);
+    };
+
+    // Lấy phòng trống trong khoảng thời gian
+    const getAvailableRooms = async (startDate, endDate) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return [];
+
+            // Định dạng ngày nếu là đối tượng Date
+            const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
+            const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/rooms/available?startDate=${start}&endDate=${end}`, { headers });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi tìm phòng trống: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            return Array.isArray(result) ? result : [];
+        } catch (error) {
+            console.error('Lỗi khi tìm phòng trống:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Không thể tìm phòng trống. Vui lòng thử lại.',
+                life: 3000
+            });
+            return [];
+        }
     };
 
     return {
@@ -885,6 +955,7 @@ export function useBookingManagement() {
         getPaymentStatusLabel,
         getPaymentMethodLabel,
         getStatusSeverity,
-        getPaymentStatusSeverity
+        getPaymentStatusSeverity,
+        getAvailableRooms
     };
 }

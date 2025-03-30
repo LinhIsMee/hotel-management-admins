@@ -3,6 +3,8 @@ import BookingActionButtons from '@/components/booking/BookingActionButtons.vue'
 import Column from 'primevue/column';
 import DataTable from 'primevue/datatable';
 import Tag from 'primevue/tag';
+import Skeleton from 'primevue/skeleton';
+import Button from 'primevue/button';
 
 const props = defineProps({
     bookings: {
@@ -89,111 +91,171 @@ const cancelBooking = (data) => {
 const confirmDeleteBooking = (data) => {
     emit('delete', data);
 };
+
+// Computed properties để hiển thị đúng dữ liệu
+const getRoomInfo = (booking) => {
+    if (booking.rooms && Array.isArray(booking.rooms) && booking.rooms.length > 0) {
+        return {
+            numbers: booking.rooms.map(r => r.roomNumber).join(', '),
+            types: booking.rooms.map(r => r.roomType).join(', ')
+        };
+    }
+    return { numbers: booking.roomNumber || '-', types: booking.roomType || '-' };
+};
 </script>
 
 <template>
-    <div class="booking-management-container">
+    <div class="card">
         <DataTable
             :value="bookings"
             v-model:selection="selectedBookingsModel"
+            dataKey="id"
             :paginator="true"
             :rows="10"
-            :rowsPerPageOptions="[5, 10, 25, 50]"
+            :rowsPerPageOptions="[10, 25, 50]"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-            currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} đơn đặt"
-            responsiveLayout="scroll"
+            currentPageReportTemplate="{first} đến {last} của {totalRecords} đơn đặt phòng"
             :filters="filters"
             :loading="loading"
+            :resizableColumns="true"
+            columnResizeMode="fit"
+            responsiveLayout="scroll"
             stripedRows
-            dataKey="id"
-            class="booking-table p-datatable-sm"
+            @update:selection="$emit('update:selectedBookings', $event)"
+            class="booking-table"
         >
-            <template #empty>Không có đơn đặt phòng nào được tìm thấy.</template>
-            <template #loading>Đang tải dữ liệu đơn đặt phòng. Vui lòng đợi.</template>
+            <template #empty>
+                <div class="p-4 text-center">
+                    <p>Không tìm thấy đơn đặt phòng nào.</p>
+                </div>
+            </template>
 
-            <Column v-if="displayColumns.selection" selectionMode="multiple" :exportable="false" style="width: 3rem; min-width: 3rem" />
+            <template #loading>
+                <div class="p-4">
+                    <div class="flex flex-column gap-2">
+                        <Skeleton height="2.5rem" width="100%"></Skeleton>
+                        <Skeleton height="2rem" width="100%"></Skeleton>
+                        <Skeleton height="2rem" width="100%"></Skeleton>
+                        <Skeleton height="2rem" width="100%"></Skeleton>
+                        <Skeleton height="2rem" width="100%"></Skeleton>
+                    </div>
+                </div>
+            </template>
 
-            <Column field="id" header="Mã đơn" sortable style="min-width: 5rem; width: 7rem">
+            <!-- Các cột của DataTable -->
+            <Column v-if="displayColumns.selection" selectionMode="multiple" headerStyle="width: 3rem;"></Column>
+
+            <Column field="id" header="Mã đơn" sortable :sortField="(item) => item.id"
+                   :style="{ minWidth: '8rem' }" class="font-semibold"></Column>
+
+            <Column field="fullName" header="Khách hàng" sortable :sortField="(item) => item.fullName"
+                   :style="{ minWidth: '12rem' }">
                 <template #body="{ data }">
-                    <span class="font-bold">{{ data.id }}</span>
-                </template>
-            </Column>
-
-            <Column field="fullName" header="Khách hàng" sortable style="min-width: 10rem">
-                <template #body="{ data }">
-                    <div class="customer-info">
-                        <span class="font-medium">{{ data.fullName }}</span>
-                        <div class="text-xs text-500">{{ data.phone }}</div>
+                    <div class="flex flex-column gap-1">
+                        <span class="font-semibold">{{ data.fullName }}</span>
+                        <span class="text-sm text-color-secondary">{{ data.phone || '-' }}</span>
                     </div>
                 </template>
             </Column>
 
-            <Column field="rooms" header="Phòng" style="min-width: 8rem">
+            <Column field="roomInfo" header="Phòng" :style="{ minWidth: '10rem' }">
                 <template #body="{ data }">
-                    <div v-if="data.rooms && data.rooms.length > 0">
-                        <div v-for="(room, index) in data.rooms" :key="index" class="mb-1">
-                            <Tag class="room-tag" severity="info">
-                                {{ room.roomNumber }}
-                            </Tag>
-                            <span class="text-xs ml-1">{{ room.roomType }}</span>
-                        </div>
-                    </div>
-                    <span v-else class="text-500 text-sm">Không có phòng</span>
-                </template>
-            </Column>
-
-            <Column field="checkInDate" header="Nhận phòng" sortable style="min-width: 8rem">
-                <template #body="{ data }">
-                    <div class="booking-date">
-                        <div class="font-medium">{{ formatDate(data.checkInDate) }}</div>
-                        <div class="text-xs text-500">{{ new Date(data.checkInDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) }}</div>
+                    <div class="flex flex-column gap-1">
+                        <span class="font-semibold">{{ getRoomInfo(data).numbers }}</span>
+                        <span class="text-sm text-color-secondary">{{ getRoomInfo(data).types }}</span>
                     </div>
                 </template>
             </Column>
 
-            <Column field="checkOutDate" header="Trả phòng" sortable style="min-width: 8rem">
+            <Column field="checkInDate" header="Nhận - Trả phòng" :style="{ minWidth: '12rem' }">
                 <template #body="{ data }">
-                    <div class="booking-date">
-                        <div class="font-medium">{{ formatDate(data.checkOutDate) }}</div>
-                        <div class="text-xs text-500">{{ new Date(data.checkOutDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) }}</div>
+                    <div class="flex flex-column gap-1">
+                        <span><i class="pi pi-calendar-plus mr-2"></i>{{ formatDate(data.checkInDate) }}</span>
+                        <span><i class="pi pi-calendar-minus mr-2"></i>{{ formatDate(data.checkOutDate) }}</span>
                     </div>
                 </template>
             </Column>
 
-            <Column field="status" header="Trạng thái" sortable style="min-width: 8rem">
+            <Column field="status" header="Trạng thái" sortable :style="{ minWidth: '10rem' }">
                 <template #body="{ data }">
                     <Tag :value="getStatusLabel(data.status)" :severity="getStatusSeverity(data.status)" />
                 </template>
             </Column>
 
-            <Column field="finalPrice" header="Tổng tiền" sortable style="min-width: 8rem">
+            <Column field="totalPrice" header="Tổng tiền" sortable :sortField="(item) => Number(item.finalPrice || item.totalPrice)"
+                   :style="{ minWidth: '10rem' }">
                 <template #body="{ data }">
-                    <div class="price-container">
-                        <div class="font-bold">
-                            {{ data.finalPrice < 0 || Math.abs(data.finalPrice) > 1e9 
-                                ? formatCurrency(data.totalPrice) 
-                                : formatCurrency(data.finalPrice) }}
-                        </div>
-                        <Tag :value="getPaymentStatusLabel(data.paymentStatus)" :severity="getPaymentStatusSeverity(data.paymentStatus)" size="small" />
+                    <div class="flex flex-column gap-1">
+                        <span class="font-semibold">{{ formatCurrency(data.finalPrice || data.totalPrice) }}</span>
+                        <span v-if="data.finalPrice && data.finalPrice !== data.totalPrice" class="text-xs line-through text-color-secondary">
+                            {{ formatCurrency(data.totalPrice) }}
+                        </span>
                     </div>
                 </template>
             </Column>
 
-            <Column field="paymentMethod" header="Phương thức" sortable style="min-width: 8rem">
+            <Column field="paymentStatus" header="Thanh toán" sortable :style="{ minWidth: '10rem' }">
                 <template #body="{ data }">
-                    {{ getPaymentMethodLabel(data.paymentMethod) }}
+                    <div class="flex flex-column gap-1">
+                        <Tag
+                            :value="getPaymentStatusLabel(data.paymentStatus)"
+                            :severity="getPaymentStatusSeverity(data.paymentStatus)"
+                        />
+                        <span class="text-sm text-color-secondary">
+                            {{ getPaymentMethodLabel(data.paymentMethod) || '—' }}
+                        </span>
+                    </div>
                 </template>
             </Column>
 
-            <Column field="createdAt" header="Ngày tạo" sortable style="min-width: 8rem">
+            <Column v-if="displayColumns.actions" :exportable="false" :style="{ minWidth: '10rem' }">
                 <template #body="{ data }">
-                    {{ formatDate(data.createdAt) }}
-                </template>
-            </Column>
-
-            <Column v-if="displayColumns.actions" header="Hành động" :exportable="false" style="min-width: 10rem">
-                <template #body="{ data }">
-                    <BookingActionButtons :data="data" :can="can" @view="viewDetails" @edit="editBooking" @confirm="confirmBooking" @cancel="cancelBooking" @delete="confirmDeleteBooking" />
+                    <div class="flex gap-2 justify-content-end">
+                        <Button
+                            icon="pi pi-eye"
+                            rounded
+                            text
+                            aria-label="Xem chi tiết"
+                            @click="$emit('view-details', data)"
+                        />
+                        <Button
+                            v-if="can.edit"
+                            icon="pi pi-pencil"
+                            rounded
+                            text
+                            aria-label="Sửa"
+                            @click="$emit('edit', data)"
+                        />
+                        <!-- Nút xác nhận chỉ hiển thị khi trạng thái là PENDING -->
+                        <Button
+                            v-if="can.confirm && data.status === 'PENDING'"
+                            icon="pi pi-check"
+                            rounded
+                            text
+                            severity="success"
+                            aria-label="Xác nhận"
+                            @click="$emit('confirm', data)"
+                        />
+                        <!-- Nút hủy chỉ hiển thị khi trạng thái là PENDING hoặc CONFIRMED -->
+                        <Button
+                            v-if="can.cancel && ['PENDING', 'CONFIRMED'].includes(data.status)"
+                            icon="pi pi-times"
+                            rounded
+                            text
+                            severity="danger"
+                            aria-label="Hủy"
+                            @click="$emit('cancel', data)"
+                        />
+                        <Button
+                            v-if="can.delete"
+                            icon="pi pi-trash"
+                            rounded
+                            text
+                            severity="danger"
+                            aria-label="Xóa"
+                            @click="$emit('delete', data)"
+                        />
+                    </div>
                 </template>
             </Column>
         </DataTable>
