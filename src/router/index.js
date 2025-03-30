@@ -6,9 +6,6 @@ import AdminLayout from '@/layout/AdminLayout.vue';
 import ClientLayout from '@/layout/ClientLayout.vue';
 
 // Client pages
-import AboutPage from '@/views/client/AboutPage.vue';
-import ContactPage from '@/views/client/ContactPage.vue';
-import ServicesPage from '@/views/client/ServicesPage.vue';
 
 // Admin page imports
 import AdminLogin from '@/views/pages/auth/Login.vue';
@@ -70,13 +67,15 @@ const routes = [
         children: [
             {
                 path: '',
-                name: 'home',
-                component: () => import('@/views/client/HomePage.vue')
+                name: 'Home',
+                component: () => import('@/views/client/HomePage.vue'),
+                meta: { title: 'Trang chủ - Luxury Hotel' }
             },
             {
                 path: 'rooms',
-                name: 'rooms',
-                component: () => import('@/views/client/RoomListPage.vue')
+                name: 'RoomList',
+                component: () => import('@/views/client/RoomListPage.vue'),
+                meta: { title: 'Danh sách phòng - Luxury Hotel' }
             },
             {
                 path: 'profile',
@@ -87,18 +86,23 @@ const routes = [
             },
             {
                 path: '/room/:id',
-                name: 'roomDetail',
-                component: () => import('@/views/client/RoomDetailPage.vue')
+                name: 'RoomDetail',
+                component: () => import('@/views/client/RoomDetailPage.vue'),
+                meta: { title: 'Chi tiết phòng - Luxury Hotel' },
+                props: true
             },
             {
                 path: '/booking/checkout',
-                name: 'bookingCheckout',
-                component: () => import('@/views/client/BookingCheckoutPage.vue')
+                name: 'BookingCheckout',
+                component: () => import('@/views/client/BookingCheckoutPage.vue'),
+                meta: { title: 'Xác nhận đặt phòng - Luxury Hotel' }
             },
             {
                 path: '/booking/confirmation/:id',
-                name: 'bookingConfirmation',
-                component: () => import('@/views/client/BookingConfirmationPage.vue')
+                name: 'BookingConfirmation',
+                component: () => import('@/views/client/BookingConfirmationPage.vue'),
+                meta: { title: 'Chi tiết đặt phòng - Luxury Hotel' },
+                props: true
             },
             {
                 path: 'bookings',
@@ -109,30 +113,39 @@ const routes = [
             },
             {
                 path: 'services',
-                name: 'services',
-                component: ServicesPage
+                name: 'Services',
+                component: () => import('@/views/client/ServicesPage.vue'),
+                meta: { title: 'Dịch vụ - Luxury Hotel' }
             },
             {
                 path: 'about',
-                name: 'about',
-                component: AboutPage
+                name: 'About',
+                component: () => import('@/views/client/AboutPage.vue'),
+                meta: { title: 'Giới thiệu - Luxury Hotel' }
             },
             {
                 path: 'contact',
-                name: 'contact',
-                component: ContactPage
+                name: 'Contact',
+                component: () => import('@/views/client/ContactPage.vue'),
+                meta: { title: 'Liên hệ - Luxury Hotel' }
             },
             {
                 path: 'my-profile',
-                name: 'userProfile',
+                name: 'UserProfile',
                 component: () => import('@/views/client/UserProfilePage.vue'),
-                meta: { requiresClientAuth: true }
+                meta: {
+                    title: 'Tài khoản của tôi - Luxury Hotel',
+                    requiresAuth: true
+                }
             },
             {
                 path: 'my-bookings',
-                name: 'userBookings',
+                name: 'MyBookings',
                 component: () => import('@/views/client/UserBookingsPage.vue'),
-                meta: { requiresClientAuth: true }
+                meta: {
+                    title: 'Đặt phòng của tôi - Luxury Hotel',
+                    requiresAuth: true
+                }
             }
         ]
     },
@@ -262,7 +275,8 @@ const routes = [
     {
         path: '/:pathMatch(.*)*',
         name: 'NotFound',
-        component: () => import('@/views/NotFoundPage.vue')
+        component: () => import('@/views/NotFoundPage.vue'),
+        meta: { title: 'Không tìm thấy trang - Luxury Hotel' }
     }
 ];
 
@@ -314,6 +328,11 @@ router.beforeEach((to, from, next) => {
     else if (to.path === '/auth/login' && !to.query.clientAuth && isAdminAuthenticated) {
         next('/admin/dashboard');
     } else {
+        // Cập nhật title
+        if (to.meta.title) {
+            document.title = to.meta.title;
+        }
+
         next();
     }
 });

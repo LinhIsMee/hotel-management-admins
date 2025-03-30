@@ -2,6 +2,7 @@
 import nha_nghi_1 from '@/assets/images/nha-nghi-1.webp';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useVuelidate } from 'vuelidate';
 
 const router = useRouter();
 const bookingData = ref(null);
@@ -18,13 +19,37 @@ const customerInfo = ref({
     nationality: 'Việt Nam'
 });
 
+// Thông tin liên hệ
+const contactInfo = ref({
+    fullName: '',
+    email: '',
+    phone: '',
+    specialRequests: '',
+    nationality: 'VN'
+});
+
+// Danh sách quốc gia
+const countries = [
+    { name: 'Việt Nam', code: 'VN' },
+    { name: 'Hoa Kỳ', code: 'US' },
+    { name: 'Anh', code: 'GB' },
+    { name: 'Pháp', code: 'FR' },
+    { name: 'Đức', code: 'DE' },
+    { name: 'Úc', code: 'AU' },
+    { name: 'Nhật Bản', code: 'JP' },
+    { name: 'Hàn Quốc', code: 'KR' },
+    { name: 'Trung Quốc', code: 'CN' },
+    { name: 'Singapore', code: 'SG' },
+    { name: 'Thái Lan', code: 'TH' }
+];
+
 // Phương thức thanh toán
-const paymentMethod = ref('CREDIT_CARD');
-const paymentMethods = ref([
-    { label: 'Thẻ tín dụng / Thẻ ghi nợ', value: 'CREDIT_CARD' },
-    { label: 'Chuyển khoản ngân hàng', value: 'BANK_TRANSFER' },
-    { label: 'Thanh toán tại khách sạn', value: 'PAY_AT_HOTEL' }
-]);
+const paymentMethod = ref('pay_later');
+const agreeTerms = ref(false);
+const submitted = ref(false);
+const isSubmitting = ref(false);
+const showSuccessDialog = ref(false);
+const bookingCode = ref('');
 
 // Thông tin thẻ
 const cardInfo = ref({
@@ -53,19 +78,75 @@ const visaImage = 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Vis
 const mastercardImage = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/MasterCard_Logo.svg/1200px-MasterCard_Logo.svg.png';
 const zalopayImage = 'https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-ZaloPay-Square.png';
 
-onMounted(() => {
+// Thông tin phòng
+const roomName = ref('');
+const roomImage = ref('');
+const roomTotal = ref(0);
+const breakfastTotal = ref(0);
+const totalPrice = ref(0);
+const couponDiscount = ref(0);
+const isValidCoupon = ref(false);
+const couponMessage = ref('');
+
+// Ngày hủy phòng miễn phí
+const cancelDate = computed(() => {
+    if (!bookingData.value?.checkInDate) return new Date();
+    const date = new Date(bookingData.value.checkInDate);
+    date.setDate(date.getDate() - 1);
+    return date;
+});
+
+// Quy tắc xác thực
+const rules = {
+    fullName: { required },
+    email: { required, email },
+    phone: { required, helpers: { withMessage: 'Số điện thoại không hợp lệ', regex: /^[0-9]{9,11}$/ } }
+};
+
+const v$ = useVuelidate(rules, contactInfo);
+
+onMounted(async () => {
     try {
         // Lấy dữ liệu đặt phòng từ localStorage
-        const storedBooking = localStorage.getItem('bookingData');
-        if (!storedBooking) {
+        const bookingDataStr = localStorage.getItem('currentBooking');
+
+        if (!bookingDataStr) {
             router.push('/rooms');
             return;
         }
 
-        bookingData.value = JSON.parse(storedBooking);
+        const parsedData = JSON.parse(bookingDataStr);
+        bookingData.value = parsedData;
+
+        // Thiết lập thông tin phòng và giá
+        roomName.value = parsedData.roomName || 'Phòng Deluxe';
+        roomImage.value = parsedData.roomImage || nha_nghi_1;
+        roomTotal.value = parsedData.pricePerNight * parsedData.bookingDays;
+
+        // Tính giá bữa sáng nếu có
+        if (parsedData.services && parsedData.services.breakfast) {
+            const totalPeople = parsedData.adults + parsedData.children;
+            breakfastTotal.value = totalPeople * parsedData.bookingDays * 150000;
+        }
+
+        // Tính tổng tiền
+        calculateTotalPrice();
+
+        // Kiểm tra nếu có mã giảm giá
+        if (parsedData.couponCode) {
+            verifyCoupon(parsedData.couponCode);
+        }
+
+        // Lấy thông tin người dùng đã đăng nhập nếu có
+        const userInfo = localStorage.getItem('userInfo');
+        if (userInfo) {
+            const user = JSON.parse(userInfo);
+            contactInfo.value.fullName = user.fullName || '';
+            contactInfo.value.email = user.email || '';
+            contactInfo.value.phone = user.phone || '';
+        }
     } catch (error) {
-        console.error('Lỗi khi lấy thông tin đặt phòng:', error);
-        router.push('/rooms');
+        console.error('Lỗi khi tải dữ liệu đặt phòng:', error);
     } finally {
         loading.value = false;
     }
@@ -153,31 +234,140 @@ const validatePaymentInfo = () => {
     return true;
 };
 
-// Tiến hành đặt phòng
-const submitBooking = () => {
-    isProcessing.value = true;
+// Xác minh mã giảm giá
+const verifyCoupon = (code) => {
+    const coupons = {
+        WELCOME10: { type: 'percent', value: 10 },
+        SUMMER20: { type: 'percent', value: 20 },
+        SAVE500K: { type: 'fixed', value: 500000 }
+    };
 
-    setTimeout(() => {
-        const bookingId = 'B' + Math.floor(Math.random() * 1000000);
+    const coupon = coupons[code.toUpperCase()];
 
-        // Lưu thông tin đặt phòng (trong thực tế sẽ gửi lên API)
-        const completedBooking = {
-            id: bookingId,
-            ...bookingData.value,
-            customer: customerInfo.value,
+    if (coupon) {
+        isValidCoupon.value = true;
+
+        if (coupon.type === 'percent') {
+            couponDiscount.value = (roomTotal.value * coupon.value) / 100;
+            couponMessage.value = `Giảm ${coupon.value}% tổng hóa đơn`;
+        } else {
+            couponDiscount.value = coupon.value;
+            couponMessage.value = `Giảm ${formatCurrency(coupon.value)}`;
+        }
+
+        // Cập nhật tổng tiền sau khi áp dụng mã giảm giá
+        calculateTotalPrice();
+    } else {
+        isValidCoupon.value = false;
+        couponDiscount.value = 0;
+        couponMessage.value = '';
+        calculateTotalPrice();
+    }
+};
+
+// Tính tổng tiền
+const calculateTotalPrice = () => {
+    let total = roomTotal.value;
+
+    // Thêm phí dịch vụ
+    if (bookingData.value?.services) {
+        if (bookingData.value.services.breakfast) {
+            total += breakfastTotal.value;
+        }
+
+        if (bookingData.value.services.earlyCheckin) {
+            total += 200000;
+        }
+
+        if (bookingData.value.services.lateCheckout) {
+            total += 200000;
+        }
+
+        if (bookingData.value.services.airportPickup) {
+            total += 350000;
+        }
+    }
+
+    // Trừ giảm giá nếu có
+    total -= couponDiscount.value;
+
+    totalPrice.value = total > 0 ? total : 0;
+};
+
+// Format tiền tệ
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+};
+
+// Format ngày
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+// Xác nhận đặt phòng
+const confirmBooking = async () => {
+    submitted.value = true;
+    v$.value.$touch();
+
+    if (v$.value.$invalid || !agreeTerms.value) {
+        return;
+    }
+
+    isSubmitting.value = true;
+
+    try {
+        // Tạo mã đặt phòng
+        bookingCode.value =
+            'HB' +
+            Math.floor(Math.random() * 1000000)
+                .toString()
+                .padStart(6, '0');
+
+        // Tạo đối tượng đặt phòng
+        const booking = {
+            id: bookingCode.value,
+            roomId: bookingData.value.roomId,
+            roomName: roomName.value,
+            checkInDate: bookingData.value.checkInDate,
+            checkOutDate: bookingData.value.checkOutDate,
+            adults: bookingData.value.adults,
+            children: bookingData.value.children,
+            services: bookingData.value.services,
+            couponCode: bookingData.value.couponCode,
+            totalPrice: totalPrice.value,
+            contactInfo: contactInfo.value,
             paymentMethod: paymentMethod.value,
             status: 'NEW',
-            paymentStatus: paymentMethod.value === 'PAY_AT_HOTEL' ? 'UNPAID' : 'PAID',
             createdAt: new Date().toISOString()
         };
 
-        localStorage.setItem('completedBooking', JSON.stringify(completedBooking));
+        // Lưu thông tin đặt phòng
+        localStorage.setItem('lastBooking', JSON.stringify(booking));
 
-        // Chuyển đến trang xác nhận
-        router.push(`/booking/confirmation/${bookingId}`);
+        // Giả lập API call
+        await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        isProcessing.value = false;
-    }, 2000);
+        // Hiển thị dialog thành công
+        showSuccessDialog.value = true;
+    } catch (error) {
+        console.error('Lỗi khi đặt phòng:', error);
+        // Hiển thị thông báo lỗi
+    } finally {
+        isSubmitting.value = false;
+    }
+};
+
+// Điều hướng sau khi đặt phòng thành công
+const viewBookingDetails = () => {
+    router.push(`/booking/confirmation/${bookingCode.value}`);
+    showSuccessDialog.value = false;
+};
+
+const goToHomePage = () => {
+    router.push('/');
+    showSuccessDialog.value = false;
 };
 
 // Xử lý các bước
@@ -189,7 +379,7 @@ const goToNextStep = () => {
         }
     } else if (currentStep.value === 2) {
         if (validatePaymentInfo()) {
-            submitBooking();
+            confirmBooking();
         }
     }
 };

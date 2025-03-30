@@ -12,6 +12,9 @@ import LoginDialog from '@/components/LoginDialog.vue';
 import RegisterDialog from '@/components/RegisterDialog.vue';
 import { useHead } from '@vueuse/head';
 import Toast from 'primevue/toast';
+import Dialog from 'primevue/dialog';
+import Checkbox from 'primevue/checkbox';
+import Password from 'primevue/password';
 
 const router = useRouter();
 const route = useRoute();
@@ -29,6 +32,7 @@ const showLoginModal = ref(false);
 const showRegisterModal = ref(false);
 const forgotPasswordModalVisible = ref(false);
 const forgotPasswordEmail = ref('');
+const isLoading = ref(false);
 
 // Tạo canonical URL
 const canonicalUrl = computed(() => {
@@ -109,6 +113,9 @@ onMounted(async () => {
     window.addEventListener('user-logged-out', () => {
         currentUser.value = null;
     });
+
+    // Thêm event listener để đóng menu khi click ra ngoài
+    document.addEventListener('click', handleOutsideClick);
 });
 
 const toggleMenu = () => {
@@ -190,21 +197,26 @@ const handleForgotPasswordSuccess = () => {
     forgotPasswordModalVisible.value = false;
 };
 
-const handleLogout = async () => {
-    await AuthService.logoutClient();
+const handleLogout = () => {
+    // Xóa thông tin user khỏi localStorage
+    localStorage.removeItem('userInfo');
+    localStorage.removeItem('user_token');
+
+    // Reset state
     currentUser.value = null;
     userMenuVisible.value = false;
 
+    // Thông báo
     toast.add({
         severity: 'info',
         summary: 'Đăng xuất thành công',
-        detail: 'Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi.',
+        detail: 'Hẹn gặp lại bạn!',
         life: 3000
     });
 
-    // Điều hướng về trang chủ nếu đang ở trang yêu cầu đăng nhập
-    const currentRoutePath = route.path;
-    if (currentRoutePath.includes('/my-profile') || currentRoutePath.includes('/my-bookings')) {
+    // Chuyển về trang chủ nếu đang ở trang cần đăng nhập
+    const protectedRoutes = ['/my-profile', '/my-bookings'];
+    if (protectedRoutes.some(route => router.currentRoute.value.path.startsWith(route))) {
         router.push('/');
     }
 };
@@ -312,6 +324,167 @@ const handleLoginClick = () => {
     setTimeout(() => {
         showLoginModal.value = true;
     }, 300);
+};
+
+const handleOutsideClick = (event) => {
+    // Đóng user menu khi click bên ngoài
+    if (userMenuVisible.value && !event.target.closest('.user-menu-container')) {
+        userMenuVisible.value = false;
+    }
+};
+
+// Form data
+const loginForm = ref({
+    email: '',
+    password: '',
+    rememberMe: false
+});
+
+const registerForm = ref({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    agreeTerms: false
+});
+
+// Mock user data cho demo
+const mockUserData = {
+    id: '1',
+    name: 'Nguyễn Văn A',
+    email: 'nguyenvana@example.com',
+    avatar: 'https://randomuser.me/api/portraits/men/32.jpg'
+};
+
+const login = () => {
+    if (!loginForm.value.email || !loginForm.value.password) {
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Vui lòng nhập đầy đủ thông tin',
+            life: 3000
+        });
+        return;
+    }
+
+    isLoading.value = true;
+
+    // Giả lập API call
+    setTimeout(() => {
+        isLoading.value = false;
+
+        const userData = {
+            id: '1',
+            name: 'Nguyễn Văn A',
+            fullName: 'Nguyễn Văn A',
+            email: loginForm.value.email,
+            phone: '0987654321',
+            avatar: 'https://randomuser.me/api/portraits/men/32.jpg'
+        };
+
+        // Lưu thông tin user vào localStorage - demo sử dụng token đơn giản
+        localStorage.setItem('userInfo', JSON.stringify(userData));
+        localStorage.setItem('user_token', 'demo_token_' + Math.random().toString(36).substr(2, 9));
+
+        // Cập nhật state
+        currentUser.value = userData;
+
+        // Đóng modal
+        showLoginModal.value = false;
+
+        // Reset form
+        loginForm.value = {
+            email: '',
+            password: '',
+            rememberMe: false
+        };
+
+        // Thông báo
+        toast.add({
+            severity: 'success',
+            summary: 'Đăng nhập thành công',
+            detail: 'Chào mừng bạn quay trở lại!',
+            life: 3000
+        });
+
+        // Chuyển hướng nếu cần
+        const redirectPath = route.query.redirect;
+        if (redirectPath) {
+            router.push({ path: redirectPath });
+        }
+    }, 1000);
+};
+
+const register = () => {
+    // Validate form
+    if (!registerForm.value.fullName || !registerForm.value.email || !registerForm.value.password || !registerForm.value.confirmPassword) {
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Vui lòng nhập đầy đủ thông tin',
+            life: 3000
+        });
+        return;
+    }
+
+    if (registerForm.value.password !== registerForm.value.confirmPassword) {
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Mật khẩu xác nhận không khớp',
+            life: 3000
+        });
+        return;
+    }
+
+    if (!registerForm.value.agreeTerms) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Lưu ý',
+            detail: 'Vui lòng đồng ý với điều khoản dịch vụ',
+            life: 3000
+        });
+        return;
+    }
+
+    isLoading.value = true;
+
+    // Giả lập API call
+    setTimeout(() => {
+        isLoading.value = false;
+
+        // Đóng modal đăng ký và mở modal đăng nhập
+        showRegisterModal.value = false;
+
+        // Reset form
+        registerForm.value = {
+            fullName: '',
+            email: '',
+            phone: '',
+            password: '',
+            confirmPassword: '',
+            agreeTerms: false
+        };
+
+        // Thông báo
+        toast.add({
+            severity: 'success',
+            summary: 'Đăng ký thành công',
+            detail: 'Vui lòng đăng nhập để tiếp tục',
+            life: 3000
+        });
+
+        // Mở modal đăng nhập
+        setTimeout(() => {
+            showLoginModal.value = true;
+        }, 500);
+    }, 1000);
+};
+
+const handleMobileLogout = () => {
+    handleLogout();
+    closeMobileMenu();
 };
 </script>
 
@@ -510,10 +683,93 @@ const handleLoginClick = () => {
         <Toast position="bottom-right" />
 
         <!-- Login Dialog -->
-        <LoginDialog :modelValue="showLoginModal" @update:modelValue="showLoginModal = $event" @login-success="handleLoginSuccess" @register="handleRegisterClick" @forgot-password="showForgotPasswordModal" />
+        <Dialog v-model:visible="showLoginModal" modal header="Đăng nhập" :style="{width: '400px'}" class="p-fluid">
+            <div class="flex flex-column gap-3">
+                <div class="text-center mb-4">
+                    <p class="text-gray-600 text-sm">Đăng nhập để đặt phòng và nhận nhiều ưu đãi</p>
+                </div>
+
+                <div class="field">
+                    <label for="email" class="font-medium text-gray-700">Email</label>
+                    <InputText id="email" v-model="loginForm.email" placeholder="Nhập email của bạn" class="w-full p-3" />
+                </div>
+
+                <div class="field">
+                    <label for="password" class="font-medium text-gray-700">Mật khẩu</label>
+                    <Password id="password" v-model="loginForm.password" placeholder="Nhập mật khẩu" toggleMask />
+                </div>
+
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center">
+                        <Checkbox v-model="loginForm.rememberMe" :binary="true" id="remember-me" />
+                        <label for="remember-me" class="ml-2 text-sm text-gray-600">Ghi nhớ đăng nhập</label>
+                    </div>
+                    <a href="#" @click.prevent="showForgotPasswordModal" class="text-sm text-amber-600 hover:text-amber-800">Quên mật khẩu?</a>
+                </div>
+
+                <Button label="Đăng nhập" class="w-full bg-amber-600 hover:bg-amber-700" @click="login" />
+
+                <div class="relative flex items-center justify-center mt-2 mb-2">
+                    <div class="border-t border-gray-300 w-full absolute"></div>
+                    <div class="bg-white px-2 z-10 text-sm text-gray-500">hoặc</div>
+                </div>
+
+                <!-- Đăng nhập với Google/Facebook -->
+                <div class="space-y-2">
+                    <Button label="Đăng nhập với Google" icon="pi pi-google" class="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" />
+                    <Button label="Đăng nhập với Facebook" icon="pi pi-facebook" class="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" />
+                </div>
+
+                <div class="text-center text-sm text-gray-600 mt-3">
+                    Bạn chưa có tài khoản? <a href="#" @click.prevent="showRegisterModal = true; showLoginModal = false" class="text-amber-600 hover:text-amber-800">Đăng ký ngay</a>
+                </div>
+            </div>
+        </Dialog>
 
         <!-- Register Dialog -->
-        <RegisterDialog :modelValue="showRegisterModal" @update:modelValue="showRegisterModal = $event" @register-success="handleRegisterSuccess" @login="handleLoginClick" />
+        <Dialog v-model:visible="showRegisterModal" modal header="Đăng ký tài khoản" :style="{width: '400px'}" class="p-fluid">
+            <div class="flex flex-column gap-3">
+                <div class="text-center mb-4">
+                    <p class="text-gray-600 text-sm">Đăng ký tài khoản để đặt phòng và nhận nhiều ưu đãi</p>
+                </div>
+
+                <div class="field">
+                    <label for="fullname" class="font-medium text-gray-700">Họ tên</label>
+                    <InputText id="fullname" v-model="registerForm.fullName" placeholder="Nhập họ tên của bạn" />
+                </div>
+
+                <div class="field">
+                    <label for="register-email" class="font-medium text-gray-700">Email</label>
+                    <InputText id="register-email" v-model="registerForm.email" placeholder="Nhập email của bạn" />
+                </div>
+
+                <div class="field">
+                    <label for="register-phone" class="font-medium text-gray-700">Số điện thoại</label>
+                    <InputText id="register-phone" v-model="registerForm.phone" placeholder="Nhập số điện thoại của bạn" />
+                </div>
+
+                <div class="field">
+                    <label for="register-password" class="font-medium text-gray-700">Mật khẩu</label>
+                    <Password id="register-password" v-model="registerForm.password" placeholder="Nhập mật khẩu" toggleMask />
+                </div>
+
+                <div class="field">
+                    <label for="confirm-password" class="font-medium text-gray-700">Xác nhận mật khẩu</label>
+                    <Password id="confirm-password" v-model="registerForm.confirmPassword" placeholder="Nhập lại mật khẩu" toggleMask />
+                </div>
+
+                <div class="flex items-start">
+                    <Checkbox v-model="registerForm.agreeTerms" :binary="true" id="agree-terms" class="mt-1" />
+                    <label for="agree-terms" class="ml-2 text-gray-700">Tôi đồng ý với <a href="#" class="text-amber-600 hover:underline">Điều khoản dịch vụ</a> và <a href="#" class="text-amber-600 hover:underline">Chính sách bảo mật</a></label>
+                </div>
+
+                <Button label="Đăng ký" class="w-full bg-amber-600 hover:bg-amber-700" @click="register" />
+
+                <div class="text-center text-sm text-gray-600 mt-3">
+                    Bạn đã có tài khoản? <a href="#" @click.prevent="showRegisterModal = false; showLoginModal = true" class="text-amber-600 hover:text-amber-800">Đăng nhập</a>
+                </div>
+            </div>
+        </Dialog>
     </div>
 </template>
 
@@ -553,5 +809,19 @@ const handleLoginClick = () => {
 
 :deep(.p-checkbox) {
     margin-right: 0.5rem;
+}
+
+.client-layout {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+.user-menu-container {
+    position: relative;
 }
 </style>

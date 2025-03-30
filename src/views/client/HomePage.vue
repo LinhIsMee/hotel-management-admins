@@ -17,7 +17,8 @@ const availableImages = [nha_nghi_1, nha_nghi_2, nha_nghi_3];
 const searchForm = ref({
     checkIn: null,
     checkOut: null,
-    guests: 2
+    adults: 2,
+    children: 0
 });
 
 // Thiết lập meta tags cho trang chủ
@@ -70,7 +71,8 @@ function searchRooms() {
         query: {
             checkIn: formatDate(searchForm.value.checkIn),
             checkOut: formatDate(searchForm.value.checkOut),
-            guests: searchForm.value.guests
+            adults: searchForm.value.adults,
+            children: searchForm.value.children
         }
     });
 }
@@ -122,15 +124,24 @@ function handleBookNow(event) {
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                             <label class="block text-gray-700 mb-2">Ngày nhận phòng</label>
-                            <Calendar placeholder="Chọn ngày" class="w-full" showIcon />
+                            <Calendar v-model="searchForm.checkIn" placeholder="Chọn ngày" class="w-full" showIcon minDate="new Date()" />
                         </div>
                         <div>
                             <label class="block text-gray-700 mb-2">Ngày trả phòng</label>
-                            <Calendar placeholder="Chọn ngày" class="w-full" showIcon />
+                            <Calendar v-model="searchForm.checkOut" placeholder="Chọn ngày" class="w-full" showIcon minDate="searchForm.checkIn || new Date()" />
                         </div>
                         <div>
                             <label class="block text-gray-700 mb-2">Số người</label>
-                            <Dropdown class="w-full" :options="[1, 2, 3, 4, 5]" placeholder="Chọn số người" />
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Người lớn</label>
+                                    <Dropdown v-model="searchForm.adults" class="w-full" :options="[1, 2, 3, 4, 5]" placeholder="Số lượng" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Trẻ em</label>
+                                    <Dropdown v-model="searchForm.children" class="w-full" :options="[0, 1, 2, 3, 4]" placeholder="Số lượng" />
+                                </div>
+                            </div>
                         </div>
                         <div class="flex items-end">
                             <Button

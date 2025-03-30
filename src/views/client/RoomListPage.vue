@@ -3,10 +3,11 @@ import nha_nghi_1 from '@/assets/images/nha-nghi-1.webp';
 import nha_nghi_2 from '@/assets/images/nha-nghi-2.webp';
 import nha_nghi_3 from '@/assets/images/nha-nghi-3.webp';
 import { useHead } from '@vueuse/head';
-import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 const router = useRouter();
+const route = useRoute();
 const rooms = ref([]);
 const loading = ref(true);
 
@@ -15,7 +16,13 @@ const availableImages = [nha_nghi_1, nha_nghi_2, nha_nghi_3];
 
 // Bộ lọc
 const filters = ref({
-  price: [0, 5000000],
+  priceRange: [0, 5000000],
+  minPrice: 0,
+  maxPrice: 5000000,
+  checkIn: null,
+  checkOut: null,
+  adults: null,
+  children: null,
   occupancy: [],
   roomType: [],
   amenities: []
@@ -52,15 +59,55 @@ const occupancyOptions = ref([
 ]);
 
 onMounted(async () => {
+  // Lấy các query parameters
+  if (route.query.checkIn) {
+    filters.value.checkIn = new Date(route.query.checkIn);
+  }
+
+  if (route.query.checkOut) {
+    filters.value.checkOut = new Date(route.query.checkOut);
+  }
+
+  if (route.query.adults) {
+    filters.value.adults = parseInt(route.query.adults);
+  }
+
+  if (route.query.children) {
+    filters.value.children = parseInt(route.query.children);
+  }
+
   try {
+    // Tải dữ liệu phòng
     const response = await fetch('/demo/data/room-types.json');
     const data = await response.json();
 
     // Gán ảnh ngẫu nhiên cho mỗi phòng
     rooms.value = data.data.map((room, index) => {
+      // Tính giá theo thời điểm nếu có chọn ngày
+      let finalPrice = room.pricePerNight;
+
+      if (filters.value.checkIn && filters.value.checkOut) {
+        const checkIn = new Date(filters.value.checkIn);
+        const isWeekend = checkIn.getDay() === 0 || checkIn.getDay() === 6;
+
+        // Tăng giá cuối tuần 20%
+        if (isWeekend) {
+          finalPrice = finalPrice * 1.2;
+        }
+
+        // Kiểm tra ngày lễ (có thể cần một danh sách ngày lễ)
+        // Đây chỉ là ví dụ
+        const specialDates = ['2023-12-25', '2024-01-01', '2024-04-30', '2024-05-01'];
+        const dateStr = formatDate(checkIn);
+        if (specialDates.includes(dateStr)) {
+          finalPrice = finalPrice * 1.3; // Tăng giá 30% trong ngày lễ
+        }
+      }
+
       return {
         ...room,
-        imageUrl: availableImages[index % 3] // Luân phiên 3 ảnh có sẵn
+        imageUrl: availableImages[index % 3], // Luân phiên 3 ảnh có sẵn
+        finalPrice: finalPrice
       };
     });
   } catch (error) {
@@ -70,11 +117,51 @@ onMounted(async () => {
   }
 });
 
+// Đồng bộ giá trị min, max với priceRange
+watch(
+  () => filters.value.minPrice,
+  (newValue) => {
+    filters.value.priceRange[0] = newValue;
+  }
+);
+
+watch(
+  () => filters.value.maxPrice,
+  (newValue) => {
+    filters.value.priceRange[1] = newValue;
+  }
+);
+
+watch(
+  () => filters.value.priceRange,
+  (newValue) => {
+    filters.value.minPrice = newValue[0];
+    filters.value.maxPrice = newValue[1];
+  }
+);
+
+// Cập nhật tìm kiếm
+const updateSearch = () => {
+  // Cập nhật query parameters
+  router.push({
+    path: '/rooms',
+    query: {
+      checkIn: filters.value.checkIn ? formatDate(filters.value.checkIn) : undefined,
+      checkOut: filters.value.checkOut ? formatDate(filters.value.checkOut) : undefined,
+      adults: filters.value.adults || undefined,
+      children: filters.value.children || undefined
+    }
+  });
+
+  // Tải lại dữ liệu phòng
+  loadRoomData();
+};
+
 // Lọc phòng theo các tiêu chí
 const filteredRooms = computed(() => {
   return rooms.value.filter(room => {
     // Lọc theo giá
-    if (room.pricePerNight < filters.value.price[0] || room.pricePerNight > filters.value.price[1]) {
+    if (room.finalPrice < filters.value.priceRange[0] || room.finalPrice > filters.value.priceRange[1]) {
       return false;
     }
 
@@ -107,7 +194,13 @@ const navigateToDetail = (roomId) => {
 
 const resetFilters = () => {
   filters.value = {
-    price: [0, 5000000],
+    priceRange: [0, 5000000],
+    minPrice: 0,
+    maxPrice: 5000000,
+    checkIn: null,
+    checkOut: null,
+    adults: null,
+    children: null,
     occupancy: [],
     roomType: [],
     amenities: []
@@ -141,14 +234,48 @@ useHead({
           <div class="bg-white p-4 rounded-lg shadow-md">
             <h2 class="text-xl font-semibold mb-4">Bộ lọc tìm kiếm</h2>
 
-            <!-- Price Range -->
-            <div class="mb-6">
-              <h3 class="font-medium mb-2">Giá phòng</h3>
-              <Slider v-model="filters.price" range :min="0" :max="5000000" :step="100000" class="mt-4" />
-              <div class="flex justify-between mt-2">
-                <span>{{ formatCurrency(filters.price[0]) }}</span>
-                <span>{{ formatCurrency(filters.price[1]) }}</span>
+            <div class="filters bg-white shadow rounded-lg p-6 mb-6">
+              <h3 class="text-xl font-semibold mb-4">Bộ lọc</h3>
+
+              <!-- Chọn ngày và số người -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <label class="block text-gray-700 mb-2">Ngày nhận phòng</label>
+                  <Calendar v-model="filters.checkIn" placeholder="Chọn ngày" class="w-full" showIcon />
+                </div>
+                <div>
+                  <label class="block text-gray-700 mb-2">Ngày trả phòng</label>
+                  <Calendar v-model="filters.checkOut" placeholder="Chọn ngày" class="w-full" showIcon />
+                </div>
+                <div>
+                  <label class="block text-gray-700 mb-2">Số người</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs text-gray-600 mb-1">Người lớn</label>
+                      <Dropdown v-model="filters.adults" class="w-full" :options="[1, 2, 3, 4, 5]" placeholder="Số lượng" />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-gray-600 mb-1">Trẻ em</label>
+                      <Dropdown v-model="filters.children" class="w-full" :options="[0, 1, 2, 3, 4]" placeholder="Số lượng" />
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-end">
+                  <Button label="Cập nhật tìm kiếm" icon="pi pi-search" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium" @click="updateSearch" />
+                </div>
               </div>
+
+              <div class="mb-4">
+                <h4 class="font-medium mb-2">Khoảng giá</h4>
+                <div class="flex items-center space-x-2 mb-2">
+                  <InputNumber v-model="filters.minPrice" placeholder="Từ" mode="currency" currency="VND" locale="vi-VN" class="w-full" />
+                  <span>-</span>
+                  <InputNumber v-model="filters.maxPrice" placeholder="Đến" mode="currency" currency="VND" locale="vi-VN" class="w-full" />
+                </div>
+                <Slider v-model="filters.priceRange" range class="mt-4" :max="5000000" :step="100000" />
+              </div>
+
+              <!-- Các bộ lọc khác giữ nguyên -->
             </div>
 
             <!-- Occupancy -->
@@ -216,7 +343,7 @@ useHead({
                   <div class="flex justify-between items-start mb-2">
                     <h3 class="text-xl font-bold text-gray-800">{{ room.name }}</h3>
                     <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold">
-                      {{ formatCurrency(room.pricePerNight) }}/đêm
+                      {{ formatCurrency(room.finalPrice) }}/đêm
                     </span>
                   </div>
 
@@ -236,7 +363,7 @@ useHead({
                   </div>
 
                   <div class="card-footer flex justify-between items-center mt-4">
-                    <span class="text-xl font-bold text-amber-600">{{ formatCurrency(room.pricePerNight) }}<span class="text-sm text-gray-500">/đêm</span></span>
+                    <span class="text-xl font-bold text-amber-600">{{ formatCurrency(room.finalPrice) }}<span class="text-sm text-gray-500">/đêm</span></span>
                     <router-link
                       :to="`/room/${room.id}`"
                       class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded transition duration-300"

@@ -185,245 +185,270 @@ const changeImage = (image) => {
 </script>
 
 <template>
-    <div class="booking-confirmation py-8 bg-gray-50">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between mb-6">
-                <h1 class="text-3xl font-bold text-gray-800">Chi tiết đặt phòng</h1>
-                <div class="text-right">
-                    <span class="text-gray-600">Mã đặt phòng:</span>
-                    <span class="font-bold text-amber-700 ml-2">#{{ booking?.id || 'B453252' }}</span>
-                </div>
+    <div class="booking-confirmation-page bg-gray-50 min-h-screen py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div v-if="loading" class="flex justify-center py-10">
+                <ProgressSpinner />
             </div>
 
-            <div v-if="loading" class="flex justify-center py-10">
-                <i class="pi pi-spin pi-spinner text-4xl text-amber-500"></i>
+            <div v-else-if="!booking" class="bg-white p-10 rounded-lg shadow-md text-center">
+                <i class="pi pi-exclamation-triangle text-5xl text-yellow-500 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">Không tìm thấy thông tin đặt phòng</h3>
+                <p class="text-gray-600 mb-4">Đặt phòng này không tồn tại hoặc đã hết hạn.</p>
+                <Button label="Quay lại trang chủ" @click="router.push('/')" />
             </div>
 
             <div v-else>
-                <!-- Thẻ trạng thái -->
-                <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-                    <div class="p-6 border-b border-gray-100">
-                        <div class="flex justify-between items-center mb-2">
-                            <h2 class="text-xl font-semibold text-gray-800">Trạng thái đơn phòng</h2>
-                            <span :class="[getStatusClass(booking.status), 'px-3 py-1 rounded-full text-sm font-medium']">
-                                {{ getStatusLabel(booking.status) }}
-                            </span>
-                        </div>
-                        <div class="flex justify-between mt-4">
-                            <div class="flex items-center text-gray-600">
-                                <i class="pi pi-calendar-plus mr-2 text-gray-500"></i>
-                                <span>{{ formatDate(booking.checkInDate) }}</span>
-                                <span class="px-3">→</span>
-                                <i class="pi pi-calendar-minus mr-2 text-gray-500"></i>
-                                <span>{{ formatDate(booking.checkOutDate) }}</span>
-                            </div>
-                            <div :class="[getPaymentStatusClass(booking.paymentStatus), 'px-3 py-1 rounded-full text-sm font-medium flex items-center']">
-                                <i class="pi pi-wallet mr-2"></i>
-                                {{ getPaymentStatusLabel(booking.paymentStatus) }}
-                            </div>
-                        </div>
+                <!-- Thông báo thành công -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-8 text-center">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-4">
+                        <i class="pi pi-check-circle text-3xl text-green-500"></i>
                     </div>
+                    <h1 class="text-2xl font-bold text-gray-800 mb-2">Đặt phòng thành công!</h1>
+                    <p class="text-gray-600 mb-2">Cảm ơn bạn đã đặt phòng tại Luxury Hotel</p>
+                    <p class="font-medium">Mã đặt phòng: <span class="text-amber-600">{{ booking.id }}</span></p>
+                    <p class="text-sm text-gray-500 mt-2">Email xác nhận đã được gửi đến {{ booking.contactInfo.email }}</p>
                 </div>
 
-                <!-- Thông tin chi tiết -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <!-- Thông tin phòng -->
-                    <div class="md:col-span-2">
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                            <div class="p-6">
-                                <h2 class="text-xl font-semibold text-gray-800 mb-4">Thông tin phòng</h2>
+                <!-- Thông tin chi tiết đặt phòng -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Thông tin phòng và thời gian -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">Chi tiết đặt phòng</h2>
 
-                                <div class="mb-6">
-                                    <div class="relative overflow-hidden rounded-lg mb-4 shadow-lg">
-                                        <img
-                                            :src="selectedImage"
-                                            :alt="booking.roomName"
-                                            class="w-full h-80 object-cover transition-transform duration-500 hover:scale-105"
-                                        />
-                                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4">
-                                            <h3 class="text-xl font-bold">{{ booking.roomName }}</h3>
-                                            <div class="flex items-center mt-1">
-                                                <span class="bg-amber-500 text-white text-xs px-2 py-1 rounded-full mr-2">Deluxe</span>
-                                                <div class="flex items-center text-amber-300">
-                                                    <i class="pi pi-star-fill mr-1"></i>
-                                                    <i class="pi pi-star-fill mr-1"></i>
-                                                    <i class="pi pi-star-fill mr-1"></i>
-                                                    <i class="pi pi-star-fill mr-1"></i>
-                                                    <i class="pi pi-star-fill"></i>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Cập nhật gallery với các nút điều hướng -->
-                                    <div class="relative">
-                                        <div class="flex space-x-3 justify-center">
-                                            <div
-                                                v-for="(image, index) in roomImages"
-                                                :key="index"
-                                                @click="changeImage(image)"
-                                                class="cursor-pointer rounded-lg overflow-hidden shadow-md transition-all duration-300"
-                                                :class="{ 'ring-2 ring-amber-500 ring-offset-2': selectedImage === image }"
-                                            >
-                                                <img
-                                                    :src="image"
-                                                    :alt="`${booking.roomName} - ${index + 1}`"
-                                                    class="w-32 h-20 object-cover hover:opacity-90"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="grid grid-cols-2 gap-4 mb-4">
-                                        <div class="flex items-center bg-amber-50 p-3 rounded-lg">
-                                            <i class="pi pi-users text-amber-600 mr-3 text-xl"></i>
-                                            <div>
-                                                <div class="text-sm text-gray-500">Số lượng khách</div>
-                                                <div class="font-medium">{{ booking.totalGuests || 2 }} người</div>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center bg-amber-50 p-3 rounded-lg">
-                                            <i class="pi pi-calendar text-amber-600 mr-3 text-xl"></i>
-                                            <div>
-                                                <div class="text-sm text-gray-500">Thời gian</div>
-                                                <div class="font-medium">{{ calculateNights() }} đêm</div>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center bg-amber-50 p-3 rounded-lg">
-                                            <i class="pi pi-map-marker text-amber-600 mr-3 text-xl"></i>
-                                            <div>
-                                                <div class="text-sm text-gray-500">Vị trí</div>
-                                                <div class="font-medium">Tầng 4</div>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center bg-amber-50 p-3 rounded-lg">
-                                            <i class="pi pi-check-circle text-amber-600 mr-3 text-xl"></i>
-                                            <div>
-                                                <div class="text-sm text-gray-500">Trạng thái</div>
-                                                <div class="font-medium">Đã xác nhận</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="mb-6">
-                                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Chi tiết gói</h3>
-                                    <ul class="space-y-2 text-gray-600">
-                                        <li class="flex items-center">
-                                            <i class="pi pi-check text-green-500 mr-2"></i>
-                                            <span>Ăn sáng miễn phí</span>
-                                        </li>
-                                        <li class="flex items-center">
-                                            <i class="pi pi-check text-green-500 mr-2"></i>
-                                            <span>Wifi miễn phí tốc độ cao</span>
-                                        </li>
-                                        <li class="flex items-center">
-                                            <i class="pi pi-check text-green-500 mr-2"></i>
-                                            <span>Miễn phí hủy trước 24h</span>
-                                        </li>
-                                        <li class="flex items-center">
-                                            <i class="pi pi-check text-green-500 mr-2"></i>
-                                            <span>Dọn phòng hàng ngày</span>
-                                        </li>
-                                    </ul>
-                                </div>
-
+                            <div class="flex flex-col md:flex-row md:items-center mb-6">
+                                <img :src="selectedImage" :alt="booking.roomName" class="w-full md:w-48 h-36 object-cover rounded-lg mb-4 md:mb-0 md:mr-6" />
                                 <div>
-                                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Lịch trình</h3>
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div class="bg-amber-50 p-4 rounded-lg">
-                                            <div class="text-sm text-gray-500 mb-1">Nhận phòng</div>
-                                            <div class="font-medium">{{ formatDate(booking.checkInDate) }}</div>
-                                            <div class="text-sm text-gray-600">Từ 14:00</div>
-                                        </div>
-                                        <div class="bg-amber-50 p-4 rounded-lg">
-                                            <div class="text-sm text-gray-500 mb-1">Trả phòng</div>
-                                            <div class="font-medium">{{ formatDate(booking.checkOutDate) }}</div>
-                                            <div class="text-sm text-gray-600">Trước 12:00</div>
-                                        </div>
+                                    <h3 class="text-lg font-semibold text-gray-800 mb-1">{{ booking.roomName }}</h3>
+                                    <div class="flex items-center text-gray-600 mb-1">
+                                        <i class="pi pi-users mr-2"></i>
+                                        <span>{{ booking.totalGuests }} người</span>
+                                    </div>
+                                    <div class="flex items-center text-gray-600">
+                                        <i class="pi pi-calendar mr-2"></i>
+                                        <span>{{ formatDate(booking.checkInDate) }} - {{ formatDate(booking.checkOutDate) }}</span>
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- Chi tiết lịch trình -->
+                            <div class="border border-gray-200 rounded-lg p-4 mb-6">
+                                <div class="flex items-start border-b border-gray-200 pb-4 mb-4">
+                                    <div class="bg-amber-100 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mr-4">
+                                        <i class="pi pi-calendar-plus text-amber-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold mb-2">Nhận phòng</h4>
+                                        <p class="text-gray-700">{{ formatDate(booking.checkInDate) }}</p>
+                                        <p class="text-gray-600 text-sm">Từ 14:00 (Nhận phòng sớm có phụ phí)</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-start">
+                                    <div class="bg-amber-100 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mr-4">
+                                        <i class="pi pi-calendar-minus text-amber-600"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold mb-2">Trả phòng</h4>
+                                        <p class="text-gray-700">{{ formatDate(booking.checkOutDate) }}</p>
+                                        <p class="text-gray-600 text-sm">Đến 12:00 (Trả phòng muộn có phụ phí)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dịch vụ bổ sung -->
+                            <div v-if="hasAdditionalServices" class="mb-6">
+                                <h3 class="font-semibold text-gray-800 mb-3">Dịch vụ bổ sung</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2">
+                                    <div v-if="booking.services.breakfast" class="flex items-center">
+                                        <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                                        <span>Bữa sáng</span>
+                                    </div>
+                                    <div v-if="booking.services.earlyCheckin" class="flex items-center">
+                                        <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                                        <span>Nhận phòng sớm</span>
+                                    </div>
+                                    <div v-if="booking.services.lateCheckout" class="flex items-center">
+                                        <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                                        <span>Trả phòng muộn</span>
+                                    </div>
+                                    <div v-if="booking.services.airportPickup" class="flex items-center">
+                                        <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                                        <span>Đưa đón sân bay</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Thông tin liên hệ -->
+                            <div class="mb-6">
+                                <h3 class="font-semibold text-gray-800 mb-3">Thông tin liên hệ</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2">
+                                    <div class="flex items-center">
+                                        <i class="pi pi-user text-gray-500 mr-2"></i>
+                                        <span>{{ booking.guestName }}</span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <i class="pi pi-envelope text-gray-500 mr-2"></i>
+                                        <span>{{ booking.guestEmail }}</span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <i class="pi pi-phone text-gray-500 mr-2"></i>
+                                        <span>{{ booking.guestPhone }}</span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <i class="pi pi-flag text-gray-500 mr-2"></i>
+                                        <span>{{ getCountryName(booking.contactInfo.nationality) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Yêu cầu đặc biệt -->
+                            <div v-if="booking.contactInfo.specialRequests" class="mb-6">
+                                <h3 class="font-semibold text-gray-800 mb-3">Yêu cầu đặc biệt</h3>
+                                <p class="bg-gray-50 p-3 rounded-lg text-gray-700">{{ booking.contactInfo.specialRequests }}</p>
+                            </div>
+
+                            <!-- Chính sách đặt phòng -->
+                            <div class="border-t border-gray-200 pt-4">
+                                <h3 class="font-semibold text-gray-800 mb-3">Chính sách đặt phòng</h3>
+                                <ul class="space-y-2 text-gray-700">
+                                    <li class="flex items-start">
+                                        <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
+                                        <span>Nhận phòng từ 14:00 và trả phòng trước 12:00.</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
+                                        <span>Bạn có thể hủy miễn phí trước 1 ngày so với ngày nhận phòng. Nếu hủy muộn hơn, bạn sẽ bị tính phí 1 đêm đầu tiên.</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
+                                        <span>Khách hàng cần xuất trình giấy tờ tùy thân có ảnh khi nhận phòng.</span>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Sidebar - Thanh toán và thông tin khách hàng -->
-                    <div class="md:col-span-1">
-                        <!-- Thông tin thanh toán -->
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-                            <div class="p-6">
-                                <h2 class="text-xl font-semibold text-gray-800 mb-4">Thông tin thanh toán</h2>
+                    <!-- Thông tin thanh toán -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-lg shadow-md p-6 mb-6 sticky top-4">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">Tóm tắt thanh toán</h2>
 
-                                <div class="space-y-3">
-                                    <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-                                        <span class="text-gray-600">Phương thức:</span>
-                                        <span class="font-medium">{{ getPaymentMethodLabel(booking.paymentMethod) }}</span>
-                                    </div>
-                                    <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-                                        <span class="text-gray-600">Tiền phòng:</span>
-                                        <span>{{ formatCurrency(8500000) }}</span>
-                                    </div>
-                                    <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-                                        <span class="text-gray-600">Thuế & phí:</span>
-                                        <span>{{ formatCurrency(1000000) }}</span>
-                                    </div>
-                                    <div class="flex justify-between items-center text-lg font-semibold mt-2">
-                                        <span>Tổng tiền:</span>
-                                        <span class="text-amber-700">{{ formatCurrency(booking.totalPrice) }}</span>
-                                    </div>
+                            <div class="space-y-3 mb-4">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Mã đặt phòng:</span>
+                                    <span class="font-semibold">{{ booking.id }}</span>
                                 </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Trạng thái:</span>
+                                    <span class="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Đã xác nhận</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Thanh toán:</span>
+                                    <span :class="getPaymentStatusClass()">{{ getPaymentStatusLabel() }}</span>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-gray-200 pt-4 pb-4">
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-gray-600">Phòng ({{ calculateNights() }} đêm)</span>
+                                    <span>{{ formatCurrency(booking.totalPrice) }}</span>
+                                </div>
+
+                                <div v-if="booking.services?.breakfast" class="flex justify-between mb-2">
+                                    <span class="text-gray-600">Bữa sáng</span>
+                                    <span>{{ formatCurrency(getBreakfastTotal()) }}</span>
+                                </div>
+
+                                <div v-if="booking.services?.earlyCheckin" class="flex justify-between mb-2">
+                                    <span class="text-gray-600">Nhận phòng sớm</span>
+                                    <span>{{ formatCurrency(200000) }}</span>
+                                </div>
+
+                                <div v-if="booking.services?.lateCheckout" class="flex justify-between mb-2">
+                                    <span class="text-gray-600">Trả phòng muộn</span>
+                                    <span>{{ formatCurrency(200000) }}</span>
+                                </div>
+
+                                <div v-if="booking.services?.airportPickup" class="flex justify-between mb-2">
+                                    <span class="text-gray-600">Đưa đón sân bay</span>
+                                    <span>{{ formatCurrency(350000) }}</span>
+                                </div>
+
+                                <div v-if="booking.couponCode" class="flex justify-between mb-2 text-green-600">
+                                    <span>Giảm giá ({{ booking.couponCode }})</span>
+                                    <span>-{{ formatCurrency(booking.couponDiscount || 0) }}</span>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-gray-200 pt-4 mb-6">
+                                <div class="flex justify-between font-bold text-lg">
+                                    <span>Tổng cộng</span>
+                                    <span class="text-amber-600">{{ formatCurrency(booking.totalPrice) }}</span>
+                                </div>
+                                <div class="text-sm text-gray-500 mt-1">
+                                    <span v-if="booking.paymentMethod === 'pay_later'">Thanh toán tại khách sạn</span>
+                                    <span v-else-if="booking.paymentMethod === 'bank_transfer'">Chuyển khoản ngân hàng</span>
+                                    <span v-else-if="booking.paymentMethod === 'credit_card'">Đã thanh toán qua thẻ</span>
+                                    <span v-else-if="booking.paymentMethod === 'e_wallet'">Đã thanh toán qua ví điện tử</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3">
+                                <Button label="In xác nhận đặt phòng" icon="pi pi-print" class="w-full p-button-outlined" @click="printBookingConfirmation" />
+                                <Button label="Sửa đổi đặt phòng" icon="pi pi-pencil" class="w-full p-button-outlined" @click="editBooking" />
+                                <Button v-if="canCancel" label="Hủy đặt phòng" icon="pi pi-times" class="w-full p-button-outlined p-button-danger" @click="showCancelDialog = true" />
                             </div>
                         </div>
 
-                        <!-- Thông tin khách hàng -->
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-                            <div class="p-6">
-                                <h2 class="text-xl font-semibold text-gray-800 mb-4">Thông tin khách hàng</h2>
+                        <!-- Thông tin khách sạn -->
+                        <div class="bg-white rounded-lg shadow-md p-6">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4">Thông tin khách sạn</h2>
 
-                                <div class="space-y-3">
-                                    <div class="flex items-center border-b border-gray-100 pb-2">
-                                        <i class="pi pi-user text-gray-500 mr-3"></i>
-                                        <div>
-                                            <div class="text-sm text-gray-500">Họ tên</div>
-                                            <div>{{ booking.guestName }}</div>
-                                        </div>
+                            <div class="space-y-4">
+                                <div class="flex items-start">
+                                    <i class="pi pi-map-marker text-amber-600 text-xl mr-3 mt-1"></i>
+                                    <div>
+                                        <h3 class="font-semibold mb-1">Địa chỉ</h3>
+                                        <p class="text-gray-600">123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh</p>
                                     </div>
-                                    <div class="flex items-center border-b border-gray-100 pb-2">
-                                        <i class="pi pi-envelope text-gray-500 mr-3"></i>
-                                        <div>
-                                            <div class="text-sm text-gray-500">Email</div>
-                                            <div>{{ booking.guestEmail }}</div>
-                                        </div>
+                                </div>
+
+                                <div class="flex items-start">
+                                    <i class="pi pi-phone text-amber-600 text-xl mr-3 mt-1"></i>
+                                    <div>
+                                        <h3 class="font-semibold mb-1">Điện thoại</h3>
+                                        <p class="text-gray-600">+84 28 1234 5678</p>
                                     </div>
-                                    <div class="flex items-center border-b border-gray-100 pb-2">
-                                        <i class="pi pi-phone text-gray-500 mr-3"></i>
-                                        <div>
-                                            <div class="text-sm text-gray-500">Số điện thoại</div>
-                                            <div>{{ booking.guestPhone }}</div>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center">
-                                        <i class="pi pi-users text-gray-500 mr-3"></i>
-                                        <div>
-                                            <div class="text-sm text-gray-500">Số lượng khách</div>
-                                            <div>{{ booking.totalGuests || 2 }} người</div>
-                                        </div>
+                                </div>
+
+                                <div class="flex items-start">
+                                    <i class="pi pi-envelope text-amber-600 text-xl mr-3 mt-1"></i>
+                                    <div>
+                                        <h3 class="font-semibold mb-1">Email</h3>
+                                        <p class="text-gray-600">booking@luxuryhotel.vn</p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Nút hành động -->
-                        <div class="flex gap-3 mt-4">
-                            <button v-if="booking.status === 'NEW' || booking.status === 'CONFIRMED'" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center" @click="cancelBooking">
-                                <i class="pi pi-times-circle mr-2"></i> Hủy đặt phòng
-                            </button>
-                            <button @click="router.push('/my-bookings')" class="flex-1 px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 flex items-center justify-center"><i class="pi pi-arrow-left mr-2"></i> Quay lại</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Dialog hủy đặt phòng -->
+        <Dialog v-model:visible="showCancelDialog" :style="{width: '450px'}" header="Xác nhận hủy đặt phòng" :modal="true">
+            <div class="text-center">
+                <i class="pi pi-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Bạn chắc chắn muốn hủy đặt phòng?</h3>
+                <p class="mb-4">Việc hủy đặt phòng này sẽ không thể khôi phục.</p>
+                <div class="flex justify-center space-x-2">
+                    <Button label="Không, giữ đặt phòng" class="p-button-outlined" @click="showCancelDialog = false" />
+                    <Button label="Có, hủy đặt phòng" class="p-button-danger" @click="cancelBooking" />
+                </div>
+            </div>
+        </Dialog>
     </div>
 </template>
 

@@ -33,159 +33,173 @@ const teamMembers = [
 
 // Thiết lập meta tags cho trang giới thiệu
 useHead({
-  title: 'Về chúng tôi - Luxury Hotel',
+  title: 'Giới thiệu - Luxury Hotel',
   meta: [
     {
       name: 'description',
-      content: 'Luxury Hotel được thành lập từ năm 2010, là một trong những thương hiệu khách sạn hàng đầu Việt Nam với hơn 10 năm kinh nghiệm và 4 cơ sở khách sạn tại các địa điểm du lịch nổi tiếng.'
+      content: 'Khám phá câu chuyện của Luxury Hotel - Khách sạn 5 sao hàng đầu tại Việt Nam với đầy đủ tiện nghi và dịch vụ đẳng cấp quốc tế.'
     }
   ]
 })
 </script>
 
 <template>
-  <div class="about-page min-h-screen">
-    <!-- Hero Banner -->
-    <div class="relative h-64 md:h-80 bg-gray-900">
-      <img :src="nha_nghi_1" alt="Về chúng tôi" class="w-full h-full object-cover opacity-60" />
-      <div class="absolute inset-0 flex items-center justify-center">
-        <div class="text-center">
-          <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Về chúng tôi</h1>
-          <p class="text-xl text-white max-w-3xl mx-auto px-4">Khám phá câu chuyện và tầm nhìn của Luxury Hotel</p>
-        </div>
-      </div>
-    </div>
+  <div class="about-page bg-gray-50 min-h-screen py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h1 class="text-3xl font-bold text-gray-800 mb-8">Về chúng tôi</h1>
 
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 py-16">
-      <!-- Our Story -->
-      <div class="mb-16">
-        <div class="flex flex-col md:flex-row items-center gap-8">
-          <div class="md:w-1/2">
-            <h2 class="text-3xl font-bold text-gray-800 mb-4">Câu chuyện của chúng tôi</h2>
-            <p class="text-gray-600 mb-4">
-              Luxury Hotel được thành lập vào năm 2010 với sứ mệnh mang đến trải nghiệm lưu trú đẳng cấp 5 sao nhưng với mức giá hợp lý cho du khách trong và ngoài nước.
+      <!-- Giới thiệu -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Giới thiệu Luxury Hotel</h2>
+        <div class="flex flex-col md:flex-row gap-6">
+          <div class="md:w-2/3">
+            <p class="text-gray-700 mb-4">
+              Được thành lập vào năm 2010, Luxury Hotel là một trong những khách sạn hàng đầu tại Việt Nam, mang đến trải nghiệm lưu trú sang trọng và thoải mái cho du khách từ khắp nơi trên thế giới.
             </p>
-            <p class="text-gray-600 mb-4">
-              Sau hơn 10 năm phát triển, chúng tôi đã trở thành một trong những thương hiệu khách sạn hàng đầu Việt Nam, với chuỗi khách sạn tại các địa điểm du lịch nổi tiếng như Hà Nội, Đà Nẵng, Nha Trang và TP. Hồ Chí Minh.
+            <p class="text-gray-700 mb-4">
+              Với vị trí đắc địa tại trung tâm thành phố, chúng tôi tự hào cung cấp dịch vụ khách sạn 5 sao với các tiện nghi hiện đại và dịch vụ chuyên nghiệp, tận tâm.
             </p>
-            <p class="text-gray-600">
-              Chúng tôi tự hào về đội ngũ nhân viên chuyên nghiệp, cơ sở vật chất hiện đại và dịch vụ chăm sóc khách hàng tận tâm, mang đến cho du khách những kỷ niệm đáng nhớ trong mỗi chuyến đi.
+            <p class="text-gray-700">
+              Tại Luxury Hotel, chúng tôi cam kết mang đến cho quý khách những trải nghiệm đáng nhớ và thoải mái nhất trong suốt thời gian lưu trú. Từ những phòng nghỉ sang trọng đến nhà hàng với các món ăn đa dạng, chúng tôi luôn nỗ lực để đáp ứng mọi nhu cầu của quý khách.
             </p>
           </div>
-          <div class="md:w-1/2">
-            <img :src="nha_nghi_2" alt="Câu chuyện của chúng tôi" class="w-full h-auto rounded-lg shadow-lg" />
+          <div class="md:w-1/3">
+            <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80" alt="Luxury Hotel" class="w-full h-auto rounded-lg" />
           </div>
         </div>
       </div>
 
-      <!-- Our Values -->
-      <div class="mb-16">
-        <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">Giá trị cốt lõi</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div class="bg-white p-6 rounded-lg shadow-md text-center">
-            <div class="w-16 h-16 bg-amber-100 text-amber-600 mx-auto rounded-full flex items-center justify-center mb-4">
-              <i class="pi pi-star text-2xl"></i>
-            </div>
-            <h3 class="text-xl font-semibold mb-2">Chất lượng</h3>
-            <p class="text-gray-600">Không ngừng nâng cao chất lượng dịch vụ, mang đến trải nghiệm 5 sao cho mọi khách hàng</p>
+      <!-- Thư viện ảnh -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Thư viện ảnh</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <!-- Ảnh bên ngoài khách sạn -->
+          <div>
+            <img src="https://images.unsplash.com/photo-1566665797739-1674de7a421a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80" alt="Luxury Hotel - Bên ngoài" class="w-full h-48 object-cover rounded-lg" />
+            <p class="text-center text-gray-600 mt-2">Bên ngoài khách sạn</p>
           </div>
 
-          <div class="bg-white p-6 rounded-lg shadow-md text-center">
-            <div class="w-16 h-16 bg-amber-100 text-amber-600 mx-auto rounded-full flex items-center justify-center mb-4">
-              <i class="pi pi-heart text-2xl"></i>
-            </div>
-            <h3 class="text-xl font-semibold mb-2">Tận tâm</h3>
-            <p class="text-gray-600">Đặt khách hàng làm trung tâm, lắng nghe và đáp ứng mọi nhu cầu của khách hàng</p>
+          <!-- Hội trường -->
+          <div>
+            <img src="https://images.unsplash.com/photo-1562778612-e1e0cda9915c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80" alt="Luxury Hotel - Hội trường" class="w-full h-48 object-cover rounded-lg" />
+            <p class="text-center text-gray-600 mt-2">Hội trường sự kiện</p>
           </div>
 
-          <div class="bg-white p-6 rounded-lg shadow-md text-center">
-            <div class="w-16 h-16 bg-amber-100 text-amber-600 mx-auto rounded-full flex items-center justify-center mb-4">
-              <i class="pi pi-globe text-2xl"></i>
+          <!-- Nhà hàng -->
+          <div>
+            <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80" alt="Luxury Hotel - Nhà hàng" class="w-full h-48 object-cover rounded-lg" />
+            <p class="text-center text-gray-600 mt-2">Nhà hàng</p>
+          </div>
+
+          <!-- Bể bơi -->
+          <div>
+            <img src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80" alt="Luxury Hotel - Bể bơi" class="w-full h-48 object-cover rounded-lg" />
+            <p class="text-center text-gray-600 mt-2">Bể bơi vô cực</p>
+          </div>
+
+          <!-- Spa -->
+          <div>
+            <img src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80" alt="Luxury Hotel - Spa" class="w-full h-48 object-cover rounded-lg" />
+            <p class="text-center text-gray-600 mt-2">Khu vực spa</p>
+          </div>
+
+          <!-- Phòng gym -->
+          <div>
+            <img src="https://images.unsplash.com/photo-1540497077202-7c8a3999166f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80" alt="Luxury Hotel - Gym" class="w-full h-48 object-cover rounded-lg" />
+            <p class="text-center text-gray-600 mt-2">Phòng tập gym</p>
+          </div>
+
+          <!-- Bãi đậu xe -->
+          <div>
+            <img src="https://images.unsplash.com/photo-1609258612713-a5a57aa2f8b8?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80" alt="Luxury Hotel - Bãi đậu xe" class="w-full h-48 object-cover rounded-lg" />
+            <p class="text-center text-gray-600 mt-2">Bãi đậu xe</p>
+          </div>
+
+          <!-- Sảnh chờ -->
+          <div>
+            <img src="https://images.unsplash.com/photo-1590073844006-33379778ae09?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80" alt="Luxury Hotel - Sảnh chờ" class="w-full h-48 object-cover rounded-lg" />
+            <p class="text-center text-gray-600 mt-2">Sảnh chờ</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tầm nhìn & Sứ mệnh -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Tầm nhìn</h2>
+          <p class="text-gray-700">
+            Trở thành khách sạn hàng đầu Việt Nam, mang đến trải nghiệm lưu trú đẳng cấp quốc tế với những dịch vụ độc đáo mang đậm bản sắc văn hóa Việt Nam. Chúng tôi hướng tới sự hài lòng tuyệt đối của khách hàng và liên tục nâng cao chất lượng dịch vụ.
+          </p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-4">Sứ mệnh</h2>
+          <p class="text-gray-700">
+            Tạo ra không gian lưu trú sang trọng, thoải mái và an toàn cho khách hàng. Mang đến dịch vụ chuyên nghiệp, chu đáo với tinh thần hiếu khách. Đóng góp vào sự phát triển của ngành du lịch Việt Nam thông qua việc nâng cao chất lượng dịch vụ lưu trú.
+          </p>
+        </div>
+      </div>
+
+      <!-- Giá trị cốt lõi -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Giá trị cốt lõi</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="text-center">
+            <div class="bg-amber-50 w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-3">
+              <i class="pi pi-heart-fill text-amber-600 text-2xl"></i>
             </div>
-            <h3 class="text-xl font-semibold mb-2">Bền vững</h3>
-            <p class="text-gray-600">Cam kết phát triển bền vững, bảo vệ môi trường và đóng góp cho cộng đồng</p>
+            <h3 class="text-lg font-semibold mb-2">Tận tâm</h3>
+            <p class="text-gray-600">Chúng tôi luôn đặt lợi ích và sự hài lòng của khách hàng lên hàng đầu, tận tâm phục vụ mọi nhu cầu.</p>
+          </div>
+
+          <div class="text-center">
+            <div class="bg-amber-50 w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-3">
+              <i class="pi pi-shield text-amber-600 text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold mb-2">Chất lượng</h3>
+            <p class="text-gray-600">Cam kết cung cấp dịch vụ chất lượng cao, không ngừng cải tiến và nâng cao trải nghiệm khách hàng.</p>
+          </div>
+
+          <div class="text-center">
+            <div class="bg-amber-50 w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-3">
+              <i class="pi pi-users text-amber-600 text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold mb-2">Đồng đội</h3>
+            <p class="text-gray-600">Xây dựng môi trường làm việc chuyên nghiệp, đoàn kết, nơi mỗi nhân viên đều là một phần quan trọng.</p>
           </div>
         </div>
       </div>
 
-      <!-- Our Team -->
-      <div class="mb-16">
-        <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">Đội ngũ lãnh đạo</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div v-for="member in teamMembers" :key="member.name" class="bg-white rounded-lg overflow-hidden shadow-md">
-            <img :src="member.image" :alt="member.name" class="w-full h-64 object-cover" />
-            <div class="p-4 text-center">
-              <h3 class="text-lg font-bold text-gray-800">{{ member.name }}</h3>
-              <p class="text-amber-600 mb-2">{{ member.position }}</p>
-              <p class="text-gray-600 text-sm">{{ member.experience }}</p>
+      <!-- Liên hệ -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Liên hệ với chúng tôi</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="flex items-start">
+            <i class="pi pi-map-marker text-amber-600 text-xl mr-3 mt-1"></i>
+            <div>
+              <h3 class="font-semibold mb-1">Địa chỉ</h3>
+              <p class="text-gray-600">123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh</p>
+            </div>
+          </div>
+
+          <div class="flex items-start">
+            <i class="pi pi-phone text-amber-600 text-xl mr-3 mt-1"></i>
+            <div>
+              <h3 class="font-semibold mb-1">Điện thoại</h3>
+              <p class="text-gray-600">+84 28 1234 5678</p>
+              <p class="text-gray-600">+84 901 234 567</p>
+            </div>
+          </div>
+
+          <div class="flex items-start">
+            <i class="pi pi-envelope text-amber-600 text-xl mr-3 mt-1"></i>
+            <div>
+              <h3 class="font-semibold mb-1">Email</h3>
+              <p class="text-gray-600">info@luxuryhotel.vn</p>
+              <p class="text-gray-600">booking@luxuryhotel.vn</p>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Achievements -->
-      <div>
-        <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">Thành tựu của chúng tôi</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div class="bg-gray-50 p-6 rounded-lg">
-            <h3 class="text-xl font-semibold mb-4 text-amber-600">Giải thưởng</h3>
-            <ul class="space-y-3">
-              <li class="flex items-start">
-                <i class="pi pi-check-circle text-green-500 mr-2 mt-1"></i>
-                <span class="text-gray-700">Top 10 khách sạn tốt nhất Việt Nam 2022</span>
-              </li>
-              <li class="flex items-start">
-                <i class="pi pi-check-circle text-green-500 mr-2 mt-1"></i>
-                <span class="text-gray-700">Giải thưởng Dịch vụ xuất sắc 2021</span>
-              </li>
-              <li class="flex items-start">
-                <i class="pi pi-check-circle text-green-500 mr-2 mt-1"></i>
-                <span class="text-gray-700">Giải thưởng Khách sạn thân thiện với môi trường 2020</span>
-              </li>
-              <li class="flex items-start">
-                <i class="pi pi-check-circle text-green-500 mr-2 mt-1"></i>
-                <span class="text-gray-700">Chứng nhận Chất lượng 5 sao từ Hiệp hội Du lịch Việt Nam</span>
-              </li>
-            </ul>
-          </div>
-
-          <div class="bg-gray-50 p-6 rounded-lg">
-            <h3 class="text-xl font-semibold mb-4 text-amber-600">Con số ấn tượng</h3>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="text-center p-4">
-                <div class="text-3xl font-bold text-amber-600 mb-2">10+</div>
-                <p class="text-gray-700">Năm kinh nghiệm</p>
-              </div>
-              <div class="text-center p-4">
-                <div class="text-3xl font-bold text-amber-600 mb-2">4</div>
-                <p class="text-gray-700">Cơ sở khách sạn</p>
-              </div>
-              <div class="text-center p-4">
-                <div class="text-3xl font-bold text-amber-600 mb-2">200+</div>
-                <p class="text-gray-700">Nhân viên chuyên nghiệp</p>
-              </div>
-              <div class="text-center p-4">
-                <div class="text-3xl font-bold text-amber-600 mb-2">50.000+</div>
-                <p class="text-gray-700">Khách hàng hài lòng</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Call to Action -->
-    <div class="bg-amber-600 py-16">
-      <div class="max-w-5xl mx-auto px-4 text-center">
-        <h2 class="text-3xl font-bold text-white mb-4">Trải nghiệm đẳng cấp tại Luxury Hotel</h2>
-        <p class="text-white text-lg mb-8">Đặt phòng ngay hôm nay để có kỳ nghỉ tuyệt vời cùng chúng tôi</p>
-        <Button
-            label="Đặt phòng ngay"
-            class="p-button-lg bg-white text-amber-700 hover:bg-gray-100 font-medium"
-            aria-label="Đặt phòng khách sạn"
-            @click="$router.push('/rooms')"
-        />
       </div>
     </div>
   </div>
