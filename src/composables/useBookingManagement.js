@@ -55,8 +55,7 @@ export function useBookingManagement() {
         { label: 'Thẻ tín dụng', value: 'CREDIT_CARD' },
         { label: 'VnPay', value: 'VNPAY' },
         { label: 'Tiền mặt', value: 'CASH' },
-        { label: 'Chuyển khoản', value: 'BANK_TRANSFER' },
-        { label: 'Ví điện tử', value: 'E_WALLET' }
+        { label: 'Chuyển khoản', value: 'BANK_TRANSFER' }
     ]);
 
     // Hàm helper lấy token từ localStorage
@@ -807,16 +806,16 @@ export function useBookingManagement() {
         const checkedInCount = bookings.value.filter(b => b.status === 'CHECKED_IN').length;
         const checkedOutCount = bookings.value.filter(b => b.status === 'CHECKED_OUT').length;
         const cancelledCount = bookings.value.filter(b => b.status === 'CANCELLED').length;
-        
+
         // Tính tổng doanh thu (chỉ tính các đơn đã check-out và đã thanh toán)
         let revenue = 0;
-        
+
         bookings.value
             .filter(b => b.status === 'CHECKED_OUT' && b.paymentStatus === 'PAID')
             .forEach(booking => {
                 // Xử lý vấn đề giá trị finalPrice bị âm
                 const price = booking.finalPrice;
-                
+
                 // Nếu finalPrice là số âm rất lớn (có thể do lỗi định dạng từ API)
                 // hoặc chuyển đổi từ scientific notation, sử dụng totalPrice thay thế
                 if (price < 0 || Math.abs(price) > 1e9) {
@@ -838,12 +837,12 @@ export function useBookingManagement() {
             totalBookings: bookings.value.length,
             pendingBookings: pendingCount,
             confirmedBookings: confirmedCount,
-            checkedInBookings: checkedInCount, 
+            checkedInBookings: checkedInCount,
             checkedOutBookings: checkedOutCount,
             cancelledBookings: cancelledCount,
             totalRevenue: revenue
         };
-        
+
         console.log("Đã cập nhật thống kê:", stats.value);
     };
 
