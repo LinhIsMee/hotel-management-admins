@@ -595,13 +595,13 @@ const getGenderName = (gender) => {
                             </div>
 
                             <div class="mb-4 w-full">
-                                <label for="gender" class="font-bold mb-2 block">Giới tính</label>
-                                <Dropdown id="gender" v-model="user.gender" :options="genders" optionLabel="label" optionValue="value" placeholder="Chọn giới tính" />
+                                <label for="gender" class="font-bold mb-2 block w-full">Giới tính</label>
+                                <Dropdown id="gender" v-model="user.gender" :options="genders" optionLabel="label" optionValue="value" placeholder="Chọn giới tính" class="w-full" />
                             </div>
 
                             <div class="mb-4 w-full" v-if="!user.id">
                                 <label for="role" class="font-bold mb-2 block">Vai trò</label>
-                                <Dropdown id="role" v-model="user.role" :options="roles" optionLabel="label" optionValue="value" placeholder="Chọn vai trò" />
+                                <Dropdown id="role" v-model="user.role" :options="roles" optionLabel="label" optionValue="value" placeholder="Chọn vai trò" class="w-full" />
                             </div>
                             <div class="mb-4 w-full" v-else>
                                 <label for="role-display" class="font-bold mb-2 block">Vai trò</label>
@@ -613,7 +613,7 @@ const getGenderName = (gender) => {
 
                             <div class="mb-4 w-full">
                                 <label for="status" class="font-bold mb-2 block">Trạng thái</label>
-                                <Dropdown id="status" v-model="user.status" :options="statuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái" />
+                                <Dropdown id="status" v-model="user.status" :options="statuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái" class="w-full" />
                             </div>
 
                             <div class="mb-4 w-full" v-if="user.id">
