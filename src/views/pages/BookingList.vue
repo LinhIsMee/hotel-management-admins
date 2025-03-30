@@ -1,21 +1,78 @@
 <script setup>
-import { FilterMatchMode } from '@primevue/core/api';
-import { onMounted, ref } from 'vue';
+import { useBookingManagement } from '@/composables/useBookingManagement';
+import { useExportData } from '@/composables/useExportData';
+import { usePermissions } from '@/composables/usePermissions';
+import { FilterMatchMode } from '@/utils/primeUtils';
+import { useToast } from 'primevue/usetoast';
+import { computed, onMounted, ref } from 'vue';
+
+// Import các component PrimeVue
+import ConfirmDialog from 'primevue/confirmdialog';
+import Toast from 'primevue/toast';
+
+// Import các component tách
+import BookingDeleteDialog from '@/components/booking/BookingDeleteDialog.vue';
+import BookingDetailsDialog from '@/components/booking/BookingDetailsDialog.vue';
+import BookingEditDialog from '@/components/booking/BookingEditDialog.vue';
+import BookingFilters from '@/components/booking/BookingFilters.vue';
+import BookingManagementTable from '@/components/booking/BookingManagementTable.vue';
+import BookingStats from '@/components/booking/BookingStats.vue';
+
+// Lấy phân quyền
+const { can } = usePermissions();
+
+// Lấy các hàm và biến từ composable
+const {
+    bookings,
+    loading,
+    stats,
+    fetchAllBookings,
+    fetchBookingsByStatus,
+    fetchBookingsByDateRange,
+    fetchBookingById,
+    formatCurrency,
+    formatDate,
+    getStatusLabel,
+    getStatusSeverity,
+    statuses,
+    paymentStatuses,
+    paymentMethods,
+    getPaymentStatusLabel,
+    getPaymentMethodLabel,
+    getPaymentStatusSeverity,
+    cancelBooking,
+    confirmBooking,
+    updateStats
+} = useBookingManagement();
+
+// Thêm hàm để xử lý xuất dữ liệu
+const { isExporting, exportToCSV } = useExportData();
+
+// Đảm bảo có khai báo toast
+const toast = useToast();
 
 // Khai báo biến
-const bookings = ref([]);
 const availableRooms = ref([]);
-const availableServices = ref([]);
-const loading = ref(true);
 const bookingDialog = ref(false);
+const bookingDetailsDialog = ref(false);
 const deleteBookingDialog = ref(false);
 const deleteBookingsDialog = ref(false);
 const booking = ref({});
-const selectedBookings = ref(null);
+const selectedBooking = ref(null);
+const selectedBookings = ref([]);
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 const submitted = ref(false);
+const dateRange = ref({ start: null, end: null });
+const selectedStatus = ref(null);
+const userId = ref(null);
+
+// Tạo một đối tượng hiển thị các cột dựa vào quyền
+const displayColumns = computed(() => ({
+    selection: can.delete.value, // Hiển thị cột chọn nếu có quyền xóa
+    actions: can.edit.value || can.confirm.value || can.cancel.value // Hiển thị cột hành động nếu có quyền chỉnh sửa, xác nhận hoặc hủy
+}));
 
 // Thêm các biến cần thiết cho dialog
 const roomTypes = ref([
@@ -24,87 +81,48 @@ const roomTypes = ref([
     { id: 3, name: 'Phòng VIP' }
 ]);
 
-// Trạng thái đơn đặt
-const bookingStatuses = ref([
-    { label: 'Mới', value: 'NEW' },
-    { label: 'Đã xác nhận', value: 'CONFIRMED' },
-    { label: 'Đã nhận phòng', value: 'CHECK_IN' },
-    { label: 'Đã trả phòng', value: 'CHECK_OUT' },
-    { label: 'Đã hủy', value: 'CANCELLED' }
-]);
-
-// Phương thức thanh toán
-const paymentMethods = ref([
-    { label: 'Tiền mặt', value: 'CASH' },
-    { label: 'Thẻ tín dụng', value: 'CREDIT_CARD' },
-    { label: 'Chuyển khoản', value: 'BANK_TRANSFER' },
-    { label: 'Ví điện tử', value: 'E_WALLET' }
-]);
-
-// Trạng thái thanh toán
-const paymentStatuses = ref([
-    { label: 'Chưa thanh toán', value: 'UNPAID' },
-    { label: 'Đã đặt cọc', value: 'PARTIAL' },
-    { label: 'Đã thanh toán', value: 'PAID' },
-    { label: 'Hoàn tiền', value: 'REFUNDED' }
-]);
-
-// Lấy dữ liệu từ file JSON
-const fetchData = async () => {
-    try {
-        loading.value = true;
-
-        // Tải dữ liệu đơn đặt phòng
-        const bookingsResponse = await fetch('/demo/data/bookings.json');
-        const bookingsData = await bookingsResponse.json();
-        bookings.value = bookingsData.data;
-
-        // Tải dữ liệu phòng có sẵn
-        const roomsResponse = await fetch('/demo/data/available-rooms.json');
-        const roomsData = await roomsResponse.json();
-        availableRooms.value = roomsData.data;
-
-        // Tải dữ liệu dịch vụ có sẵn
-        const servicesResponse = await fetch('/demo/data/available-services.json');
-        const servicesData = await servicesResponse.json();
-        availableServices.value = servicesData.data;
-    } catch (error) {
-        console.error('Lỗi khi tải dữ liệu:', error);
-        // Không còn mock data nào trong code nữa
-        bookings.value = [];
-        availableRooms.value = [];
-        availableServices.value = [];
-    } finally {
-        loading.value = false;
-    }
-};
-
 // Gọi API khi component được mount
-onMounted(() => {
-    fetchData();
+onMounted(async () => {
+    console.log('BookingList mounted - Fetching data');
+    await fetchAllBookings();
+
+    // Đảm bảo chạy updateStats sau khi có dữ liệu
+    if (bookings.value && bookings.value.length > 0) {
+        console.log('Bookings loaded, updating stats...');
+        updateStats();
+    }
+
+    // Thêm timeout nếu cần để đảm bảo thống kê được cập nhật
+    setTimeout(() => {
+        console.log('Current stats after timeout:', stats.value);
+        // Nếu vẫn chưa có thống kê, chạy lại updateStats
+        if (!stats.value.totalBookings && bookings.value.length > 0) {
+            console.log('Stats not updated, running updateStats again');
+            updateStats();
+        }
+    }, 500);
 });
 
 // Mở dialog thêm mới
 const openNew = () => {
     booking.value = {
-        status: 'NEW',
+        status: 'PENDING',
         paymentStatus: 'UNPAID',
         paymentMethod: 'CASH',
         adults: 1,
         children: 0,
-        customerName: '',
-        customerPhone: '',
+        fullName: '',
+        phone: '',
         roomId: null,
         checkInDate: new Date(),
         checkOutDate: new Date(Date.now() + 86400000),
-        totalAmount: 0,
-        paidAmount: 0,
+        totalPrice: 0,
+        finalPrice: 0,
         additionalServices: [],
         specialRequests: ''
     };
     submitted.value = false;
     bookingDialog.value = true;
-    console.log('Dialog opened:', bookingDialog.value);
 };
 
 // Ẩn dialog
@@ -117,7 +135,7 @@ const hideDialog = () => {
 const saveBooking = () => {
     submitted.value = true;
 
-    if (booking.value.customerName?.trim() && booking.value.roomId) {
+    if (booking.value.fullName?.trim() && booking.value.roomId) {
         // Tìm thông tin phòng
         const selectedRoom = availableRooms.value.find((r) => r.id === booking.value.roomId);
         const selectedRoomType = roomTypes.value.find((t) => t.id === selectedRoom?.roomTypeId);
@@ -128,8 +146,7 @@ const saveBooking = () => {
             bookings.value[index] = {
                 ...booking.value,
                 roomNumber: selectedRoom?.roomNumber,
-                roomType: selectedRoomType?.name,
-                guestName: booking.value.customerName // Đảm bảo hiển thị đúng tên trong bảng
+                roomType: selectedRoomType?.name
             };
         } else {
             // Tạo đơn đặt mới
@@ -137,7 +154,6 @@ const saveBooking = () => {
             booking.value.createdAt = new Date().toISOString().split('T')[0];
             booking.value.roomNumber = selectedRoom?.roomNumber;
             booking.value.roomType = selectedRoomType?.name;
-            booking.value.guestName = booking.value.customerName; // Đảm bảo hiển thị đúng tên trong bảng
             bookings.value.push(booking.value);
         }
 
@@ -154,7 +170,6 @@ const editBooking = (editBooking) => {
     booking.value = {
         ...editBooking,
         // Đảm bảo các trường được chuyển đổi đúng
-        customerName: editBooking.guestName,
         roomId: room?.id || null,
         checkInDate: new Date(editBooking.checkInDate),
         checkOutDate: new Date(editBooking.checkOutDate),
@@ -162,13 +177,29 @@ const editBooking = (editBooking) => {
     };
 
     bookingDialog.value = true;
-    console.log('Edit dialog opened:', bookingDialog.value); // Debug
+};
+
+// Mở dialog xem chi tiết
+const viewBookingDetails = async (data) => {
+    try {
+        selectedBooking.value = data;
+        bookingDetailsDialog.value = true;
+
+        const fullDetails = await fetchBookingById(data.id);
+        if (fullDetails) {
+            selectedBooking.value = fullDetails;
+        }
+    } catch (error) {
+        console.error('Lỗi khi tải chi tiết đơn đặt:', error);
+    }
 };
 
 // Mở dialog xác nhận xóa
 const confirmDeleteBooking = (editBooking) => {
+    if (can.delete.value) {
     booking.value = editBooking;
     deleteBookingDialog.value = true;
+    }
 };
 
 // Xóa đơn đặt
@@ -180,14 +211,16 @@ const deleteBooking = () => {
 
 // Mở dialog xác nhận xóa nhiều
 const confirmDeleteSelected = () => {
+    if (can.delete.value && selectedBookings.value?.length) {
     deleteBookingsDialog.value = true;
+    }
 };
 
 // Xóa nhiều đơn đặt
 const deleteSelectedBookings = () => {
     bookings.value = bookings.value.filter((val) => !selectedBookings.value.includes(val));
     deleteBookingsDialog.value = false;
-    selectedBookings.value = null;
+    selectedBookings.value = [];
 };
 
 // Tìm index theo ID
@@ -202,405 +235,221 @@ const findIndexById = (id) => {
     return index;
 };
 
-// Format ngày tháng
-const formatDate = (value) => {
-    if (value) {
-        const date = new Date(value);
-        return new Intl.DateTimeFormat('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(date);
-    }
-    return '';
-};
-
-// Format tiền tệ
-const formatCurrency = (value) => {
-    if (value) {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND',
-            maximumFractionDigits: 0
-        }).format(value);
-    }
-    return '';
-};
-
-// Lấy tên trạng thái đơn đặt
-const getBookingStatusName = (statusValue) => {
-    const status = bookingStatuses.value.find((s) => s.value === statusValue);
-    return status ? status.label : '';
-};
-
-// Lấy tên phương thức thanh toán
-const getPaymentMethodName = (methodValue) => {
-    const method = paymentMethods.value.find((m) => m.value === methodValue);
-    return method ? method.label : '';
-};
-
-// Lấy tên trạng thái thanh toán
-const getPaymentStatusName = (statusValue) => {
-    const status = paymentStatuses.value.find((s) => s.value === statusValue);
-    return status ? status.label : '';
-};
-
-// Lấy CSS class cho trạng thái đơn đặt
-const getBookingStatusSeverity = (status) => {
-    switch (status) {
-        case 'NEW':
-            return 'info';
-        case 'CONFIRMED':
-            return 'success';
-        case 'CHECK_IN':
-            return 'warning';
-        case 'CHECK_OUT':
-            return 'success';
-        case 'CANCELLED':
-            return 'danger';
-        default:
-            return null;
+// Hàm xác nhận booking
+const handleConfirmBooking = async (data) => {
+    if (can.confirm.value) {
+        try {
+            await confirmBooking(data.id);
+            fetchAllBookings(); // Refresh data
+        } catch (error) {
+            console.error('Lỗi khi xác nhận booking:', error);
+        }
     }
 };
 
-// Lấy CSS class cho trạng thái thanh toán
-const getPaymentStatusSeverity = (status) => {
-    switch (status) {
-        case 'PAID':
-            return 'success';
-        case 'PARTIAL':
-            return 'warning';
-        case 'UNPAID':
-            return 'danger';
-        case 'REFUNDED':
-            return 'info';
-        default:
-            return null;
+// Hàm hủy booking
+const handleCancelBooking = async (data) => {
+    if (can.cancel.value) {
+        try {
+            await cancelBooking(data.id);
+            fetchAllBookings(); // Refresh data
+        } catch (error) {
+            console.error('Lỗi khi hủy booking:', error);
+        }
+    }
+};
+
+// Hàm lọc theo khoảng thời gian
+const filterByDateRange = () => {
+    if (dateRange.value.start && dateRange.value.end) {
+        const startDateStr = dateRange.value.start.toISOString().split('T')[0];
+        const endDateStr = dateRange.value.end.toISOString().split('T')[0];
+        fetchBookingsByDateRange(startDateStr, endDateStr);
+    }
+};
+
+// Hàm lọc theo trạng thái
+const filterByStatus = () => {
+    if (selectedStatus.value) {
+        fetchBookingsByStatus(selectedStatus.value);
+    } else {
+        fetchAllBookings();
+    }
+};
+
+// Hàm lọc theo người dùng
+const filterByUser = () => {
+    if (userId.value) {
+        fetchUserBookings(userId.value);
+    } else {
+        fetchAllBookings();
+    }
+};
+
+// Hàm reset bộ lọc
+const resetFilters = () => {
+    dateRange.value = { start: null, end: null };
+    selectedStatus.value = null;
+    userId.value = null;
+    fetchAllBookings();
+};
+
+// Thêm hàm để xử lý xuất dữ liệu
+const handleExport = () => {
+    if (bookings.value && bookings.value.length > 0) {
+        // Chuẩn bị dữ liệu cho xuất
+        const exportData = bookings.value.map((booking) => ({
+            'Mã đơn': booking.id,
+            'Khách hàng': booking.fullName || 'Không có thông tin',
+            'Điện thoại': booking.phone || '',
+            Phòng: booking.rooms ? booking.rooms.map((r) => r.roomNumber).join(', ') : '',
+            'Loại phòng': booking.rooms ? booking.rooms.map((r) => r.roomType).join(', ') : '',
+            'Ngày nhận': formatDate(booking.checkInDate),
+            'Ngày trả': formatDate(booking.checkOutDate),
+            'Trạng thái': getStatusLabel(booking.status),
+            'Tổng tiền': formatCurrency(booking.totalPrice).replace(/\s/g, ''), // Sử dụng totalPrice thay vì finalPrice
+            'Thanh toán': getPaymentStatusLabel(booking.paymentStatus),
+            'Phương thức': getPaymentMethodLabel(booking.paymentMethod),
+            'Ngày tạo': formatDate(booking.createdAt)
+        }));
+
+        exportToCSV(exportData, `danh-sach-dat-phong-${new Date().toISOString().slice(0, 10)}.csv`);
+    } else {
+        toast.add({
+            severity: 'warn',
+            summary: 'Không có dữ liệu',
+            detail: 'Không có dữ liệu để xuất.',
+            life: 3000
+        });
     }
 };
 </script>
 
 <template>
-    <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+    <div class="booking-container">
         <Toast />
-        <ConfirmDialog></ConfirmDialog>
-        <div class="bg-white rounded-lg mb-4">
-            <Toolbar class="mb-4 rounded-lg">
-                <template v-slot:start>
-                    <div class="my-2">
-                        <Button label="Thêm mới" icon="pi pi-plus" class="mr-2 bg-green-600 border-green-600 hover:bg-green-700" severity="success" @click="openNew" />
-                        <Button label="Xóa" icon="pi pi-trash" class="mr-2 bg-red-600 border-red-600 hover:bg-red-700" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedBookings || !selectedBookings.length" />
-                    </div>
-                </template>
-
-                <template v-slot:end>
-                    <span class="relative">
-                        <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="pl-8 text-sm h-10 w-64 border border-gray-300 rounded-md" />
-                    </span>
-                </template>
-            </Toolbar>
-
-            <DataTable
-                :value="bookings"
-                v-model:selection="selectedBookings"
-                dataKey="id"
-                :paginator="true"
-                :rows="10"
-                :loading="loading"
-                :filters="filters"
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                :rowsPerPageOptions="[5, 10, 25, 50]"
-                currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} đơn đặt"
-                responsiveLayout="scroll"
-                class="p-datatable-sm"
-            >
-                <template #empty>Không có đơn đặt nào được tìm thấy.</template>
-                <template #loading>Đang tải dữ liệu đơn đặt. Vui lòng đợi.</template>
-
-                <Column selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
-
-                <Column field="id" header="Mã đơn" sortable style="min-width: 5rem"></Column>
-
-                <Column field="guestName" header="Tên khách hàng" sortable style="min-width: 10rem"></Column>
-
-                <Column field="roomNumber" header="Phòng" sortable style="min-width: 5rem"></Column>
-
-                <Column field="roomType" header="Loại phòng" sortable style="min-width: 8rem"></Column>
-
-                <Column field="checkInDate" header="Nhận phòng" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        {{ formatDate(data.checkInDate) }}
-                    </template>
-                </Column>
-
-                <Column field="checkOutDate" header="Trả phòng" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        {{ formatDate(data.checkOutDate) }}
-                    </template>
-                </Column>
-
-                <Column field="status" header="Trạng thái" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        <Tag :value="getBookingStatusName(data.status)" :severity="getBookingStatusSeverity(data.status)" />
-                    </template>
-                </Column>
-
-                <Column field="totalAmount" header="Tổng tiền" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        {{ formatCurrency(data.totalAmount) }}
-                    </template>
-                </Column>
-
-                <Column field="paymentStatus" header="Thanh toán" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        <Tag :value="getPaymentStatusName(data.paymentStatus)" :severity="getPaymentStatusSeverity(data.paymentStatus)" />
-                    </template>
-                </Column>
-
-                <Column field="paymentMethod" header="Phương thức" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        {{ getPaymentMethodName(data.paymentMethod) }}
-                    </template>
-                </Column>
-
-                <Column exportable="false" style="min-width: 8rem">
-                    <template #body="{ data }">
-                        <Button icon="pi pi-pencil" outlined class="mr-2" @click="editBooking(data)" />
-                        <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteBooking(data)" />
-                    </template>
-                </Column>
-            </DataTable>
+        <ConfirmDialog />
+        <!-- Tiêu đề trang -->
+        <div class="page-header flex align-items-center justify-content-between mb-3">
+            <h1 class="text-xl font-bold m-0">Quản lý đặt phòng</h1>
         </div>
 
-        <!-- Dialog thêm/sửa đơn đặt phòng -->
-        <Dialog v-model:visible="bookingDialog" :style="{ width: '1000px' }" header="Thông tin đơn đặt phòng" :modal="true" class="p-fluid">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
-                <!-- Cột 1: Thông tin khách hàng -->
-                <div class="field">
-                    <div class="p-3">
-                        <h3 class="text-lg font-medium mb-2">Thông tin khách hàng</h3>
+        <!-- Dashboard thống kê -->
+        <BookingStats :stats="stats" :formatCurrency="formatCurrency" />
 
-                        <div class="mb-3">
-                            <label for="customerName" class="font-bold mb-1 block">Họ và tên</label>
-                            <InputText id="customerName" v-model.trim="booking.customerName" required class="w-full" :class="{ 'p-invalid': submitted && !booking.customerName }" />
-                            <small class="p-error" v-if="submitted && !booking.customerName">Họ và tên khách hàng là bắt buộc.</small>
-                        </div>
+        <!-- Bộ lọc + Nút chức năng + Tìm kiếm -->
+        <BookingFilters
+            :statuses="statuses"
+            v-model:dateRange="dateRange"
+            v-model:selectedStatus="selectedStatus"
+            :globalFilter="filters.global"
+            @update:globalFilter="(val) => (filters.global = val)"
+            @filter-by-date-range="filterByDateRange"
+            @filter-by-status="filterByStatus"
+            @reset-filters="resetFilters"
+            @add-new="openNew"
+            @delete-selected="confirmDeleteSelected"
+            @export-data="handleExport"
+        />
 
-                        <div class="mb-3">
-                            <label for="customerEmail" class="font-bold mb-1 block">Email</label>
-                            <InputText id="customerEmail" v-model.trim="booking.customerEmail" type="email" class="w-full" />
-                        </div>
+        <!-- Bảng quản lý đặt phòng -->
+        <BookingManagementTable
+            :bookings="bookings"
+            :loading="loading"
+            :filters="filters"
+            :selectedBookings="selectedBookings"
+            @update:selectedBookings="selectedBookings = $event"
+            :formatDate="formatDate"
+            :formatCurrency="formatCurrency"
+            :getStatusLabel="getStatusLabel"
+            :getStatusSeverity="getStatusSeverity"
+            :getPaymentStatusLabel="getPaymentStatusLabel"
+            :getPaymentMethodLabel="getPaymentMethodLabel"
+            :getPaymentStatusSeverity="getPaymentStatusSeverity"
+            :can="can"
+            :displayColumns="displayColumns"
+            @view-details="viewBookingDetails"
+            @edit="editBooking"
+            @confirm="handleConfirmBooking"
+            @cancel="handleCancelBooking"
+            @delete="confirmDeleteBooking"
+        />
 
-                        <div class="mb-3">
-                            <label for="customerPhone" class="font-bold mb-1 block">Số điện thoại</label>
-                            <InputText id="customerPhone" v-model.trim="booking.customerPhone" required class="w-full" :class="{ 'p-invalid': submitted && !booking.customerPhone }" />
-                            <small class="p-error" v-if="submitted && !booking.customerPhone">Số điện thoại là bắt buộc.</small>
-                        </div>
+        <!-- Dialog chỉnh sửa booking -->
+        <BookingEditDialog
+            v-model:visible="bookingDialog"
+            :bookingData="booking"
+            :submitted="submitted"
+            :statuses="statuses"
+            :paymentStatuses="paymentStatuses"
+            :paymentMethods="paymentMethods"
+            @save="saveBooking"
+            @hideDialog="hideDialog"
+            @update:bookingData="(val) => (booking = val)"
+        />
 
-                        <div class="mb-3">
-                            <label for="identityCard" class="font-bold mb-1 block">Số CMND/CCCD</label>
-                            <InputText id="identityCard" v-model.trim="booking.identityCard" class="w-full" />
-                        </div>
-                    </div>
-                </div>
+        <BookingDetailsDialog
+            v-model:visible="bookingDetailsDialog"
+            :booking="selectedBooking"
+            :formatDate="formatDate"
+            :formatCurrency="formatCurrency"
+            :getStatusLabel="getStatusLabel"
+            :getStatusSeverity="getStatusSeverity"
+            :getPaymentMethodLabel="getPaymentMethodLabel"
+            :getPaymentStatusLabel="getPaymentStatusLabel"
+            :getPaymentStatusSeverity="getPaymentStatusSeverity"
+        />
 
-                <!-- Cột 2: Thông tin đơn đặt -->
-                <div class="field">
-                    <div class="p-3">
-                        <h3 class="text-lg font-medium mb-2">Thông tin đơn đặt</h3>
+        <BookingDeleteDialog v-model:visible="deleteBookingDialog" :booking="selectedBooking" :multiple="false" @confirm="deleteBooking" />
 
-                        <div class="mb-3">
-                            <label for="roomId" class="font-bold mb-1 block">Phòng</label>
-                            <Dropdown id="roomId" v-model="booking.roomId" :options="availableRooms" optionLabel="roomNumber" optionValue="id" placeholder="Chọn phòng" class="w-full" :class="{ 'p-invalid': submitted && !booking.roomId }" />
-                            <small class="p-error" v-if="submitted && !booking.roomId">Vui lòng chọn phòng.</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="status" class="font-bold mb-1 block">Trạng thái</label>
-                            <Dropdown id="status" v-model="booking.status" :options="bookingStatuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái" class="w-full" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="checkInDate" class="font-bold mb-1 block">Ngày nhận phòng</label>
-                            <Calendar id="checkInDate" v-model="booking.checkInDate" dateFormat="dd/mm/yy" placeholder="Chọn ngày" showIcon class="w-full" required :class="{ 'p-invalid': submitted && !booking.checkInDate }" />
-                            <small class="p-error" v-if="submitted && !booking.checkInDate">Ngày nhận phòng là bắt buộc.</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="checkOutDate" class="font-bold mb-1 block">Ngày trả phòng</label>
-                            <Calendar id="checkOutDate" v-model="booking.checkOutDate" dateFormat="dd/mm/yy" placeholder="Chọn ngày" showIcon class="w-full" required :class="{ 'p-invalid': submitted && !booking.checkOutDate }" />
-                            <small class="p-error" v-if="submitted && !booking.checkOutDate">Ngày trả phòng là bắt buộc.</small>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cột 3: Thông tin thanh toán -->
-                <div class="field">
-                    <div class="p-3">
-                        <h3 class="text-lg font-medium mb-2">Thông tin thanh toán</h3>
-
-                        <div class="mb-3">
-                            <label for="paymentStatus" class="font-bold mb-1 block">Trạng thái thanh toán</label>
-                            <Dropdown id="paymentStatus" v-model="booking.paymentStatus" :options="paymentStatuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái" class="w-full" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="paymentMethod" class="font-bold mb-1 block">Phương thức thanh toán</label>
-                            <Dropdown id="paymentMethod" v-model="booking.paymentMethod" :options="paymentMethods" optionLabel="label" optionValue="value" placeholder="Chọn phương thức" class="w-full" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="totalAmount" class="font-bold mb-1 block">Tổng tiền</label>
-                            <InputNumber id="totalAmount" v-model="booking.totalAmount" mode="currency" currency="VND" locale="vi-VN" :minFractionDigits="0" :maxFractionDigits="0" class="w-full" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="paidAmount" class="font-bold mb-1 block">Đã thanh toán</label>
-                            <InputNumber id="paidAmount" v-model="booking.paidAmount" mode="currency" currency="VND" locale="vi-VN" :minFractionDigits="0" :maxFractionDigits="0" class="w-full" />
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Hàng giữa: Thông tin khách hàng (chiếm 3 cột) -->
-                <div class="md:col-span-3 field">
-                    <div class="p-3">
-                        <h3 class="text-lg font-medium mb-2">Thông tin số lượng khách</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div class="mb-3">
-                                <label for="adults" class="font-bold mb-1 block">Số người lớn</label>
-                                <InputNumber id="adults" v-model="booking.adults" showButtons :min="1" :max="10" class="w-full" />
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="children" class="font-bold mb-1 block">Số trẻ em</label>
-                                <InputNumber id="children" v-model="booking.children" showButtons :min="0" :max="5" class="w-full" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Hàng cuối: Dịch vụ và yêu cầu (chiếm 3 cột) -->
-                <div class="md:col-span-3 field">
-                    <div class="p-3">
-                        <h3 class="text-lg font-medium mb-2">Dịch vụ và yêu cầu đặc biệt</h3>
-
-                        <div class="mb-3">
-                            <label for="additionalServices" class="font-bold mb-1 block">Dịch vụ bổ sung</label>
-                            <MultiSelect id="additionalServices" v-model="booking.additionalServices" :options="availableServices" optionLabel="name" optionValue="id" display="chip" placeholder="Chọn dịch vụ" class="w-full" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="specialRequests" class="font-bold mb-1 block">Yêu cầu đặc biệt</label>
-                            <Textarea id="specialRequests" v-model="booking.specialRequests" rows="3" autoResize class="w-full" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <template #footer>
-                <Button label="Hủy" icon="pi pi-times" text @click="hideDialog" />
-                <Button label="Lưu" icon="pi pi-check" text @click="saveBooking" />
-            </template>
-        </Dialog>
-
-        <!-- Dialog xác nhận xóa đơn đặt -->
-        <Dialog v-model:visible="deleteBookingDialog" :style="{ width: '450px' }" header="Xác nhận" :modal="true">
-            <div class="flex align-items-center justify-content-center">
-                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
-                <span v-if="booking"
-                    >Bạn có chắc chắn muốn xóa đơn đặt của <b>{{ booking.guestName }}</b
-                    >?</span
-                >
-            </div>
-            <template #footer>
-                <Button label="Không" icon="pi pi-times" text @click="deleteBookingDialog = false" />
-                <Button label="Có" icon="pi pi-check" text @click="deleteBooking" />
-            </template>
-        </Dialog>
-
-        <!-- Dialog xác nhận xóa nhiều đơn đặt -->
-        <Dialog v-model:visible="deleteBookingsDialog" :style="{ width: '450px' }" header="Xác nhận" :modal="true">
-            <div class="flex align-items-center justify-content-center">
-                <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
-                <span v-if="selectedBookings && selectedBookings.length > 0">Bạn có chắc chắn muốn xóa {{ selectedBookings.length }} đơn đặt đã chọn?</span>
-            </div>
-            <template #footer>
-                <Button label="Không" icon="pi pi-times" text @click="deleteBookingsDialog = false" />
-                <Button label="Có" icon="pi pi-check" text @click="deleteSelectedBookings" />
-            </template>
-        </Dialog>
+        <BookingDeleteDialog v-model:visible="deleteBookingsDialog" :multiple="true" :selectedCount="selectedBookings ? selectedBookings.length : 0" @confirm="deleteSelectedBookings" />
     </div>
 </template>
 
 <style scoped>
-.card {
+.booking-container {
     background: var(--surface-card);
-    border-radius: 10px;
+    border-radius: 8px;
     margin-bottom: 1rem;
     padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.p-toolbar {
-    border-radius: 10px;
+.page-header {
+    border-bottom: 1px solid var(--surface-border);
+    padding-bottom: 0.75rem;
 }
 
-.p-datatable .p-datatable-header {
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
+/* Fix ô tìm kiếm */
+.search-field {
+    position: relative;
+    display: inline-flex;
+    min-width: 250px;
 }
 
-.p-datatable .p-column-header-content {
-    justify-content: flex-start;
+.search-field :deep(i) {
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color-secondary);
+    z-index: 1;
 }
 
-:deep(.p-datatable-wrapper) {
-    border-radius: 10px;
-}
-
-:deep(.p-dropdown-label),
-:deep(.p-multiselect-label) {
-    display: flex;
-    align-items: center;
-}
-
-:deep(.p-inputtext) {
-    font-size: 0.9rem;
-    min-height: 36px;
-    width: 100% !important;
-}
-
-:deep(.p-dropdown),
-:deep(.p-calendar),
-:deep(.p-multiselect),
-:deep(.p-inputnumber),
-:deep(.p-textarea) {
-    display: flex;
-    width: 100% !important;
-}
-
-:deep(.p-dropdown-panel),
-:deep(.p-calendar-panel),
-:deep(.p-multiselect-panel) {
-    width: auto !important;
-    min-width: 100%;
-}
-
-:deep(.p-dropdown-items-wrapper),
-:deep(.p-datepicker),
-:deep(.p-multiselect-items-wrapper) {
+.search-field :deep(.p-inputtext) {
+    padding-left: 2rem;
     width: 100%;
 }
 
-:deep(.p-button) {
-    font-size: 0.95rem;
-    min-height: 38px;
-}
+/* Responsive */
+@media screen and (max-width: 768px) {
+    .booking-container {
+        padding: 0.75rem;
+    }
 
-:deep(.p-dialog-content) {
-    overflow-y: visible;
-}
-
-.field {
-    width: 100%;
+    .search-field {
+        min-width: 100%;
+        margin-top: 0.5rem;
+    }
 }
 </style>

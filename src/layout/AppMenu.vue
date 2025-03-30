@@ -9,12 +9,11 @@ const menu = ref([
     { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/admin/dashboard' },
     { label: 'Quản lý người dùng', icon: 'pi pi-fw pi-user', to: '/admin/users' },
     { label: 'Quản lý nhân viên', icon: 'pi pi-fw pi-id-card', to: '/admin/employees' },
+    { label: 'Quản lý đặt phòng', icon: 'pi pi-fw pi-calendar-plus', to: '/admin/bookings' },
     { label: 'Quản lý phòng', icon: 'pi pi-fw pi-home', to: '/admin/rooms' },
     { label: 'Quản lý loại phòng', icon: 'pi pi-fw pi-list', to: '/admin/room-types' },
     { label: 'Quản lý dịch vụ', icon: 'pi pi-fw pi-briefcase', to: '/admin/services' },
     { label: 'Quản lý đánh giá', icon: 'pi pi-fw pi-star', to: '/admin/reviews' },
-    { label: 'Quản lý đơn đặt', icon: 'pi pi-fw pi-calendar-plus', to: '/admin/bookings' },
-    { label: 'Lịch sử đơn đặt', icon: 'pi pi-fw pi-calendar-times', to: '/admin/booking-history' },
     { label: 'Mã giảm giá', icon: 'pi pi-fw pi-tag', to: '/admin/discounts' }
 ]);
 </script>

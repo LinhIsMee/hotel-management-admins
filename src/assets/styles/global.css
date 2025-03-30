@@ -1,0 +1,132 @@
+/* Fix lỗi hiển thị icon trong inputtext */
+.p-input-icon-left {
+  display: inline-flex;
+  position: relative;
+  width: 100%;
+}
+
+.p-input-icon-left > i {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  margin-top: -0.5rem;
+  color: var(--text-color-secondary);
+  z-index: 1;
+}
+
+.p-input-icon-left > input {
+  padding-left: 2.5rem !important;
+  width: 100%;
+}
+
+/* Responsive các card thống kê */
+@media screen and (max-width: 992px) {
+  .booking-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  
+  .stats-card {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .booking-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Fix lỗi giao diện cho các Button trong mobile */
+@media screen and (max-width: 576px) {
+  .p-button {
+    margin-bottom: 0.5rem;
+  }
+  
+  .my-2.flex.gap-2 {
+    flex-wrap: wrap;
+  }
+}
+
+/* Tối ưu input fields */
+.p-inputtext,
+.p-dropdown,
+.p-calendar .p-inputtext {
+  height: 2.5rem;
+  font-size: 0.875rem;
+}
+
+/* Tối ưu calendar icon */
+.p-datepicker-trigger {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  padding: 0 !important;
+}
+
+/* Tối ưu dropdown */
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* Tối ưu bộ lọc */
+.filter-container.p-3 {
+  padding: 0.75rem !important;
+}
+
+.filter-container label {
+  color: var(--text-color-secondary);
+  white-space: nowrap;
+}
+
+/* Responsive nhỏ gọn cho bộ lọc trên mobile */
+@media screen and (max-width: 768px) {
+  .filter-container {
+    padding: 0.5rem !important;
+  }
+  
+  .calendar-input .p-calendar,
+  .dropdown-input .p-dropdown,
+  .p-inputtext {
+    width: 100%;
+  }
+  
+  /* Cải thiện khoảng cách giữa các phần tử */
+  .filter-container .grid > div {
+    margin-bottom: 0.5rem;
+  }
+  
+  .filter-container .grid > div:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* Thêm vào global CSS */
+.p-button.p-button-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.875rem;
+}
+
+.p-input-icon-left {
+  width: 100%;
+}
+
+.p-calendar, .p-dropdown, .p-inputtext {
+  width: 100% !important;
+}
+
+/* Fix kích thước và padding cho input trên mobile */
+@media screen and (max-width: 576px) {
+  .p-inputtext, .p-dropdown, .p-calendar .p-inputtext {
+    font-size: 0.875rem !important;
+  }
+  
+  .p-button.p-button-sm {
+    width: auto !important;
+  }
+  
+  .p-button.p-button-icon-only.p-button-sm {
+    padding: 0.4rem;
+  }
+} 

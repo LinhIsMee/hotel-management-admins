@@ -78,10 +78,6 @@ const logout = () => {
 
             <div class="layout-topbar-menu hidden lg:flex">
                 <div class="layout-topbar-menu-content">
-                    <button type="button" class="layout-topbar-action mr-2" @click="router.push('/admin/profile')">
-                        <i class="pi pi-user"></i>
-                        <span>Hồ sơ</span>
-                    </button>
                     <button type="button" class="layout-topbar-action" @click="logout">
                         <i class="pi pi-sign-out"></i>
                         <span>Đăng xuất</span>

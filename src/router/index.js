@@ -210,12 +210,6 @@ const routes = [
                 meta: { requiresAdminAuth: true }
             },
             {
-                path: 'booking-history',
-                name: 'adminBookingHistory',
-                component: () => import('@/views/pages/BookingHistory.vue'),
-                meta: { requiresAdminAuth: true }
-            },
-            {
                 path: 'discounts',
                 name: 'adminDiscounts',
                 component: () => import('@/views/pages/DiscountList.vue'),
@@ -285,44 +279,43 @@ router.beforeEach((to, from, next) => {
     // Nếu route yêu cầu auth admin nhưng chưa đăng nhập admin
     if (to.matched.some((record) => record.meta.requiresAdminAuth)) {
         if (!isAdminAuthenticated) {
-            return next({
+            next({
                 path: '/auth/login',
                 query: { redirect: to.fullPath }
             });
+        } else {
+            next();
         }
-        return next();
     }
-
     // Nếu route yêu cầu auth client nhưng chưa đăng nhập
-    if (to.matched.some((record) => record.meta.requiresAuth)) {
+    else if (to.matched.some((record) => record.meta.requiresAuth)) {
         if (!isClientAuthenticated) {
             // Lưu lại trang muốn truy cập để redirect sau khi đăng nhập
             const loginComponent = document.querySelector('.layout-wrapper');
-            if (loginComponent) {
+            if (loginComponent && loginComponent.__vue__) {
                 // Trigger login dialog thay vì chuyển hướng
-                loginComponent.__vue__?.showLoginDialog();
+                loginComponent.__vue__.showLoginDialog();
+                next(false); // Ở lại trang hiện tại
             } else {
-                return next({
+                next({
                     path: '/',
                     query: { redirect: to.fullPath }
                 });
             }
-            return false; // Ở lại trang hiện tại
+        } else {
+            next();
         }
-        return next();
     }
-
     // Nếu đã đăng nhập user và cố truy cập trang login/register
-    if ((to.path === '/auth/login' || to.path === '/auth/register') && isClientAuthenticated) {
-        return next('/');
+    else if ((to.path === '/auth/login' || to.path === '/auth/register') && isClientAuthenticated) {
+        next('/');
     }
-
     // Nếu đã đăng nhập admin và cố truy cập trang login admin
-    if (to.path === '/auth/login' && !to.query.clientAuth && isAdminAuthenticated) {
-        return next('/admin/dashboard');
+    else if (to.path === '/auth/login' && !to.query.clientAuth && isAdminAuthenticated) {
+        next('/admin/dashboard');
+    } else {
+        next();
     }
-
-    return next();
 });
 
 export default router;

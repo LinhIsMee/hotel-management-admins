@@ -1,121 +1,39 @@
-import AuthService from './AuthService';
+import axios from 'axios';
 
-const API_URL = 'http://127.0.0.1:9000/api/v1';
+// Tạo instance cho axios
+const apiClient = axios.create({
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+    headers: {
+        'Content-Type': 'application/json'
+    }
+});
 
-/**
- * Service để gọi API với xử lý token tự động
- */
-class ApiService {
-    /**
-     * Gọi API với fetch và xử lý token
-     * @param {string} endpoint - Endpoint của API
-     * @param {object} options - Options cho fetch
-     * @returns {Promise<any>} - Promise với dữ liệu trả về
-     */
-    async fetchWithAuth(endpoint, options = {}) {
-        const user = AuthService.getCurrentUser();
-
-        // Kiểm tra user đã đăng nhập chưa
-        if (user && user.accessToken) {
-            // Kiểm tra token còn hạn hay không
-            if (!AuthService.isTokenValid(user.accessToken)) {
-                // Nếu token hết hạn, thử refresh token
-                const refreshed = await AuthService.refreshToken();
-
-                // Nếu refresh token thất bại, throw error
-                if (!refreshed) {
-                    throw new Error('Session expired. Please login again.');
-                }
-            }
-
-            // Thêm header Authorization
-            options.headers = {
-                ...options.headers,
-                'Authorization': `Bearer ${AuthService.getCurrentUser().accessToken}`
-            };
+// Interceptor để thêm token vào header
+apiClient.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('adminToken');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
         }
-
-        try {
-            const response = await fetch(`${API_URL}${endpoint}`, options);
-
-            // Xử lý lỗi HTTP
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({
-                    message: `HTTP error ${response.status}`
-                }));
-                throw new Error(errorData.message || `HTTP error ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error(`API error (${endpoint}):`, error);
-            throw error;
-        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
     }
+);
 
-    /**
-     * GET request
-     * @param {string} endpoint - API endpoint
-     * @param {object} options - Fetch options
-     * @returns {Promise<any>} - Promise với dữ liệu
-     */
-    async get(endpoint, options = {}) {
-        return this.fetchWithAuth(endpoint, {
-            ...options,
-            method: 'GET'
-        });
+// Export các phương thức GET, POST, PUT, DELETE
+export default {
+    get(url, config) {
+        return apiClient.get(url, config);
+    },
+    post(url, data, config) {
+        return apiClient.post(url, data, config);
+    },
+    put(url, data, config) {
+        return apiClient.put(url, data, config);
+    },
+    delete(url, config) {
+        return apiClient.delete(url, config);
     }
-
-    /**
-     * POST request
-     * @param {string} endpoint - API endpoint
-     * @param {object} data - Data để gửi
-     * @param {object} options - Fetch options
-     * @returns {Promise<any>} - Promise với dữ liệu
-     */
-    async post(endpoint, data, options = {}) {
-        return this.fetchWithAuth(endpoint, {
-            ...options,
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            },
-            body: JSON.stringify(data)
-        });
-    }
-
-    /**
-     * PUT request
-     * @param {string} endpoint - API endpoint
-     * @param {object} data - Data để gửi
-     * @param {object} options - Fetch options
-     * @returns {Promise<any>} - Promise với dữ liệu
-     */
-    async put(endpoint, data, options = {}) {
-        return this.fetchWithAuth(endpoint, {
-            ...options,
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            },
-            body: JSON.stringify(data)
-        });
-    }
-
-    /**
-     * DELETE request
-     * @param {string} endpoint - API endpoint
-     * @param {object} options - Fetch options
-     * @returns {Promise<any>} - Promise với dữ liệu
-     */
-    async delete(endpoint, options = {}) {
-        return this.fetchWithAuth(endpoint, {
-            ...options,
-            method: 'DELETE'
-        });
-    }
-}
-
-export default new ApiService();
+};
