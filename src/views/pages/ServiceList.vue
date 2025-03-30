@@ -197,21 +197,21 @@ const saveService = async () => {
 
             const result = await response.json();
 
-        if (service.value.id) {
+            if (service.value.id) {
                 // Cập nhật dịch vụ trong danh sách
-            const index = findIndexById(service.value.id);
+                const index = findIndexById(service.value.id);
                 if (index !== -1) {
                     services.value[index] = result.data;
                 }
                 toast.add({ severity: 'success', summary: 'Thành công', detail: 'Cập nhật dịch vụ thành công', life: 3000 });
-        } else {
+            } else {
                 // Thêm dịch vụ mới vào danh sách
                 services.value.push(result.data);
                 toast.add({ severity: 'success', summary: 'Thành công', detail: 'Thêm dịch vụ thành công', life: 3000 });
-        }
+            }
 
-        serviceDialog.value = false;
-        service.value = {};
+            serviceDialog.value = false;
+            service.value = {};
         } catch (error) {
             console.error('Lỗi khi lưu dữ liệu dịch vụ:', error);
             toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
@@ -234,7 +234,7 @@ const editService = async (editService) => {
 
         const result = await response.json();
         service.value = result.data;
-    serviceDialog.value = true;
+        serviceDialog.value = true;
     } catch (error) {
         console.error('Lỗi khi tải thông tin dịch vụ:', error);
         toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
@@ -263,9 +263,9 @@ const deleteService = async () => {
         }
 
         // Cập nhật danh sách dịch vụ sau khi xóa
-    services.value = services.value.filter((val) => val.id !== service.value.id);
-    deleteServiceDialog.value = false;
-    service.value = {};
+        services.value = services.value.filter((val) => val.id !== service.value.id);
+        deleteServiceDialog.value = false;
+        service.value = {};
         toast.add({ severity: 'success', summary: 'Thành công', detail: 'Xóa dịch vụ thành công', life: 3000 });
 
         // Tải lại dữ liệu sau khi xóa để đảm bảo hiển thị đúng
@@ -300,8 +300,8 @@ const deleteSelectedServices = async () => {
         await Promise.all(deletePromises);
 
         services.value = services.value.filter((val) => !selectedServices.value.some((s) => s.id === val.id));
-    deleteServicesDialog.value = false;
-    selectedServices.value = null;
+        deleteServicesDialog.value = false;
+        selectedServices.value = null;
         toast.add({ severity: 'success', summary: 'Thành công', detail: `Xóa ${deletePromises.length} dịch vụ thành công`, life: 3000 });
 
         // Tải lại dữ liệu sau khi xóa để đảm bảo hiển thị đúng
@@ -326,15 +326,15 @@ const findIndexById = (id) => {
 const formatDate = (value) => {
     if (value) {
         try {
-        const date = new Date(value);
+            const date = new Date(value);
             if (isNaN(date.getTime())) {
                 return '—';
             }
-        return new Intl.DateTimeFormat('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(date);
+            return new Intl.DateTimeFormat('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).format(date);
         } catch (error) {
             console.error('Lỗi khi format ngày:', error);
             return '—';
@@ -371,15 +371,14 @@ const getSeverity = (available) => {
         <div class="">
             <Toolbar class="mb-4">
                 <template #start>
-                        <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedServices?.length" />
+                    <span class="p-input-icon-left">
+                        <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
+                    </span>
                 </template>
 
                 <template #end>
-                    <span class="p-input-icon-left">
-                        <i class="pi pi-search"></i>
-                        <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
-                    </span>
+                    <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedServices?.length" />
                 </template>
             </Toolbar>
 
@@ -393,68 +392,68 @@ const getSeverity = (available) => {
                 <div v-else>
                     <div class="text-sm mb-2">Tổng số: {{ services.length }} dịch vụ</div>
 
-            <DataTable
-                :value="services"
-                v-model:selection="selectedServices"
-                dataKey="id"
-                :paginator="true"
-                :rows="10"
-                :loading="loading"
-                :filters="filters"
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                :rowsPerPageOptions="[5, 10, 25, 50]"
-                currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} dịch vụ"
-                responsiveLayout="scroll"
-                class="p-datatable-sm"
-            >
-                <template #empty>Không có dịch vụ nào được tìm thấy.</template>
-                <template #loading>Đang tải dữ liệu dịch vụ. Vui lòng đợi.</template>
+                    <DataTable
+                        :value="services"
+                        v-model:selection="selectedServices"
+                        dataKey="id"
+                        :paginator="true"
+                        :rows="10"
+                        :loading="loading"
+                        :filters="filters"
+                        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+                        :rowsPerPageOptions="[5, 10, 25, 50]"
+                        currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} dịch vụ"
+                        responsiveLayout="scroll"
+                        class="p-datatable-sm"
+                    >
+                        <template #empty>Không có dịch vụ nào được tìm thấy.</template>
+                        <template #loading>Đang tải dữ liệu dịch vụ. Vui lòng đợi.</template>
 
-                <Column selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
+                        <Column selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
 
-                <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
+                        <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
 
-                <Column field="name" header="Tên dịch vụ" sortable style="min-width: 14rem"></Column>
+                        <Column field="name" header="Tên dịch vụ" sortable style="min-width: 14rem"></Column>
 
-                <Column field="code" header="Mã dịch vụ" sortable style="min-width: 8rem"></Column>
+                        <Column field="code" header="Mã dịch vụ" sortable style="min-width: 8rem"></Column>
 
-                <Column field="type" header="Loại dịch vụ" sortable style="min-width: 10rem">
-                    <template #body="{ data }">
-                        {{ getServiceTypeName(data.type) }}
-                    </template>
-                </Column>
+                        <Column field="type" header="Loại dịch vụ" sortable style="min-width: 10rem">
+                            <template #body="{ data }">
+                                {{ getServiceTypeName(data.type) }}
+                            </template>
+                        </Column>
 
-                <Column field="price" header="Giá" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        {{ formatCurrency(data.price) }}
-                    </template>
-                </Column>
+                        <Column field="price" header="Giá" sortable style="min-width: 8rem">
+                            <template #body="{ data }">
+                                {{ formatCurrency(data.price) }}
+                            </template>
+                        </Column>
 
-                <Column field="unit" header="Đơn vị tính" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
+                        <Column field="unit" header="Đơn vị tính" sortable style="min-width: 8rem">
+                            <template #body="{ data }">
                                 {{ data.unit }}
-                    </template>
-                </Column>
+                            </template>
+                        </Column>
 
-                <Column field="isAvailable" header="Trạng thái" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
-                        <Tag :value="data.isAvailable ? 'Đang cung cấp' : 'Ngưng cung cấp'" :severity="getSeverity(data.isAvailable)" />
-                    </template>
-                </Column>
+                        <Column field="isAvailable" header="Trạng thái" sortable style="min-width: 8rem">
+                            <template #body="{ data }">
+                                <Tag :value="data.isAvailable ? 'Đang cung cấp' : 'Ngưng cung cấp'" :severity="getSeverity(data.isAvailable)" />
+                            </template>
+                        </Column>
 
-                <Column field="createdAt" header="Ngày tạo" sortable style="min-width: 10rem">
-                    <template #body="{ data }">
-                        {{ formatDate(data.createdAt) }}
-                    </template>
-                </Column>
+                        <Column field="createdAt" header="Ngày tạo" sortable style="min-width: 10rem">
+                            <template #body="{ data }">
+                                {{ formatDate(data.createdAt) }}
+                            </template>
+                        </Column>
 
-                <Column exportable="false" style="min-width: 8rem">
-                    <template #body="{ data }">
-                        <Button icon="pi pi-pencil" outlined class="mr-2" @click="editService(data)" />
-                        <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteService(data)" />
-                    </template>
-                </Column>
-            </DataTable>
+                        <Column exportable="false" style="min-width: 8rem">
+                            <template #body="{ data }">
+                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editService(data)" />
+                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteService(data)" />
+                            </template>
+                        </Column>
+                    </DataTable>
                 </div>
             </div>
         </div>

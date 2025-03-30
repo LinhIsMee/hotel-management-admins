@@ -418,16 +418,16 @@ const getSeverity = (status) => {
         <div class="">
             <Toolbar class="mb-4">
                 <template v-slot:start>
+                    <span class="p-input-icon-left">
+                        <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
+                    </span>
+                </template>
+
+                <template v-slot:end>
                     <div class="my-2">
                         <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
                         <Button label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedEmployees || !selectedEmployees.length" />
                     </div>
-                </template>
-
-                <template v-slot:end>
-                    <span class="p-input-icon-left">
-                        <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
-                    </span>
                 </template>
             </Toolbar>
 

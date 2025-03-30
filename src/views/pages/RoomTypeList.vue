@@ -345,14 +345,14 @@ const getSeverity = (status) => {
         <div class="">
             <Toolbar class="mb-4">
                 <template #start>
-                    <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRoomTypes?.length" />
-                </template>
-
-                <template v-slot:end>
                     <span class="p-input-icon-left">
                         <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
                     </span>
+                </template>
+
+                <template #end>
+                    <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRoomTypes?.length" />
                 </template>
             </Toolbar>
 

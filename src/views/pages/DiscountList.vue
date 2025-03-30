@@ -193,16 +193,16 @@ const calculateUsagePercentage = (discount) => {
 
             <Toolbar class="mb-4">
             <template #start>
-                    <div class="my-2">
+                <DiscountFilters v-model:showActiveOnly="showActiveOnly" @toggle-active-filter="toggleActiveFilter" @search="handleSearch" />
+            </template>
+
+            <template #end>
+                <div class="my-2">
                     <Button v-if="can.create" label="Thêm mã giảm giá" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
                     <Button v-if="can.create" label="Tạo hàng loạt" icon="pi pi-cog" class="mr-2" @click="openGenerateDialog" />
                     <Button v-if="can.delete" label="Xóa đã chọn" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteDiscount(null, true)" :disabled="!selectedDiscounts || !selectedDiscounts.length" />
-                    </div>
-                </template>
-
-            <template #end>
-                <DiscountFilters v-model:showActiveOnly="showActiveOnly" @toggle-active-filter="toggleActiveFilter" @search="handleSearch" />
-                </template>
+                </div>
+            </template>
             </Toolbar>
 
             <DataTable

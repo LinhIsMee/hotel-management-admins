@@ -446,14 +446,13 @@ const formatSpecialFeatures = (features) => {
 
         <Toolbar class="mb-4">
             <template #start>
-                <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRooms?.length" />
-            </template>
-            <template #end>
                 <span class="p-input-icon-left">
-                    <i class="pi pi-search"></i>
                     <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." />
                 </span>
+            </template>
+            <template #end>
+                <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRooms?.length" />
             </template>
         </Toolbar>
 

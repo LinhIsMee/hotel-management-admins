@@ -124,17 +124,15 @@ onMounted(() => {
         <div class="">
             <Toolbar class="mb-4">
                 <template #start>
-                    <div class="flex">
-                        <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                        <Button label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedReviews?.length" />
-                    </div>
+                    <span class="p-input-icon-left">
+                        <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
+                    </span>
                 </template>
 
                 <template #end>
                     <div class="flex">
-                        <span class="p-input-icon-left">
-                            <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
-                        </span>
+                        <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                        <Button label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedReviews?.length" />
                     </div>
                 </template>
             </Toolbar>
