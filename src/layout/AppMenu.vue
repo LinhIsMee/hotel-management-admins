@@ -12,7 +12,7 @@ const menu = ref([
     { label: 'Quản lý phòng', icon: 'pi pi-fw pi-home', to: '/admin/rooms' },
     { label: 'Quản lý loại phòng', icon: 'pi pi-fw pi-list', to: '/admin/room-types' },
     { label: 'Quản lý dịch vụ', icon: 'pi pi-fw pi-briefcase', to: '/admin/services' },
-    { label: 'Quản lý đánh giá', icon: 'pi pi-fw pi-star', to: '/admin/ratings' },
+    { label: 'Quản lý đánh giá', icon: 'pi pi-fw pi-star', to: '/admin/reviews' },
     { label: 'Quản lý đơn đặt', icon: 'pi pi-fw pi-calendar-plus', to: '/admin/bookings' },
     { label: 'Lịch sử đơn đặt', icon: 'pi pi-fw pi-calendar-times', to: '/admin/booking-history' },
     { label: 'Mã giảm giá', icon: 'pi pi-fw pi-tag', to: '/admin/discounts' }
@@ -23,7 +23,7 @@ const menu = ref([
     <div class="layout-menu-container">
         <ul class="layout-menu">
             <li v-for="item in menu" :key="item.label" class="layout-menuitem">
-                <router-link :to="item.to" class="flex align-items-center p-menuitem-link" :class="{'router-link-active': route.path === item.to}">
+                <router-link :to="item.to" class="flex align-items-center p-menuitem-link" :class="{ 'router-link-active': route.path === item.to }">
                     <i :class="item.icon" class="layout-menuitem-icon"></i>
                     <span class="layout-menuitem-text">{{ item.label }}</span>
                 </router-link>
@@ -56,7 +56,9 @@ const menu = ref([
     position: relative;
     color: var(--text-color);
     padding: 0.75rem 1.25rem;
-    transition: background-color 0.2s, box-shadow 0.2s;
+    transition:
+        background-color 0.2s,
+        box-shadow 0.2s;
     border-radius: 0;
     cursor: pointer;
     text-decoration: none;

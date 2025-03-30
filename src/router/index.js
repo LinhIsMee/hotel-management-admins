@@ -15,13 +15,13 @@ import AdminLogin from '@/views/pages/auth/Login.vue';
 
 // Định nghĩa route guards
 const adminAuthGuard = (to, from, next) => {
-    console.log("Admin Auth Guard - Checking authentication");
+    console.log('Admin Auth Guard - Checking authentication');
 
     if (AuthService.isAdminAuthenticated()) {
-        console.log("Admin authenticated, proceeding to", to.path);
+        console.log('Admin authenticated, proceeding to', to.path);
         next();
     } else {
-        console.log("Admin not authenticated, redirecting to login");
+        console.log('Admin not authenticated, redirecting to login');
         next({
             path: '/auth/login',
             query: { redirect: to.fullPath }
@@ -67,8 +67,8 @@ const routes = [
     {
         path: '/',
         component: ClientLayout,
-            children: [
-                {
+        children: [
+            {
                 path: '',
                 name: 'home',
                 component: () => import('@/views/client/HomePage.vue')
@@ -198,9 +198,9 @@ const routes = [
                 meta: { requiresAdminAuth: true }
             },
             {
-                path: 'ratings',
-                name: 'adminRatings',
-                component: () => import('@/views/pages/RatingList.vue'),
+                path: 'reviews',
+                name: 'adminReviews',
+                component: () => import('@/views/pages/ReviewList.vue'),
                 meta: { requiresAdminAuth: true }
             },
             {
@@ -221,48 +221,48 @@ const routes = [
                 component: () => import('@/views/pages/DiscountList.vue'),
                 meta: { requiresAdminAuth: true }
             }
-        ],
+        ]
     },
 
     // Login route - tách riêng ra khỏi layout admin
-        {
-            path: '/auth/login',
+    {
+        path: '/auth/login',
         name: 'adminLogin',
         component: () => import('@/views/pages/auth/Login.vue'),
         meta: { isAdminLoginPage: true }
-        },
+    },
 
     // Authentication routes
-        {
-            path: '/auth/register',
-            name: 'register',
-            component: () => import('@/views/pages/auth/Register.vue')
-        },
-        {
-            path: '/auth/verify-otp',
-            name: 'verifyOTP',
-            component: () => import('@/views/pages/auth/VerifyOTP.vue')
-        },
-        {
-            path: '/auth/reset-password',
-            name: 'resetPassword',
-            component: () => import('@/views/pages/auth/ResetPassword.vue')
-        },
-        {
-            path: '/auth/success',
-            name: 'authSuccess',
-            component: () => import('@/views/pages/auth/Success.vue')
-        },
-        {
-            path: '/auth/access',
-            name: 'accessDenied',
-            component: () => import('@/views/pages/auth/Access.vue')
-        },
-        {
-            path: '/auth/error',
-            name: 'error',
-            component: () => import('@/views/pages/auth/Error.vue')
-        },
+    {
+        path: '/auth/register',
+        name: 'register',
+        component: () => import('@/views/pages/auth/Register.vue')
+    },
+    {
+        path: '/auth/verify-otp',
+        name: 'verifyOTP',
+        component: () => import('@/views/pages/auth/VerifyOTP.vue')
+    },
+    {
+        path: '/auth/reset-password',
+        name: 'resetPassword',
+        component: () => import('@/views/pages/auth/ResetPassword.vue')
+    },
+    {
+        path: '/auth/success',
+        name: 'authSuccess',
+        component: () => import('@/views/pages/auth/Success.vue')
+    },
+    {
+        path: '/auth/access',
+        name: 'accessDenied',
+        component: () => import('@/views/pages/auth/Access.vue')
+    },
+    {
+        path: '/auth/error',
+        name: 'error',
+        component: () => import('@/views/pages/auth/Error.vue')
+    },
 
     // Fallback route
     {

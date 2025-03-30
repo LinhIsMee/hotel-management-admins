@@ -1,0 +1,224 @@
+{
+  "data": [
+    {
+      "id": 1,
+      "code": "SUMMER2023",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 15,
+      "valid_from": "2023-06-01",
+      "valid_to": "2023-09-01",
+      "max_uses": 100,
+      "used_count": 45,
+      "status": true
+    },
+    {
+      "id": 2,
+      "code": "WELCOME500K",
+      "discount_type": "FIXED",
+      "discount_value": 500000,
+      "valid_from": "2023-01-01",
+      "valid_to": "2023-12-31",
+      "max_uses": 200,
+      "used_count": 120,
+      "status": true
+    },
+    {
+      "id": 3,
+      "code": "TET2024",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 20,
+      "valid_from": "2024-01-20",
+      "valid_to": "2024-02-20",
+      "max_uses": 300,
+      "used_count": 0,
+      "status": true
+    },
+    {
+      "id": 4,
+      "code": "WEEKEND10",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 10,
+      "valid_from": "2023-01-01",
+      "valid_to": "2023-12-31",
+      "max_uses": 1000,
+      "used_count": 456,
+      "status": true
+    },
+    {
+      "id": 5,
+      "code": "LOYALVIP",
+      "discount_type": "FIXED",
+      "discount_value": 1000000,
+      "valid_from": "2023-01-01",
+      "valid_to": "2023-12-31",
+      "max_uses": 50,
+      "used_count": 22,
+      "status": true
+    },
+    {
+      "id": 6,
+      "code": "HOLIDAY25",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 25,
+      "valid_from": "2023-12-20",
+      "valid_to": "2024-01-05",
+      "max_uses": 150,
+      "used_count": 0,
+      "status": true
+    },
+    {
+      "id": 7,
+      "code": "FIRSTBOOK",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 5,
+      "valid_from": "2023-01-01",
+      "valid_to": "2023-12-31",
+      "max_uses": null,
+      "used_count": 312,
+      "status": true
+    },
+    {
+      "id": 8,
+      "code": "LONGSTAY",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 15,
+      "valid_from": "2023-01-01",
+      "valid_to": "2023-10-31",
+      "max_uses": 200,
+      "used_count": 154,
+      "status": false
+    },
+    {
+      "id": 9,
+      "code": "EXPIRED2022",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 30,
+      "valid_from": "2022-01-01",
+      "valid_to": "2022-12-31",
+      "max_uses": 500,
+      "used_count": 233,
+      "status": true
+    },
+    {
+      "id": 10,
+      "code": "FULLUSED",
+      "discount_type": "FIXED",
+      "discount_value": 200000,
+      "valid_from": "2023-01-01",
+      "valid_to": "2023-12-31",
+      "max_uses": 100,
+      "used_count": 100,
+      "status": true
+    },
+    {
+      "id": 11,
+      "code": "FUTURE2025",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 50,
+      "valid_from": "2025-01-01",
+      "valid_to": "2025-12-31",
+      "max_uses": 200,
+      "used_count": 0,
+      "status": true
+    },
+    {
+      "id": 12,
+      "code": "DISABLED",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 40,
+      "valid_from": "2023-01-01",
+      "valid_to": "2024-12-31",
+      "max_uses": 300,
+      "used_count": 0,
+      "status": false
+    },
+    {
+      "id": 13,
+      "code": "ENDSTODAY",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 35,
+      "valid_from": "2023-01-01",
+      "valid_to": "2023-12-15",
+      "max_uses": 250,
+      "used_count": 120,
+      "status": true
+    },
+    {
+      "id": 14,
+      "code": "UNLIMITED",
+      "discount_type": "FIXED",
+      "discount_value": 100000,
+      "valid_from": "2023-01-01",
+      "valid_to": "2024-12-31",
+      "max_uses": null,
+      "used_count": 1452,
+      "status": true
+    },
+    {
+      "id": 15,
+      "code": "ALMOST_FULL",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 15,
+      "valid_from": "2023-06-01",
+      "valid_to": "2023-12-31",
+      "max_uses": 500,
+      "used_count": 499,
+      "status": true
+    },
+    {
+      "id": 16,
+      "code": "NEWYEAR2024",
+      "discount_type": "FIXED",
+      "discount_value": 240000,
+      "valid_from": "2024-01-01",
+      "valid_to": "2024-01-10",
+      "max_uses": 240,
+      "used_count": 0,
+      "status": true
+    },
+    {
+      "id": 17,
+      "code": "BLACKFRIDAY",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 70,
+      "valid_from": "2023-11-24",
+      "valid_to": "2023-11-24",
+      "max_uses": 500,
+      "used_count": 423,
+      "status": true
+    },
+    {
+      "id": 18,
+      "code": "DISABLED_EXPIRED",
+      "discount_type": "FIXED",
+      "discount_value": 300000,
+      "valid_from": "2022-01-01",
+      "valid_to": "2022-12-31",
+      "max_uses": 100,
+      "used_count": 50,
+      "status": false
+    },
+    {
+      "id": 19,
+      "code": "MINIMAL5",
+      "discount_type": "PERCENTAGE",
+      "discount_value": 5,
+      "valid_from": "2023-01-01",
+      "valid_to": "2025-12-31",
+      "max_uses": 10000,
+      "used_count": 245,
+      "status": true
+    },
+    {
+      "id": 20,
+      "code": "BIGDISCOUNT",
+      "discount_type": "FIXED",
+      "discount_value": 2000000,
+      "valid_from": "2023-12-20",
+      "valid_to": "2023-12-25",
+      "max_uses": 10,
+      "used_count": 2,
+      "status": true
+    }
+  ]
+}
