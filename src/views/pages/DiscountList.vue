@@ -76,7 +76,7 @@ const toggleActiveFilter = () => {
     showActiveOnly.value = !showActiveOnly.value;
     if (showActiveOnly.value) {
         fetchActiveDiscounts();
-        } else {
+    } else {
         fetchDiscounts();
     }
 };
@@ -191,7 +191,7 @@ const calculateUsagePercentage = (discount) => {
         <Toast />
         <ConfirmDialog></ConfirmDialog>
 
-            <Toolbar class="mb-4">
+        <Toolbar class="mb-4">
             <template #start>
                 <DiscountFilters v-model:showActiveOnly="showActiveOnly" @toggle-active-filter="toggleActiveFilter" @search="handleSearch" />
             </template>
@@ -203,31 +203,31 @@ const calculateUsagePercentage = (discount) => {
                     <Button v-if="can.delete" label="Xóa đã chọn" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteDiscount(null, true)" :disabled="!selectedDiscounts || !selectedDiscounts.length" />
                 </div>
             </template>
-            </Toolbar>
+        </Toolbar>
 
-            <DataTable
-                :value="discounts"
-                v-model:selection="selectedDiscounts"
+        <DataTable
+            :value="discounts"
+            v-model:selection="selectedDiscounts"
             :selectionMode="can.delete ? 'multiple' : null"
-                dataKey="id"
-                :paginator="true"
-                :rows="10"
+            dataKey="id"
+            :paginator="true"
+            :rows="10"
             :rowsPerPageOptions="[5, 10, 25, 50]"
-                :loading="loading"
-                :filters="filters"
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-                currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} mã giảm giá"
+            :loading="loading"
+            :filters="filters"
+            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+            currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} mã giảm giá"
             class="p-datatable-sm"
             :rowHover="true"
             :removableSort="true"
-                responsiveLayout="scroll"
-            >
+            responsiveLayout="scroll"
+        >
             <template #empty>Không có mã giảm giá nào được tìm thấy</template>
             <template #loading>Đang tải dữ liệu mã giảm giá...</template>
 
             <Column v-if="can.delete" selectionMode="multiple" :exportable="false" style="min-width: 3rem"></Column>
 
-                <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
+            <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
 
             <Column field="code" header="Mã giảm giá" sortable style="min-width: 10rem">
                 <template #body="{ data }">
@@ -236,57 +236,57 @@ const calculateUsagePercentage = (discount) => {
             </Column>
 
             <Column field="discountType" header="Loại giảm giá" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
+                <template #body="{ data }">
                     <Tag :severity="data.discountType === 'PERCENT' ? 'info' : 'warning'">
                         {{ data.discountType === 'PERCENT' ? 'Phần trăm' : 'Số tiền cố định' }}
                     </Tag>
-                    </template>
-                </Column>
+                </template>
+            </Column>
 
             <Column field="discountValue" header="Giá trị" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
+                <template #body="{ data }">
                     <span class="font-bold">{{ formatDiscountValue(data) }}</span>
-                    </template>
-                </Column>
+                </template>
+            </Column>
 
             <Column field="validFrom" header="Ngày bắt đầu" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
+                <template #body="{ data }">
                     {{ formatDate(data.validFrom) }}
-                    </template>
-                </Column>
+                </template>
+            </Column>
 
             <Column field="validTo" header="Ngày kết thúc" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
+                <template #body="{ data }">
                     <div>{{ formatDate(data.validTo) }}</div>
                     <div v-if="calculateDaysRemaining(data.validTo) > 0" class="text-xs text-blue-500">Còn {{ calculateDaysRemaining(data.validTo) }} ngày</div>
                     <div v-else class="text-xs text-red-500">Đã hết hạn</div>
-                    </template>
-                </Column>
+                </template>
+            </Column>
 
             <Column header="Tình trạng sử dụng" style="min-width: 10rem">
-                    <template #body="{ data }">
+                <template #body="{ data }">
                     <div class="flex flex-column">
                         <div class="mb-1">{{ data.usedCount }}/{{ data.maxUses }}</div>
                         <ProgressBar :value="calculateUsagePercentage(data)" :showValue="false" style="height: 10px"></ProgressBar>
                     </div>
-                    </template>
-                </Column>
+                </template>
+            </Column>
 
             <Column field="valid" header="Trạng thái" sortable style="min-width: 8rem">
-                    <template #body="{ data }">
+                <template #body="{ data }">
                     <Tag :severity="getDiscountStatus(data).severity">
                         {{ getDiscountStatus(data).label }}
                     </Tag>
-                    </template>
-                </Column>
+                </template>
+            </Column>
 
             <Column :exportable="false" style="min-width: 10rem">
-                    <template #body="{ data }">
+                <template #body="{ data }">
                     <Button v-if="can.edit" icon="pi pi-pencil" outlined class="mr-2" @click="editDiscount(data)" tooltip="Chỉnh sửa" tooltipOptions="{ position: 'top' }" />
                     <Button v-if="can.delete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteDiscount(data)" tooltip="Xóa" tooltipOptions="{ position: 'top' }" />
-                    </template>
-                </Column>
-            </DataTable>
+                </template>
+            </Column>
+        </DataTable>
 
         <!-- Sử dụng các dialog từ composable -->
         <DiscountEditDialog
