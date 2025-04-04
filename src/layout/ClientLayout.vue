@@ -99,6 +99,9 @@ onMounted(async () => {
     // Kiểm tra nếu người dùng đã đăng nhập và lấy thông tin
     await updateCurrentUser();
 
+    // Đảm bảo đóng mobile menu khi khởi tạo
+    closeMobileMenu();
+
     // Lắng nghe sự kiện hiển thị dialog đăng nhập
     window.addEventListener('show-login-dialog', () => {
         showLoginModal.value = true;
@@ -482,6 +485,10 @@ const register = () => {
     }, 1000);
 };
 
+const closeMobileMenu = () => {
+    isMenuOpen.value = false;
+};
+
 const handleMobileLogout = () => {
     handleLogout();
     closeMobileMenu();
@@ -518,21 +525,25 @@ const handleRegister = () => {
 
                     <!-- User menu -->
                     <div class="flex items-center">
-                        <button @click="openLoginModal" v-if="!isLoggedIn" class="text-gray-700 hover:text-primary"><i class="pi pi-user mr-1"></i> Đăng nhập</button>
-                        <div v-else class="relative">
-                            <button @click="toggleUserMenu" class="flex items-center text-gray-700 hover:text-primary">
+                        <button @click="openLoginModal" v-if="!isLoggedIn" class="text-gray-700 hover:text-amber-600"><i class="pi pi-user mr-1"></i> Đăng nhập</button>
+                        <div v-else class="relative user-menu-container">
+                            <button @click="toggleUserMenu" class="flex items-center text-gray-700 hover:text-amber-600">
                                 <img :src="userAvatar" alt="User" class="w-8 h-8 rounded-full mr-1" />
                                 <span class="hidden md:inline">{{ userName }}</span>
                                 <i class="pi pi-chevron-down ml-1 text-xs"></i>
                             </button>
 
-                            <!-- Menu User - Đây là phần cần sửa -->
-                            <div v-if="userMenuVisible" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
-                                <div class="py-1">
-                                    <router-link to="/my-profile" class="block px-4 py-2 text-gray-700 hover:bg-amber-50" @click="closeUserMenu"> <i class="pi pi-user mr-2"></i> Tài khoản của tôi </router-link>
-                                    <router-link to="/my-bookings" class="block px-4 py-2 text-gray-700 hover:bg-amber-50" @click="closeUserMenu"> <i class="pi pi-calendar mr-2"></i> Đặt phòng của tôi </router-link>
-                                    <button @click="handleLogout" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-amber-50"><i class="pi pi-sign-out mr-2"></i> Đăng xuất</button>
-                                </div>
+                            <!-- Menu User trong Desktop -->
+                            <div v-show="userMenuVisible" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                                <router-link to="/my-profile" class="block px-4 py-2 text-gray-700 hover:bg-amber-50" @click="closeUserMenu">
+                                    <i class="pi pi-user mr-2"></i> Tài khoản của tôi
+                                </router-link>
+                                <router-link to="/my-bookings" class="block px-4 py-2 text-gray-700 hover:bg-amber-50" @click="closeUserMenu">
+                                    <i class="pi pi-calendar mr-2"></i> Đặt phòng của tôi
+                                </router-link>
+                                <button @click="handleLogout" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-amber-50">
+                                    <i class="pi pi-sign-out mr-2"></i> Đăng xuất
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -549,11 +560,35 @@ const handleRegister = () => {
             <!-- Mobile menu -->
             <div v-if="isMenuOpen" class="md:hidden">
                 <div class="px-2 pt-2 pb-3 space-y-1 border-t">
-                    <router-link to="/" class="block px-3 py-2 text-gray-700 hover:bg-amber-50">Trang chủ</router-link>
-                    <router-link to="/rooms" class="block px-3 py-2 text-gray-700 hover:bg-amber-50">Phòng</router-link>
-                    <router-link to="/services" class="block px-3 py-2 text-gray-700 hover:bg-amber-50">Dịch vụ</router-link>
-                    <router-link to="/about" class="block px-3 py-2 text-gray-700 hover:bg-amber-50">Giới thiệu</router-link>
-                    <router-link to="/contact" class="block px-3 py-2 text-gray-700 hover:bg-amber-50">Liên hệ</router-link>
+                    <router-link to="/" class="block px-3 py-2 text-gray-700 hover:bg-amber-50" @click="closeMobileMenu">Trang chủ</router-link>
+                    <router-link to="/rooms" class="block px-3 py-2 text-gray-700 hover:bg-amber-50" @click="closeMobileMenu">Phòng</router-link>
+                    <router-link to="/services" class="block px-3 py-2 text-gray-700 hover:bg-amber-50" @click="closeMobileMenu">Dịch vụ</router-link>
+                    <router-link to="/about" class="block px-3 py-2 text-gray-700 hover:bg-amber-50" @click="closeMobileMenu">Giới thiệu</router-link>
+                    <router-link to="/contact" class="block px-3 py-2 text-gray-700 hover:bg-amber-50" @click="closeMobileMenu">Liên hệ</router-link>
+
+                    <!-- Thêm menu người dùng cho mobile -->
+                    <div v-if="isLoggedIn" class="border-t mt-2 pt-2">
+                        <div class="flex items-center px-3 py-2 text-gray-700">
+                            <img :src="userAvatar" alt="User" class="w-8 h-8 rounded-full mr-2" />
+                            <span class="font-medium">{{ userName }}</span>
+                        </div>
+                        <router-link to="/my-profile" class="block px-3 py-2 text-gray-700 hover:bg-amber-50" @click="closeMobileMenu">
+                            <i class="pi pi-user mr-2"></i> Tài khoản của tôi
+                        </router-link>
+                        <router-link to="/my-bookings" class="block px-3 py-2 text-gray-700 hover:bg-amber-50" @click="closeMobileMenu">
+                            <i class="pi pi-calendar mr-2"></i> Đặt phòng của tôi
+                        </router-link>
+                        <button @click="handleMobileLogout" class="w-full text-left px-3 py-2 text-gray-700 hover:bg-amber-50">
+                            <i class="pi pi-sign-out mr-2"></i> Đăng xuất
+                        </button>
+                    </div>
+                    <button
+                        v-else
+                        @click="openLoginModal(); closeMobileMenu();"
+                        class="block w-full text-left px-3 py-2 text-gray-700 hover:bg-amber-50 border-t mt-2 pt-2"
+                    >
+                        <i class="pi pi-user mr-2"></i> Đăng nhập
+                    </button>
                 </div>
             </div>
         </header>
@@ -755,5 +790,21 @@ main {
 
 .user-menu-container {
     position: relative;
+}
+
+/* CSS mới cho dropdown menu */
+.user-menu-container button {
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.user-menu-container button:hover {
+    color: #d97706; /* amber-600 */
+}
+
+.user-menu-container > div {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e5e7eb;
 }
 </style>
