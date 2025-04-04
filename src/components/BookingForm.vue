@@ -5,7 +5,7 @@
       <!-- Ngày nhận - trả phòng -->
       <div class="mb-4">
         <label class="block text-gray-700 mb-2">Ngày nhận phòng</label>
-        <Calendar v-model="bookingData.checkInDate" placeholder="Chọn ngày" class="w-full" showIcon minDate="new Date()" />
+        <Calendar v-model="bookingData.checkInDate" placeholder="Chọn ngày" class="w-full" showIcon :minDate="new Date()" />
       </div>
 
       <div class="mb-4">
@@ -277,7 +277,7 @@ const submitBooking = () => {
   localStorage.setItem('currentBooking', JSON.stringify(bookingInfo));
 
   // Chuyển hướng tới trang xác nhận đặt phòng
-  router.push('/booking/checkout');
+  router.push('/booking/checkout-new');
 };
 
 // Theo dõi thay đổi số lượng người lớn để điều chỉnh số trẻ em tối đa

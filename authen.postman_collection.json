@@ -1,0 +1,743 @@
+{
+	"info": {
+		"_postman_id": "96614de1-e554-45aa-bdcb-5e1f80344551",
+		"name": "authen",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "33192287",
+		"_collection_link": "https://cruise-royal.postman.co/workspace/hotel-management~6a009882-ac74-4198-9549-29f9c2b4c341/collection/31056730-96614de1-e554-45aa-bdcb-5e1f80344551?action=share&source=collection_link&creator=33192287"
+	},
+	"item": [
+		{
+			"name": "Đăng nhập (Login)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Lấy response body\r",
+							"var jsonData = JSON.parse(responseBody);\r",
+							"\r",
+							"// Lưu accessToken vào biến môi trường\r",
+							"pm.environment.set(\"accessToken\", jsonData.accessToken);\r",
+							"\r",
+							"// Tùy chọn: Lưu thêm các giá trị khác\r",
+							"pm.environment.set(\"userId\", jsonData.userId);\r",
+							"pm.environment.set(\"token\", jsonData.token);\r",
+							"pm.environment.set(\"role\", jsonData.role);\r",
+							"\r",
+							"// Log thông báo xác nhận\r",
+							"console.log(\"Đã lưu accessToken vào biến môi trường\");"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"username\": \"linh8686\",\r\n  \"password\": \"123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/login",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"login"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "login",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"username\": \"johndoe\",\r\n  \"password\": \"Password123!\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"login"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Vary",
+							"value": "Access-Control-Request-Method"
+						},
+						{
+							"key": "Vary",
+							"value": "Access-Control-Request-Headers"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "X-XSS-Protection",
+							"value": "0"
+						},
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, max-age=0, must-revalidate"
+						},
+						{
+							"key": "Pragma",
+							"value": "no-cache"
+						},
+						{
+							"key": "Expires",
+							"value": "0"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						},
+						{
+							"key": "Date",
+							"value": "Thu, 27 Mar 2025 13:55:37 GMT"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=60"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huZG9lIiwiaWF0IjoxNzQzMDgzNzM3LCJleHAiOjE3NDMwODczMzd9.82yDxYEXR7bGHuXhYqO6ZaPS0giHYn2v9T22r822Rk4\",\n    \"userId\": 26,\n    \"token\": \"b049eb0e-e883-450f-9771-67756fad7c04\",\n    \"role\": \"ROLE_USER\"\n}"
+				}
+			]
+		},
+		{
+			"name": "Đăng ký tài khoản (Register)",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"username\": \"huychiendevb\",\r\n  \"password\": \"123!\",\r\n  \"email\": \"chienhi912b@gmail.com\",\r\n  \"fullName\": \"Huy Chiến\",\r\n  \"phoneNumber\": \"0773352286\",\r\n  \"gender\": \"Male\",\r\n  \"dateOfBirth\": \"1990-01-01\",\r\n  \"address\": \"Nam từ Liêm, Mỹ đình\",\r\n  \"nationalId\": \"123456789012\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/save",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"save"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "register",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"username\": \"johndoe\",\r\n  \"password\": \"Password123!\",\r\n  \"email\": \"john.doe@example.com\",\r\n  \"fullName\": \"John Doe5\",\r\n  \"phoneNumber\": \"0987654321\",\r\n  \"gender\": \"Male\",\r\n  \"dateOfBirth\": \"1990-01-01\",\r\n  \"address\": \"123 Main Street, City\",\r\n  \"nationalId\": \"123456789012\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/save",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"save"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Vary",
+							"value": "Access-Control-Request-Method"
+						},
+						{
+							"key": "Vary",
+							"value": "Access-Control-Request-Headers"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "X-XSS-Protection",
+							"value": "0"
+						},
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, max-age=0, must-revalidate"
+						},
+						{
+							"key": "Pragma",
+							"value": "no-cache"
+						},
+						{
+							"key": "Expires",
+							"value": "0"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						},
+						{
+							"key": "Date",
+							"value": "Thu, 27 Mar 2025 13:53:49 GMT"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=60"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"id\": 24,\n    \"username\": \"johndoe\",\n    \"email\": \"john.doe@example.com\",\n    \"fullName\": \"John Doe5\",\n    \"role\": \"ROLE_USER\"\n}"
+				}
+			]
+		},
+		{
+			"name": "Refresh Token",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"token\": \"d2406c87-fabe-4726-9733-998a9f966c34\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/refresh-token",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"refresh-token"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "register",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"username\": \"johndoe\",\r\n  \"password\": \"Password123!\",\r\n  \"email\": \"john.doe@example.com\",\r\n  \"fullName\": \"John Doe5\",\r\n  \"phoneNumber\": \"0987654321\",\r\n  \"gender\": \"Male\",\r\n  \"dateOfBirth\": \"1990-01-01\",\r\n  \"address\": \"123 Main Street, City\",\r\n  \"nationalId\": \"123456789012\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/save",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"save"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Vary",
+							"value": "Access-Control-Request-Method"
+						},
+						{
+							"key": "Vary",
+							"value": "Access-Control-Request-Headers"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "X-XSS-Protection",
+							"value": "0"
+						},
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, max-age=0, must-revalidate"
+						},
+						{
+							"key": "Pragma",
+							"value": "no-cache"
+						},
+						{
+							"key": "Expires",
+							"value": "0"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						},
+						{
+							"key": "Date",
+							"value": "Thu, 27 Mar 2025 13:53:49 GMT"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=60"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"id\": 24,\n    \"username\": \"johndoe\",\n    \"email\": \"john.doe@example.com\",\n    \"fullName\": \"John Doe5\",\n    \"role\": \"ROLE_USER\"\n}"
+				}
+			]
+		},
+		{
+			"name": "Validate Token",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"token\": \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huZG9lIiwiaWF0IjoxNzQzMDg0MTE1LCJleHAiOjE3NDMwODc3MTV9.2J8pusB6wDcMlwleDOhlFA0p2_UANUk3KkzBHSrlMNI\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/validate-token",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"validate-token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Quên mật khẩu (Forgot Password)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"email\": \"chienhi912@gmail.com\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/forgot-password",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"forgot-password"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Đặt lại mật khẩu (Reset Password)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"token\": \"ea007e32-1889-4c6c-beea-c4a51d3d8f91\",\r\n  \"newPassword\": \"1234!\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/reset-password",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"reset-password"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Đăng xuất (Logout)",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huZG9lIiwiaWF0IjoxNzQzMDg0NzUwLCJleHAiOjE3NDMxNzExNTB9.u2mjfHXaehCgajccQ_r8safQtlOXWa-vDwkfS1l9k5M",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{BASE_URL}}/logout",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"logout"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Lấy thông tin người dùng (Get User Profile)",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkdW9uZ3R0IiwiaWF0IjoxNzQzMDg5MTEzLCJleHAiOjE3NDMxNzU1MTN9.MD8UqK-ffgerEpPifOvwZee7lHxK5dpnVfyNzqENdtY",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{BASE_URL}}/user/profile",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"user",
+						"profile"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Tạo người dùng mới (Quyền Admin)",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJqb2huZG9lIiwiaWF0IjoxNzQzMDg0ODI0LCJleHAiOjE3NDMxNzEyMjR9.-PlsPEfl_Z-JbYFzR3gywn0EnwkQD2C2KKHkRjgEKCE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{BASE_URL}}/user/create",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"user",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Cập nhật thông tin người dùng",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkdW9uZ3R0IiwiaWF0IjoxNzQzMDg2MzEyLCJleHAiOjE3NDMxNzI3MTJ9.9uY34F_679xL5i09YIO61amPoGXh3XXr9KNlyiY4Utk",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"fullName\": \"John Smith Doe\",\r\n  \"email\": \"john.smith@example.com\",\r\n  \"phone\": \"0987123456\",\r\n  \"gender\": \"Male\",\r\n  \"dateOfBirth\": \"1990-01-15\",\r\n  \"address\": \"123 Updated Street, City\",\r\n  \"nationalId\": \"123456789012\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/user/update/28",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"user",
+						"update",
+						"28"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "Cập nhật thông tin người dùng",
+					"originalRequest": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"fullName\": \"John Smith Doe\",\r\n  \"email\": \"john.smith@example.com\",\r\n  \"phone\": \"0987123456\",\r\n  \"gender\": \"Male\",\r\n  \"dateOfBirth\": \"1990-01-15\",\r\n  \"address\": \"123 Updated Street, City\",\r\n  \"nationalId\": \"123456789012\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/user/update/28",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"user",
+								"update",
+								"28"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Vary",
+							"value": "Origin"
+						},
+						{
+							"key": "Vary",
+							"value": "Access-Control-Request-Method"
+						},
+						{
+							"key": "Vary",
+							"value": "Access-Control-Request-Headers"
+						},
+						{
+							"key": "X-Content-Type-Options",
+							"value": "nosniff"
+						},
+						{
+							"key": "X-XSS-Protection",
+							"value": "0"
+						},
+						{
+							"key": "Cache-Control",
+							"value": "no-cache, no-store, max-age=0, must-revalidate"
+						},
+						{
+							"key": "Pragma",
+							"value": "no-cache"
+						},
+						{
+							"key": "Expires",
+							"value": "0"
+						},
+						{
+							"key": "X-Frame-Options",
+							"value": "DENY"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						},
+						{
+							"key": "Transfer-Encoding",
+							"value": "chunked"
+						},
+						{
+							"key": "Date",
+							"value": "Thu, 27 Mar 2025 14:38:39 GMT"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=60"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"id\": 28,\n    \"username\": \"testuser\",\n    \"fullName\": \"John Smith Doe\",\n    \"email\": \"john.smith@example.com\",\n    \"phone\": \"0987123456\",\n    \"address\": \"123 Updated Street, City\",\n    \"gender\": \"Male\",\n    \"dateOfBirth\": \"1990-01-15\",\n    \"nationalId\": \"123456789012\",\n    \"createdAt\": \"21:24:31 - 27/03/2025\",\n    \"updatedAt\": \"21:38:39 - 27/03/2025\",\n    \"role\": \"ROLE_USER\"\n}"
+				}
+			]
+		},
+		{
+			"name": "Xóa người dùng (Quyền Admin)",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{BASE_URL}}/users/28",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"users",
+						"28"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Lấy danh sách người dùng (Quyền Admin hoặc Staff)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{BASE_URL}}/users",
+					"host": [
+						"{{BASE_URL}}"
+					],
+					"path": [
+						"users"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkdW9uZ3R0IiwiaWF0IjoxNzQzMDg2MzEyLCJleHAiOjE3NDMxNzI3MTJ9.9uY34F_679xL5i09YIO61amPoGXh3XXr9KNlyiY4Utk",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}

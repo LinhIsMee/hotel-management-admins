@@ -6,10 +6,10 @@ import InputText from 'primevue/inputtext';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, provide, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import LoginModal from '@/components/client/LoginModal.vue';
+import RegisterModal from '@/components/client/RegisterModal.vue';
 // Tạm thời comment dòng này lại
 // import { useUserStore } from '@/stores/user';
-import LoginDialog from '@/components/LoginDialog.vue';
-import RegisterDialog from '@/components/RegisterDialog.vue';
 import { useHead } from '@vueuse/head';
 import Toast from 'primevue/toast';
 import Dialog from 'primevue/dialog';
@@ -486,6 +486,15 @@ const handleMobileLogout = () => {
     handleLogout();
     closeMobileMenu();
 };
+
+// Thêm các phương thức handleLogin và handleRegister
+const handleLogin = () => {
+    login();
+};
+
+const handleRegister = () => {
+    register();
+};
 </script>
 
 <template>
@@ -681,95 +690,18 @@ const handleMobileLogout = () => {
         <ForgotPasswordModal v-model:visible="forgotPasswordModalVisible" @login="handleLoginClick" @forgot-password-success="handleForgotPasswordSuccess" />
 
         <Toast position="bottom-right" />
+        <LoginModal
+            v-model:visible="showLoginModal"
+            @login="handleLogin"
+            @register="handleRegisterClick"
+            @forgot-password="showForgotPasswordModal"
+        />
+        <RegisterModal
+            v-model:visible="showRegisterModal"
+            @register="handleRegister"
+            @login="handleLoginClick"
+        />
 
-        <!-- Login Dialog -->
-        <Dialog v-model:visible="showLoginModal" modal header="Đăng nhập" :style="{width: '400px'}" class="p-fluid">
-            <div class="flex flex-column gap-3">
-                <div class="text-center mb-4">
-                    <p class="text-gray-600 text-sm">Đăng nhập để đặt phòng và nhận nhiều ưu đãi</p>
-                </div>
-
-                <div class="field">
-                    <label for="email" class="font-medium text-gray-700">Email</label>
-                    <InputText id="email" v-model="loginForm.email" placeholder="Nhập email của bạn" class="w-full p-3" />
-                </div>
-
-                <div class="field">
-                    <label for="password" class="font-medium text-gray-700">Mật khẩu</label>
-                    <Password id="password" v-model="loginForm.password" placeholder="Nhập mật khẩu" toggleMask />
-                </div>
-
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center">
-                        <Checkbox v-model="loginForm.rememberMe" :binary="true" id="remember-me" />
-                        <label for="remember-me" class="ml-2 text-sm text-gray-600">Ghi nhớ đăng nhập</label>
-                    </div>
-                    <a href="#" @click.prevent="showForgotPasswordModal" class="text-sm text-amber-600 hover:text-amber-800">Quên mật khẩu?</a>
-                </div>
-
-                <Button label="Đăng nhập" class="w-full bg-amber-600 hover:bg-amber-700" @click="login" />
-
-                <div class="relative flex items-center justify-center mt-2 mb-2">
-                    <div class="border-t border-gray-300 w-full absolute"></div>
-                    <div class="bg-white px-2 z-10 text-sm text-gray-500">hoặc</div>
-                </div>
-
-                <!-- Đăng nhập với Google/Facebook -->
-                <div class="space-y-2">
-                    <Button label="Đăng nhập với Google" icon="pi pi-google" class="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" />
-                    <Button label="Đăng nhập với Facebook" icon="pi pi-facebook" class="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50" />
-                </div>
-
-                <div class="text-center text-sm text-gray-600 mt-3">
-                    Bạn chưa có tài khoản? <a href="#" @click.prevent="showRegisterModal = true; showLoginModal = false" class="text-amber-600 hover:text-amber-800">Đăng ký ngay</a>
-                </div>
-            </div>
-        </Dialog>
-
-        <!-- Register Dialog -->
-        <Dialog v-model:visible="showRegisterModal" modal header="Đăng ký tài khoản" :style="{width: '400px'}" class="p-fluid">
-            <div class="flex flex-column gap-3">
-                <div class="text-center mb-4">
-                    <p class="text-gray-600 text-sm">Đăng ký tài khoản để đặt phòng và nhận nhiều ưu đãi</p>
-                </div>
-
-                <div class="field">
-                    <label for="fullname" class="font-medium text-gray-700">Họ tên</label>
-                    <InputText id="fullname" v-model="registerForm.fullName" placeholder="Nhập họ tên của bạn" />
-                </div>
-
-                <div class="field">
-                    <label for="register-email" class="font-medium text-gray-700">Email</label>
-                    <InputText id="register-email" v-model="registerForm.email" placeholder="Nhập email của bạn" />
-                </div>
-
-                <div class="field">
-                    <label for="register-phone" class="font-medium text-gray-700">Số điện thoại</label>
-                    <InputText id="register-phone" v-model="registerForm.phone" placeholder="Nhập số điện thoại của bạn" />
-                </div>
-
-                <div class="field">
-                    <label for="register-password" class="font-medium text-gray-700">Mật khẩu</label>
-                    <Password id="register-password" v-model="registerForm.password" placeholder="Nhập mật khẩu" toggleMask />
-                </div>
-
-                <div class="field">
-                    <label for="confirm-password" class="font-medium text-gray-700">Xác nhận mật khẩu</label>
-                    <Password id="confirm-password" v-model="registerForm.confirmPassword" placeholder="Nhập lại mật khẩu" toggleMask />
-                </div>
-
-                <div class="flex items-start">
-                    <Checkbox v-model="registerForm.agreeTerms" :binary="true" id="agree-terms" class="mt-1" />
-                    <label for="agree-terms" class="ml-2 text-gray-700">Tôi đồng ý với <a href="#" class="text-amber-600 hover:underline">Điều khoản dịch vụ</a> và <a href="#" class="text-amber-600 hover:underline">Chính sách bảo mật</a></label>
-                </div>
-
-                <Button label="Đăng ký" class="w-full bg-amber-600 hover:bg-amber-700" @click="register" />
-
-                <div class="text-center text-sm text-gray-600 mt-3">
-                    Bạn đã có tài khoản? <a href="#" @click.prevent="showRegisterModal = false; showLoginModal = true" class="text-amber-600 hover:text-amber-800">Đăng nhập</a>
-                </div>
-            </div>
-        </Dialog>
     </div>
 </template>
 

@@ -67,6 +67,10 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import Rating from 'primevue/rating';
+import Button from 'primevue/button';
+import Textarea from 'primevue/textarea';
+import InputText from 'primevue/inputtext';
 
 const props = defineProps({
   roomId: {

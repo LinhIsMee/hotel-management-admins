@@ -289,7 +289,7 @@ const sendMessage = async () => {
 
                 <div>
                   <label class="block text-gray-700 font-medium mb-2" for="subject">Chủ đề <span class="text-red-500">*</span></label>
-                  <Dropdown id="subject" v-model="contactForm.subject" :options="subjectOptions" optionLabel="name" placeholder="Chọn chủ đề" class="w-full" :class="{'p-invalid': v$.contactForm.subject.$invalid && submitted}" />
+                  <Select id="subject" v-model="contactForm.subject" :options="subjectOptions" optionLabel="name" placeholder="Chọn chủ đề" class="w-full" :class="{'p-invalid': v$.contactForm.subject.$invalid && submitted}" />
                   <small v-if="v$.contactForm.subject.$invalid && submitted" class="p-error">Vui lòng chọn chủ đề</small>
                 </div>
               </div>

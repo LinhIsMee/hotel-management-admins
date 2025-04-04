@@ -6,6 +6,22 @@ import { useHead } from '@vueuse/head';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+// Import PrimeVue components
+import InputNumber from 'primevue/inputnumber';
+import Slider from 'primevue/slider';
+import MultiSelect from 'primevue/multiselect';
+import DatePicker from 'primevue/datepicker';
+
+// Import function để format date nếu chưa có
+const formatDate = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const router = useRouter();
 const route = useRoute();
 const rooms = ref([]);
@@ -58,6 +74,23 @@ const occupancyOptions = ref([
   { label: '4+ người', value: 4 }
 ]);
 
+// Các options cho dropdown người lớn và trẻ em
+const adultOptions = [
+  { label: '1 người', value: 1 },
+  { label: '2 người', value: 2 },
+  { label: '3 người', value: 3 },
+  { label: '4 người', value: 4 },
+  { label: '5 người', value: 5 }
+];
+
+const childrenOptions = [
+  { label: 'Không có', value: 0 },
+  { label: '1 trẻ em', value: 1 },
+  { label: '2 trẻ em', value: 2 },
+  { label: '3 trẻ em', value: 3 },
+  { label: '4 trẻ em', value: 4 }
+];
+
 onMounted(async () => {
   // Lấy các query parameters
   if (route.query.checkIn) {
@@ -77,12 +110,62 @@ onMounted(async () => {
   }
 
   try {
-    // Tải dữ liệu phòng
-    const response = await fetch('/demo/data/room-types.json');
-    const data = await response.json();
+    // Dữ liệu phòng mẫu thay vì gọi API
+    const mockRoomData = [
+      {
+        id: 1,
+        name: 'Phòng Deluxe Đơn',
+        type: 'Phòng đơn',
+        description: 'Phòng sang trọng với view thành phố, phù hợp cho doanh nhân và du khách đơn.',
+        pricePerNight: 1200000,
+        maxOccupancy: 1,
+        size: 28,
+        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar']
+      },
+      {
+        id: 2,
+        name: 'Phòng Superior Đôi',
+        type: 'Phòng đôi',
+        description: 'Phòng rộng rãi với giường đôi thoải mái, thích hợp cho cặp đôi.',
+        pricePerNight: 1500000,
+        maxOccupancy: 2,
+        size: 32,
+        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn']
+      },
+      {
+        id: 3,
+        name: 'Phòng Gia Đình',
+        type: 'Phòng gia đình',
+        description: 'Phòng rộng rãi với 2 giường đôi, thích hợp cho gia đình có con nhỏ.',
+        pricePerNight: 2500000,
+        maxOccupancy: 4,
+        size: 45,
+        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn', 'Bồn tắm']
+      },
+      {
+        id: 4,
+        name: 'Phòng VIP Suite',
+        type: 'Phòng VIP',
+        description: 'Phòng hạng sang với phòng khách riêng biệt, view toàn cảnh biển.',
+        pricePerNight: 4000000,
+        maxOccupancy: 2,
+        size: 60,
+        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn', 'Bồn tắm', 'Ban công', 'View biển']
+      },
+      {
+        id: 5,
+        name: 'Căn Hộ Studio',
+        type: 'Căn hộ studio',
+        description: 'Căn hộ tiện nghi với bếp nhỏ, phù hợp cho lưu trú dài ngày.',
+        pricePerNight: 3000000,
+        maxOccupancy: 3,
+        size: 50,
+        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn', 'Bếp nhỏ']
+      }
+    ];
 
     // Gán ảnh ngẫu nhiên cho mỗi phòng
-    rooms.value = data.data.map((room, index) => {
+    rooms.value = mockRoomData.map((room, index) => {
       // Tính giá theo thời điểm nếu có chọn ngày
       let finalPrice = room.pricePerNight;
 
@@ -153,8 +236,8 @@ const updateSearch = () => {
     }
   });
 
-  // Tải lại dữ liệu phòng
-  loadRoomData();
+  // Tải lại dữ liệu - tạm thời comment lại vì chưa định nghĩa hàm
+  // loadRoomData();
 };
 
 // Lọc phòng theo các tiêu chí
@@ -189,7 +272,7 @@ const filteredRooms = computed(() => {
 });
 
 const navigateToDetail = (roomId) => {
-  router.push(`/rooms/${roomId}`);
+  router.push(`/room/${roomId}`);
 };
 
 const resetFilters = () => {
@@ -208,7 +291,12 @@ const resetFilters = () => {
 };
 
 const formatCurrency = (value) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value);
 };
 
 // Thiết lập meta tags cho trang danh sách phòng
@@ -228,94 +316,92 @@ useHead({
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <h1 class="text-3xl font-bold text-gray-800 mb-8">Danh sách phòng</h1>
 
+      <!-- Bộ lọc tìm kiếm nhanh -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-gray-700 font-medium mb-2">Ngày nhận phòng</label>
+            <DatePicker v-model="filters.checkIn" placeholder="Chọn ngày" class="w-full" showIcon />
+          </div>
+          <div>
+            <label class="block text-gray-700 font-medium mb-2">Ngày trả phòng</label>
+            <DatePicker v-model="filters.checkOut" placeholder="Chọn ngày" class="w-full" showIcon />
+          </div>
+          <div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-gray-700 font-medium mb-2">Người lớn</label>
+                <Select v-model="filters.adults" :options="adultOptions" optionLabel="label" optionValue="value" placeholder="Chọn" class="w-full" />
+              </div>
+              <div>
+                <label class="block text-gray-700 font-medium mb-2">Trẻ em</label>
+                <Select v-model="filters.children" :options="childrenOptions" optionLabel="label" optionValue="value" placeholder="Chọn" class="w-full" />
+              </div>
+            </div>
+          </div>
+          <div class="flex items-end">
+            <Button label="Tìm kiếm" icon="pi pi-search" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium" @click="updateSearch" />
+          </div>
+        </div>
+      </div>
+
       <div class="flex flex-col lg:flex-row gap-6">
         <!-- Filters -->
         <div class="w-full lg:w-1/4">
-          <div class="bg-white p-4 rounded-lg shadow-md">
-            <h2 class="text-xl font-semibold mb-4">Bộ lọc tìm kiếm</h2>
+          <div class="bg-white p-6 rounded-lg shadow-md sticky top-24">
+            <h2 class="text-xl font-semibold mb-6">Bộ lọc nâng cao</h2>
 
-            <div class="filters bg-white shadow rounded-lg p-6 mb-6">
-              <h3 class="text-xl font-semibold mb-4">Bộ lọc</h3>
-
-              <!-- Chọn ngày và số người -->
-              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <label class="block text-gray-700 mb-2">Ngày nhận phòng</label>
-                  <Calendar v-model="filters.checkIn" placeholder="Chọn ngày" class="w-full" showIcon />
-                </div>
-                <div>
-                  <label class="block text-gray-700 mb-2">Ngày trả phòng</label>
-                  <Calendar v-model="filters.checkOut" placeholder="Chọn ngày" class="w-full" showIcon />
-                </div>
-                <div>
-                  <label class="block text-gray-700 mb-2">Số người</label>
-                  <div class="grid grid-cols-2 gap-2">
-                    <div>
-                      <label class="block text-xs text-gray-600 mb-1">Người lớn</label>
-                      <Dropdown v-model="filters.adults" class="w-full" :options="[1, 2, 3, 4, 5]" placeholder="Số lượng" />
-                    </div>
-                    <div>
-                      <label class="block text-xs text-gray-600 mb-1">Trẻ em</label>
-                      <Dropdown v-model="filters.children" class="w-full" :options="[0, 1, 2, 3, 4]" placeholder="Số lượng" />
-                    </div>
-                  </div>
-                </div>
-                <div class="flex items-end">
-                  <Button label="Cập nhật tìm kiếm" icon="pi pi-search" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium" @click="updateSearch" />
-                </div>
-              </div>
-
-              <div class="mb-4">
-                <h4 class="font-medium mb-2">Khoảng giá</h4>
-                <div class="flex items-center space-x-2 mb-2">
-                  <InputNumber v-model="filters.minPrice" placeholder="Từ" mode="currency" currency="VND" locale="vi-VN" class="w-full" />
-                  <span>-</span>
-                  <InputNumber v-model="filters.maxPrice" placeholder="Đến" mode="currency" currency="VND" locale="vi-VN" class="w-full" />
-                </div>
-                <Slider v-model="filters.priceRange" range class="mt-4" :max="5000000" :step="100000" />
-              </div>
-
-              <!-- Các bộ lọc khác giữ nguyên -->
-            </div>
-
-            <!-- Occupancy -->
+            <!-- Khoảng giá -->
             <div class="mb-6">
-              <h3 class="font-medium mb-2">Số người</h3>
-              <div class="flex flex-wrap gap-2">
-                <MultiSelect
-                  v-model="filters.occupancy"
-                  :options="occupancyOptions"
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Chọn số người"
-                  class="w-full"
-                />
+              <h3 class="font-medium mb-4">Khoảng giá</h3>
+              <div class="flex items-center space-x-2 mb-3">
+                <InputNumber v-model="filters.minPrice" placeholder="Từ" mode="currency" currency="VND" locale="vi-VN" class="w-full" :minFractionDigits="0" :maxFractionDigits="0" />
+                <span>-</span>
+                <InputNumber v-model="filters.maxPrice" placeholder="Đến" mode="currency" currency="VND" locale="vi-VN" class="w-full" :minFractionDigits="0" :maxFractionDigits="0" />
+              </div>
+              <Slider v-model="filters.priceRange" range class="mt-4 mb-2" :max="5000000" :step="100000" />
+              <div class="flex justify-between text-sm text-gray-500">
+                <span>{{ formatCurrency(0) }}</span>
+                <span>{{ formatCurrency(5000000) }}</span>
               </div>
             </div>
 
-            <!-- Room Type -->
+            <!-- Số người -->
             <div class="mb-6">
-              <h3 class="font-medium mb-2">Loại phòng</h3>
+              <h3 class="font-medium mb-4">Số người</h3>
+              <MultiSelect
+                v-model="filters.occupancy"
+                :options="occupancyOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Chọn số người"
+                class="w-full"
+              />
+            </div>
+
+            <!-- Loại phòng -->
+            <div class="mb-6">
+              <h3 class="font-medium mb-4">Loại phòng</h3>
               <div class="flex flex-col space-y-2">
                 <div v-for="type in roomTypes" :key="type" class="flex items-center">
                   <Checkbox :inputId="type" v-model="filters.roomType" :value="type" />
-                  <label :for="type" class="ml-2">{{ type }}</label>
+                  <label :for="type" class="ml-2 text-gray-700">{{ type }}</label>
                 </div>
               </div>
             </div>
 
-            <!-- Amenities -->
+            <!-- Tiện nghi -->
             <div class="mb-6">
-              <h3 class="font-medium mb-2">Tiện nghi</h3>
+              <h3 class="font-medium mb-4">Tiện nghi</h3>
               <div class="flex flex-col space-y-2">
                 <div v-for="amenity in amenitiesList" :key="amenity" class="flex items-center">
                   <Checkbox :inputId="amenity" v-model="filters.amenities" :value="amenity" />
-                  <label :for="amenity" class="ml-2">{{ amenity }}</label>
+                  <label :for="amenity" class="ml-2 text-gray-700">{{ amenity }}</label>
                 </div>
               </div>
             </div>
 
-            <Button label="Đặt lại bộ lọc" class="w-full p-button-outlined" @click="resetFilters" />
+            <Button label="Đặt lại bộ lọc" class="w-full p-button-outlined mt-4" @click="resetFilters" />
           </div>
         </div>
 
@@ -340,8 +426,8 @@ useHead({
                   <img :src="room.imageUrl" :alt="room.name" class="w-full h-full object-cover" />
                 </div>
                 <div class="md:w-2/3 p-6">
-                  <div class="flex justify-between items-start mb-2">
-                    <h3 class="text-xl font-bold text-gray-800">{{ room.name }}</h3>
+                  <div class="flex flex-col md:flex-row justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2 md:mb-0">{{ room.name }}</h3>
                     <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold">
                       {{ formatCurrency(room.finalPrice) }}/đêm
                     </span>
@@ -362,11 +448,11 @@ useHead({
                     </span>
                   </div>
 
-                  <div class="card-footer flex justify-between items-center mt-4">
-                    <span class="text-xl font-bold text-amber-600">{{ formatCurrency(room.finalPrice) }}<span class="text-sm text-gray-500">/đêm</span></span>
+                  <div class="card-footer flex flex-col md:flex-row justify-between items-center mt-4">
+                    <span class="text-xl font-bold text-amber-600 mb-3 md:mb-0">{{ formatCurrency(room.finalPrice) }}<span class="text-sm text-gray-500">/đêm</span></span>
                     <router-link
                       :to="`/room/${room.id}`"
-                      class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded transition duration-300"
+                      class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded transition duration-300 inline-block"
                     >
                       Xem chi tiết
                     </router-link>
@@ -380,3 +466,39 @@ useHead({
     </div>
   </div>
 </template>
+
+<style scoped>
+:deep(.p-inputnumber) {
+  width: 100%;
+}
+
+:deep(.p-inputnumber-input) {
+  width: 100%;
+  padding-right: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+}
+
+:deep(.p-slider) {
+  width: 100%;
+}
+
+:deep(.p-slider .p-slider-range) {
+  background: #d97706; /* amber-600 */
+}
+
+:deep(.p-slider .p-slider-handle) {
+  border-color: #d97706; /* amber-600 */
+  background: #d97706; /* amber-600 */
+}
+
+:deep(.p-slider .p-slider-handle:hover) {
+  background: #b45309; /* amber-700 */
+  border-color: #b45309; /* amber-700 */
+}
+
+:deep(.p-slider:not(.p-disabled) .p-slider-handle:focus) {
+  box-shadow: 0 0 0 0.2rem rgba(217, 119, 6, 0.2); /* amber-600 with opacity */
+}
+</style>

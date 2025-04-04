@@ -6,6 +6,10 @@ import { useHead } from '@vueuse/head';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import RoomReviews from '@/components/RoomReviews.vue';
+import Rating from 'primevue/rating';
+import Skeleton from 'primevue/skeleton';
+import DatePicker from 'primevue/datepicker';
+import ProgressSpinner from 'primevue/progressspinner';
 
 const route = useRoute();
 const router = useRouter();
@@ -40,7 +44,7 @@ const showReviewForm = ref(false);
 // Thêm vào các thuộc tính sau
 const roomImages = ref([]);
 const selectedImage = ref(null);
-const selectedImageIndex = ref(null);
+const selectedImageIndex = ref(0);
 const galleryVisible = ref(false);
 const currentGalleryIndex = ref(0);
 
@@ -56,21 +60,76 @@ const openGallery = (index) => {
 };
 
 const prevImage = () => {
+  if (roomImages.value.length === 0) return;
   currentGalleryIndex.value = (currentGalleryIndex.value - 1 + roomImages.value.length) % roomImages.value.length;
 };
 
 const nextImage = () => {
+  if (roomImages.value.length === 0) return;
   currentGalleryIndex.value = (currentGalleryIndex.value + 1) % roomImages.value.length;
 };
 
 onMounted(async () => {
     try {
-        // Tải thông tin phòng
-        const response = await fetch('/demo/data/room-types.json');
-        const data = await response.json();
+        // Dữ liệu phòng mẫu thay vì gọi API
+        const mockRoomData = [
+          {
+            id: 1,
+            name: 'Phòng Deluxe Đơn',
+            type: 'Phòng đơn',
+            description: 'Phòng sang trọng với view thành phố, phù hợp cho doanh nhân và du khách đơn.',
+            pricePerNight: 1200000,
+            maxOccupancy: 1,
+            size: 28,
+            amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar']
+          },
+          {
+            id: 2,
+            name: 'Phòng Superior Đôi',
+            type: 'Phòng đôi',
+            description: 'Phòng rộng rãi với giường đôi thoải mái, thích hợp cho cặp đôi.',
+            pricePerNight: 1500000,
+            maxOccupancy: 2,
+            size: 32,
+            amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn']
+          },
+          {
+            id: 3,
+            name: 'Phòng Gia Đình',
+            type: 'Phòng gia đình',
+            description: 'Phòng rộng rãi với 2 giường đôi, thích hợp cho gia đình có con nhỏ.',
+            pricePerNight: 2500000,
+            maxOccupancy: 4,
+            size: 45,
+            amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn', 'Bồn tắm']
+          },
+          {
+            id: 4,
+            name: 'Phòng VIP Suite',
+            type: 'Phòng VIP',
+            description: 'Phòng hạng sang với phòng khách riêng biệt, view toàn cảnh biển.',
+            pricePerNight: 4000000,
+            maxOccupancy: 2,
+            size: 60,
+            amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn', 'Bồn tắm', 'Ban công', 'View biển']
+          },
+          {
+            id: 5,
+            name: 'Căn Hộ Studio',
+            type: 'Căn hộ studio',
+            description: 'Căn hộ tiện nghi với bếp nhỏ, phù hợp cho lưu trú dài ngày.',
+            pricePerNight: 3000000,
+            maxOccupancy: 3,
+            size: 50,
+            amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn', 'Bếp nhỏ']
+          }
+        ];
 
-        const foundRoom = data.data.find((r) => r.id === roomId.value);
+        const foundRoom = mockRoomData.find((r) => r.id === roomId.value);
         if (foundRoom) {
+            // Gán ảnh ngẫu nhiên cho mỗi phòng và bổ sung imageUrl
+            foundRoom.imageUrl = availableImages[(foundRoom.id - 1) % 3];
+
             // Tạo mảng ảnh từ ảnh ban đầu và thêm các ảnh chi tiết khác
             const additionalImages = [
                 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80',
@@ -79,7 +138,7 @@ onMounted(async () => {
                 'https://images.unsplash.com/photo-1585412727339-54e4bae3bbf9?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80'
             ];
 
-            roomImages.value = [availableImages[foundRoom.id % 3], ...additionalImages];
+            roomImages.value = [foundRoom.imageUrl, ...additionalImages];
             selectedImage.value = roomImages.value[0];
 
             // Thêm rating
@@ -106,7 +165,7 @@ onMounted(async () => {
             room.value = foundRoom;
 
             // Tải phòng liên quan (cùng loại nhưng khác phòng) và gán ảnh
-            relatedRooms.value = data.data
+            relatedRooms.value = mockRoomData
                 .filter((r) => r.maxOccupancy === foundRoom.maxOccupancy && r.id !== roomId.value)
                 .slice(0, 3)
                 .map((room, index) => {
@@ -181,7 +240,16 @@ const averageRating = computed(() => {
 });
 
 const navigateToDetail = (roomId) => {
-    router.push(`/rooms/${roomId}`);
+    router.push(`/room/${roomId}`);
+};
+
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value);
 };
 
 const proceedToBooking = () => {
@@ -258,7 +326,11 @@ useHead(() => ({
 
 <template>
     <div class="room-detail-page bg-gray-50 min-h-screen py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" v-if="!loading">
+        <div v-if="loading" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center py-20">
+            <ProgressSpinner strokeWidth="5" class="w-20 h-20" />
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" v-else-if="room">
             <!-- Thông tin phòng -->
             <div class="bg-white shadow-lg rounded-lg overflow-hidden mb-8">
                 <!-- Thư viện ảnh phòng -->
@@ -278,7 +350,7 @@ useHead(() => ({
                 <Dialog v-model:visible="galleryVisible" modal :style="{width: '90vw'}" header="Thư viện ảnh" :dismissableMask="true">
                     <div class="relative">
                         <div class="gallery-container">
-                            <img :src="roomImages[currentGalleryIndex]" :alt="`${room.name} - Ảnh ${currentGalleryIndex + 1}`" class="w-full max-h-[80vh] object-contain" />
+                            <img v-if="roomImages.length > 0" :src="roomImages[currentGalleryIndex]" :alt="`${room.name} - Ảnh ${currentGalleryIndex + 1}`" class="w-full max-h-[80vh] object-contain" />
                         </div>
                         <Button icon="pi pi-chevron-left" class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white" @click="prevImage" />
                         <Button icon="pi pi-chevron-right" class="absolute right-0 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white" @click="nextImage" />
@@ -299,7 +371,7 @@ useHead(() => ({
                                 </div>
                                 <div class="flex items-center mr-4">
                                     <i class="pi pi-home mr-2 text-gray-600"></i>
-                                    <span>{{ room.area }} m²</span>
+                                    <span>{{ room.size || 0 }} m²</span>
                                 </div>
                                 <!-- Hiển thị đánh giá sao -->
                                 <div class="flex items-center">
@@ -323,7 +395,7 @@ useHead(() => ({
                     <div class="mb-6">
                         <h2 class="text-xl font-semibold text-gray-800 mb-2">Tiện nghi phòng</h2>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div v-for="(amenity, index) in room.amenities" :key="index" class="flex items-center">
+                            <div v-for="(amenity, index) in room.amenities || []" :key="index" class="flex items-center">
                                 <i class="pi pi-check-circle mr-2 text-green-500"></i>
                                 <span>{{ amenity }}</span>
                             </div>
@@ -354,12 +426,12 @@ useHead(() => ({
 
                         <div class="mb-4">
                             <label class="block text-gray-700 mb-1">Ngày nhận phòng</label>
-                            <Calendar v-model="booking.checkInDate" class="w-full" dateFormat="dd/mm/yy" showIcon />
+                            <DatePicker v-model="booking.checkInDate" class="w-full" showIcon />
                         </div>
 
                         <div class="mb-4">
                             <label class="block text-gray-700 mb-1">Ngày trả phòng</label>
-                            <Calendar v-model="booking.checkOutDate" class="w-full" dateFormat="dd/mm/yy" showIcon />
+                            <DatePicker v-model="booking.checkOutDate" class="w-full" showIcon />
                         </div>
 
                         <div class="mb-4">
@@ -375,7 +447,7 @@ useHead(() => ({
                         <div v-if="days > 0" class="bg-gray-50 p-4 rounded-lg mb-6">
                             <div class="flex justify-between mb-3">
                                 <span class="text-gray-700">Giá phòng:</span>
-                                <span class="font-semibold">{{ new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(room.pricePerNight) }}/đêm</span>
+                                <span class="font-semibold">{{ formatCurrency(room.pricePerNight) }}/đêm</span>
                             </div>
                             <div class="flex justify-between mb-3">
                                 <span class="text-gray-700">Số đêm:</span>
@@ -383,7 +455,7 @@ useHead(() => ({
                             </div>
                             <div class="flex justify-between text-lg font-bold mt-2 pt-2 border-t border-gray-200">
                                 <span>Tổng cộng:</span>
-                                <span class="text-amber-600">{{ new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalPrice) }}</span>
+                                <span class="text-amber-600">{{ formatCurrency(totalPrice) }}</span>
                             </div>
                         </div>
 
@@ -405,7 +477,7 @@ useHead(() => ({
                         <div class="p-4">
                             <h3 class="font-semibold text-gray-800 mb-2">{{ relatedRoom.name }}</h3>
                             <div class="flex justify-between items-center">
-                                <span class="text-amber-600 font-bold"> {{ new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(relatedRoom.pricePerNight) }}/đêm </span>
+                                <span class="text-amber-600 font-bold">{{ formatCurrency(relatedRoom.pricePerNight) }}/đêm</span>
                                 <Button @click="navigateToDetail(relatedRoom.id)" label="Xem" class="p-button-sm" />
                             </div>
                         </div>
@@ -418,16 +490,43 @@ useHead(() => ({
         </div>
 
         <!-- Loading state -->
-        <div v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <Skeleton width="100%" height="400px" class="mb-4" />
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <Skeleton width="100%" height="200px" />
-                <Skeleton width="100%" height="200px" />
-            </div>
-            <Skeleton width="70%" height="30px" class="mb-2" />
-            <Skeleton width="40%" height="20px" class="mb-4" />
-            <Skeleton width="100%" height="100px" class="mb-4" />
-            <Skeleton width="100%" height="150px" />
+        <div v-else-if="loading === false && !room" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+            <i class="pi pi-exclamation-triangle text-5xl text-amber-500 mb-4"></i>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Không tìm thấy phòng</h2>
+            <p class="text-gray-600 mb-6">Phòng bạn đang tìm kiếm không tồn tại hoặc đã bị xóa.</p>
+            <Button label="Quay lại danh sách phòng" @click="router.push('/rooms')" />
         </div>
     </div>
 </template>
+
+<style scoped>
+:deep(.p-rating .p-rating-item.p-rating-item-active .p-rating-icon) {
+  color: #f59e0b !important; /* amber-500 */
+}
+
+:deep(.p-datepicker),
+:deep(.p-dropdown),
+:deep(.p-inputtext),
+:deep(.p-textarea) {
+  width: 100%;
+}
+
+:deep(.p-button) {
+  background: #d97706; /* amber-600 */
+  border-color: #d97706; /* amber-600 */
+}
+
+:deep(.p-button:hover) {
+  background: #b45309; /* amber-700 */
+  border-color: #b45309; /* amber-700 */
+}
+
+:deep(.p-button.p-button-sm) {
+  font-size: 0.875rem;
+  padding: 0.4rem 0.8rem;
+}
+
+:deep(.p-galleria-thumbnail-container) {
+  background: #f3f4f6; /* gray-100 */
+}
+</style>

@@ -10,6 +10,19 @@ import ConfirmationService from 'primevue/confirmationservice';
 import Styleclass from 'primevue/styleclass';
 import ToastService from 'primevue/toastservice';
 
+// Import PrimeVue components
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import Dialog from 'primevue/dialog';
+import Password from 'primevue/password';
+import Checkbox from 'primevue/checkbox';
+import Calendar from 'primevue/calendar';
+import Select from 'primevue/select';
+import ProgressSpinner from 'primevue/progressspinner';
+import Textarea from 'primevue/textarea';
+import Accordion from 'primevue/accordion';
+import AccordionTab from 'primevue/accordiontab';
+
 import '@/assets/styles.scss';
 import './assets/styles/main.css';
 
@@ -29,6 +42,20 @@ app.use(PrimeVue, {
 });
 app.use(ToastService);
 app.use(ConfirmationService);
+
+// Register PrimeVue components globally
+app.component('Button', Button);
+app.component('InputText', InputText);
+app.component('Dialog', Dialog);
+app.component('Password', Password);
+app.component('Checkbox', Checkbox);
+app.component('Calendar', Calendar);
+app.component('Select', Select);
+app.component('Dropdown', Select);
+app.component('ProgressSpinner', ProgressSpinner);
+app.component('Textarea', Textarea);
+app.component('Accordion', Accordion);
+app.component('AccordionTab', AccordionTab);
 
 const head = createHead();
 app.use(head);

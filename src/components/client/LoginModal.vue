@@ -3,6 +3,14 @@ import AuthService from '@/services/AuthService';
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
+// Import các component PrimeVue (nếu cần thiết, ở đây để hỗ trợ phát triển)
+// Mặc dù đã đăng ký globally ở main.js
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
+import Checkbox from 'primevue/checkbox';
+import Dialog from 'primevue/dialog';
+
 const props = defineProps({
     visible: Boolean
 });
@@ -11,7 +19,7 @@ const emit = defineEmits(['update:visible', 'register', 'forgot-password', 'logi
 
 const router = useRouter();
 const form = reactive({
-    email: '',
+    username: '',
     password: '',
     rememberMe: false
 });
@@ -23,7 +31,7 @@ const submitted = ref(false);
 const validateForm = () => {
     submitted.value = true;
 
-    return !!form.email && !!form.password;
+    return !!form.username && !!form.password;
 };
 
 const login = async () => {
@@ -36,7 +44,7 @@ const login = async () => {
 
     try {
         const result = await AuthService.loginClient({
-            email: form.email,
+            username: form.username,
             password: form.password
         });
 
@@ -44,7 +52,7 @@ const login = async () => {
         emit('update:visible', false);
 
         // Reset form
-        form.email = '';
+        form.username = '';
         form.password = '';
         form.rememberMe = false;
         submitted.value = false;
@@ -82,16 +90,16 @@ const showForgotPasswordModal = () => {
 
         <form @submit.prevent="login" class="space-y-4">
             <div>
-                <label for="email" class="block text-900 font-medium mb-2">Email</label>
+                <label for="username" class="block text-900 font-medium mb-2">Tên đăng nhập</label>
                 <InputText
-                    id="email"
-                    v-model="form.email"
-                    type="email"
+                    id="username"
+                    v-model="form.username"
+                    type="text"
                     class="w-full"
-                    :class="{ 'p-invalid': submitted && !form.email }"
-                    placeholder="Nhập email của bạn"
+                    :class="{ 'p-invalid': submitted && !form.username }"
+                    placeholder="Nhập tên đăng nhập"
                 />
-                <small v-if="submitted && !form.email" class="p-error">Vui lòng nhập email</small>
+                <small v-if="submitted && !form.username" class="p-error">Vui lòng nhập tên đăng nhập</small>
             </div>
 
             <div>

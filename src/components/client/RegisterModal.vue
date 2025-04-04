@@ -2,6 +2,15 @@
 import AuthService from '@/services/AuthService';
 import { reactive, ref } from 'vue';
 
+// Import các component cần thiết
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
+import Dialog from 'primevue/dialog';
+import Dropdown from 'primevue/dropdown';
+import Calendar from 'primevue/calendar';
+import Textarea from 'primevue/textarea';
+
 const props = defineProps({
     visible: Boolean
 });
@@ -9,9 +18,14 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'login', 'register-success']);
 
 const form = reactive({
-    name: '',
+    username: '',
+    fullName: '',
     email: '',
-    phone: '',
+    phoneNumber: '',
+    gender: 'Male',
+    dateOfBirth: '',
+    address: '',
+    nationalId: '',
     password: '',
     confirmPassword: ''
 });
@@ -23,7 +37,7 @@ const submitted = ref(false);
 const validateForm = () => {
     submitted.value = true;
 
-    if (!form.name || !form.email || !form.password || !form.confirmPassword) {
+    if (!form.username || !form.fullName || !form.email || !form.password || !form.confirmPassword) {
         return false;
     }
 
@@ -44,20 +58,30 @@ const register = async () => {
     errorMessage.value = '';
 
     try {
-        const result = await AuthService.register({
-            name: form.name,
+        const result = await AuthService.registerClient({
+            username: form.username,
+            password: form.password,
             email: form.email,
-            phone: form.phone,
-            password: form.password
+            fullName: form.fullName,
+            phoneNumber: form.phoneNumber,
+            gender: form.gender,
+            dateOfBirth: form.dateOfBirth,
+            address: form.address,
+            nationalId: form.nationalId
         });
 
         emit('register-success');
         emit('update:visible', false);
 
         // Reset form
-        form.name = '';
+        form.username = '';
+        form.fullName = '';
         form.email = '';
-        form.phone = '';
+        form.phoneNumber = '';
+        form.gender = 'Male';
+        form.dateOfBirth = '';
+        form.address = '';
+        form.nationalId = '';
         form.password = '';
         form.confirmPassword = '';
         submitted.value = false;
@@ -90,15 +114,27 @@ const showLoginModal = () => {
 
         <form @submit.prevent="register" class="space-y-4">
             <div>
-                <label for="name" class="block text-900 font-medium mb-2">Họ tên <span class="text-red-500">*</span></label>
+                <label for="username" class="block text-900 font-medium mb-2">Tên đăng nhập <span class="text-red-500">*</span></label>
                 <InputText
-                    id="name"
-                    v-model="form.name"
+                    id="username"
+                    v-model="form.username"
                     class="w-full"
-                    :class="{ 'p-invalid': submitted && !form.name }"
+                    :class="{ 'p-invalid': submitted && !form.username }"
+                    placeholder="Nhập tên đăng nhập"
+                />
+                <small v-if="submitted && !form.username" class="p-error">Vui lòng nhập tên đăng nhập</small>
+            </div>
+
+            <div>
+                <label for="fullName" class="block text-900 font-medium mb-2">Họ tên <span class="text-red-500">*</span></label>
+                <InputText
+                    id="fullName"
+                    v-model="form.fullName"
+                    class="w-full"
+                    :class="{ 'p-invalid': submitted && !form.fullName }"
                     placeholder="Nhập họ tên của bạn"
                 />
-                <small v-if="submitted && !form.name" class="p-error">Vui lòng nhập họ tên</small>
+                <small v-if="submitted && !form.fullName" class="p-error">Vui lòng nhập họ tên</small>
             </div>
 
             <div>
@@ -114,13 +150,60 @@ const showLoginModal = () => {
                 <small v-if="submitted && !form.email" class="p-error">Vui lòng nhập email</small>
             </div>
 
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="phoneNumber" class="block text-900 font-medium mb-2">Số điện thoại</label>
+                    <InputText
+                        id="phoneNumber"
+                        v-model="form.phoneNumber"
+                        class="w-full"
+                        placeholder="Nhập số điện thoại"
+                    />
+                </div>
+
+                <div>
+                    <label for="gender" class="block text-900 font-medium mb-2">Giới tính</label>
+                    <Dropdown
+                        id="gender"
+                        v-model="form.gender"
+                        :options="['Male', 'Female', 'Other']"
+                        class="w-full"
+                        placeholder="Chọn giới tính"
+                    />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="dateOfBirth" class="block text-900 font-medium mb-2">Ngày sinh</label>
+                    <Calendar
+                        id="dateOfBirth"
+                        v-model="form.dateOfBirth"
+                        dateFormat="yy-mm-dd"
+                        class="w-full"
+                        placeholder="YYYY-MM-DD"
+                    />
+                </div>
+
+                <div>
+                    <label for="nationalId" class="block text-900 font-medium mb-2">CMND/CCCD</label>
+                    <InputText
+                        id="nationalId"
+                        v-model="form.nationalId"
+                        class="w-full"
+                        placeholder="Nhập số CMND/CCCD"
+                    />
+                </div>
+            </div>
+
             <div>
-                <label for="phone" class="block text-900 font-medium mb-2">Số điện thoại</label>
-                <InputText
-                    id="phone"
-                    v-model="form.phone"
+                <label for="address" class="block text-900 font-medium mb-2">Địa chỉ</label>
+                <Textarea
+                    id="address"
+                    v-model="form.address"
+                    rows="2"
                     class="w-full"
-                    placeholder="Nhập số điện thoại (không bắt buộc)"
+                    placeholder="Nhập địa chỉ của bạn"
                 />
             </div>
 

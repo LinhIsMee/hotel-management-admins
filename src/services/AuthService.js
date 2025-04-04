@@ -171,21 +171,24 @@ class AuthService {
      * @param {string} password - Mật khẩu
      * @returns {Promise<object>} - Promise với thông tin người dùng
      */
-    async loginClient(username, password) {
+    async loginClient(credentials) {
         try {
             const response = await fetch(`${API_URL}/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({
+                    username: credentials.username,
+                    password: credentials.password
+                })
             });
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    throw new Error('Username or password is incorrect');
+                    throw new Error('Tên đăng nhập hoặc mật khẩu không chính xác');
                 }
-                throw new Error('Login failed');
+                throw new Error('Đăng nhập thất bại');
             }
 
             const data = await response.json();
@@ -194,9 +197,7 @@ class AuthService {
             // Lưu token và thông tin người dùng vào localStorage
             const userInfo = {
                 id: data.userId,
-                username: username,
-                name: data.name || data.fullName || username, // Lưu tên người dùng nếu API trả về
-                email: data.email || '',
+                username: credentials.username,
                 accessToken: data.accessToken,
                 token: data.token,
                 role: data.role
@@ -283,13 +284,13 @@ class AuthService {
     }
 
     /**
-     * Đăng ký người dùng mới
-     * @param {object} userData - Thông tin đăng ký
-     * @returns {Promise<object>} - Promise kết quả đăng ký
+     * Đăng ký tài khoản mới
+     * @param {Object} userData - Thông tin đăng ký
+     * @returns {Promise<Object>} - Thông tin người dùng đã đăng ký
      */
     async registerClient(userData) {
         try {
-            const response = await fetch(`${API_URL}/register`, {
+            const response = await fetch(`${API_URL}/save`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -298,10 +299,10 @@ class AuthService {
                     username: userData.username,
                     password: userData.password,
                     email: userData.email,
-                    fullName: userData.fullName || `${userData.firstName} ${userData.lastName}`,
-                    phoneNumber: userData.phone,
-                    gender: userData.gender || 'Prefer not to say',
-                    dateOfBirth: userData.dateOfBirth || null,
+                    fullName: userData.fullName,
+                    phoneNumber: userData.phoneNumber || null,
+                    gender: userData.gender || 'Male',
+                    dateOfBirth: userData.dateOfBirth || '1990-01-01',
                     address: userData.address || null,
                     nationalId: userData.nationalId || null
                 })
@@ -309,7 +310,7 @@ class AuthService {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || 'Registration failed');
+                throw new Error(errorData.message || 'Đăng ký thất bại');
             }
 
             return await response.json();

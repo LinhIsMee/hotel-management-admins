@@ -1,6 +1,6 @@
 <script setup>
 import nha_nghi_1 from '@/assets/images/nha-nghi-1.webp';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useVuelidate } from '@vuelidate/core';
 import { required, email, helpers } from '@vuelidate/validators';
@@ -17,7 +17,7 @@ const loading = ref(true);
 const currentStep = ref(1); // 1: Thông tin khách hàng, 2: Thanh toán, 3: Xác nhận
 
 // Form thông tin khách hàng
-const customerInfo = ref({
+const customerInfo = reactive({
     fullName: '',
     email: '',
     phone: '',
@@ -27,7 +27,7 @@ const customerInfo = ref({
 });
 
 // Thông tin liên hệ
-const contactInfo = ref({
+const contactInfo = reactive({
     fullName: '',
     email: '',
     phone: '',
@@ -59,7 +59,7 @@ const showSuccessDialog = ref(false);
 const bookingCode = ref('');
 
 // Thông tin thẻ
-const cardInfo = ref({
+const cardInfo = reactive({
     cardNumber: '',
     cardName: '',
     expiryDate: '',
@@ -104,7 +104,7 @@ const cancelDate = computed(() => {
 });
 
 // Quy tắc xác thực
-const rules = {
+const contactRules = {
     fullName: { required },
     email: { required, email },
     phone: {
@@ -113,7 +113,7 @@ const rules = {
     }
 };
 
-const v$ = useVuelidate(rules, contactInfo);
+const v$ = useVuelidate(contactRules, contactInfo);
 
 onMounted(async () => {
     try {
@@ -151,9 +151,9 @@ onMounted(async () => {
         const userInfo = localStorage.getItem('userInfo');
         if (userInfo) {
             const user = JSON.parse(userInfo);
-            contactInfo.value.fullName = user.fullName || '';
-            contactInfo.value.email = user.email || '';
-            contactInfo.value.phone = user.phone || '';
+            contactInfo.fullName = user.fullName || '';
+            contactInfo.email = user.email || '';
+            contactInfo.phone = user.phone || '';
         }
     } catch (error) {
         console.error('Lỗi khi tải dữ liệu đặt phòng:', error);
@@ -182,23 +182,23 @@ const days = computed(() => {
 const validateCustomerInfo = () => {
     const newErrors = {};
 
-    if (!customerInfo.value.fullName.trim()) {
+    if (!customerInfo.fullName.trim()) {
         newErrors.fullName = 'Vui lòng nhập họ tên';
     }
 
-    if (!customerInfo.value.email.trim()) {
+    if (!customerInfo.email.trim()) {
         newErrors.email = 'Vui lòng nhập email';
-    } else if (!/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(customerInfo.value.email)) {
+    } else if (!/^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(customerInfo.email)) {
         newErrors.email = 'Email không hợp lệ';
     }
 
-    if (!customerInfo.value.phone.trim()) {
+    if (!customerInfo.phone.trim()) {
         newErrors.phone = 'Vui lòng nhập số điện thoại';
-    } else if (!/^[0-9]{10,11}$/.test(customerInfo.value.phone.replace(/\s/g, ''))) {
+    } else if (!/^[0-9]{10,11}$/.test(customerInfo.phone.replace(/\s/g, ''))) {
         newErrors.phone = 'Số điện thoại không hợp lệ';
     }
 
-    if (!customerInfo.value.identityNumber.trim()) {
+    if (!customerInfo.identityNumber.trim()) {
         newErrors.identityNumber = 'Vui lòng nhập số CMND/CCCD';
     }
 
@@ -215,25 +215,25 @@ const validatePaymentInfo = () => {
     if (paymentMethod.value === 'CREDIT_CARD') {
         const newErrors = {};
 
-        if (!cardInfo.value.cardNumber.trim()) {
+        if (!cardInfo.cardNumber.trim()) {
             newErrors.cardNumber = 'Vui lòng nhập số thẻ';
-        } else if (!/^[0-9]{15,16}$/.test(cardInfo.value.cardNumber.replace(/\s/g, ''))) {
+        } else if (!/^[0-9]{15,16}$/.test(cardInfo.cardNumber.replace(/\s/g, ''))) {
             newErrors.cardNumber = 'Số thẻ không hợp lệ';
         }
 
-        if (!cardInfo.value.cardName.trim()) {
+        if (!cardInfo.cardName.trim()) {
             newErrors.cardName = 'Vui lòng nhập tên chủ thẻ';
         }
 
-        if (!cardInfo.value.expiryDate.trim()) {
+        if (!cardInfo.expiryDate.trim()) {
             newErrors.expiryDate = 'Vui lòng nhập ngày hết hạn';
-        } else if (!/^(0[1-9]|1[0-2])\/([0-9]{2})$/.test(cardInfo.value.expiryDate)) {
+        } else if (!/^(0[1-9]|1[0-2])\/([0-9]{2})$/.test(cardInfo.expiryDate)) {
             newErrors.expiryDate = 'Định dạng MM/YY không hợp lệ';
         }
 
-        if (!cardInfo.value.cvv.trim()) {
+        if (!cardInfo.cvv.trim()) {
             newErrors.cvv = 'Vui lòng nhập mã CVV';
-        } else if (!/^[0-9]{3,4}$/.test(cardInfo.value.cvv)) {
+        } else if (!/^[0-9]{3,4}$/.test(cardInfo.cvv)) {
             newErrors.cvv = 'Mã CVV không hợp lệ';
         }
 
@@ -336,7 +336,7 @@ const processVNPayPayment = async () => {
             services: bookingData.value.services,
             couponCode: bookingData.value.couponCode,
             totalPrice: totalPrice.value,
-            contactInfo: contactInfo.value,
+            contactInfo: contactInfo,
             paymentMethod: paymentMethod.value,
             status: 'PENDING_PAYMENT',
             createdAt: new Date().toISOString()
@@ -402,7 +402,7 @@ const confirmBooking = async () => {
             services: bookingData.value.services,
             couponCode: bookingData.value.couponCode,
             totalPrice: totalPrice.value,
-            contactInfo: contactInfo.value,
+            contactInfo: contactInfo,
             paymentMethod: paymentMethod.value,
             status: 'NEW',
             createdAt: new Date().toISOString()

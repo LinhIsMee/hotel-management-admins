@@ -8,6 +8,9 @@ import { useToast } from 'primevue/usetoast';
 import { reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import AuthService from '../services/AuthService';
+import Dropdown from 'primevue/dropdown';
+import Calendar from 'primevue/calendar';
+import Textarea from 'primevue/textarea';
 
 const props = defineProps({
     modelValue: {
@@ -24,13 +27,16 @@ const isSubmitted = ref(false);
 const loading = ref(false);
 
 const registerData = reactive({
-    firstName: '',
-    lastName: '',
     username: '',
-    email: '',
-    phone: '',
     password: '',
     confirmPassword: '',
+    email: '',
+    fullName: '',
+    phoneNumber: '',
+    gender: 'Male',
+    dateOfBirth: '',
+    address: '',
+    nationalId: '',
     acceptTerms: false
 });
 
@@ -44,51 +50,58 @@ watch(
 );
 
 const resetForm = () => {
-    registerData.firstName = '';
-    registerData.lastName = '';
     registerData.username = '';
-    registerData.email = '';
-    registerData.phone = '';
     registerData.password = '';
     registerData.confirmPassword = '';
+    registerData.email = '';
+    registerData.fullName = '';
+    registerData.phoneNumber = '';
+    registerData.gender = 'Male';
+    registerData.dateOfBirth = '';
+    registerData.address = '';
+    registerData.nationalId = '';
     registerData.acceptTerms = false;
     isSubmitted.value = false;
 };
 
 const register = async () => {
     isSubmitted.value = true;
-    console.log('Register function called');
 
-    if (!registerData.firstName || !registerData.lastName || !registerData.username || !registerData.email || !registerData.phone || !registerData.password || !registerData.confirmPassword || !registerData.acceptTerms) {
-        console.log('Validation failed: missing fields');
+    if (!registerData.username || !registerData.fullName || !registerData.email ||
+        !registerData.password || !registerData.confirmPassword || !registerData.acceptTerms) {
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi đăng ký',
+            detail: 'Vui lòng điền đầy đủ thông tin bắt buộc',
+            life: 3000
+        });
         return;
     }
 
     if (registerData.password !== registerData.confirmPassword) {
-        console.log('Validation failed: passwords do not match');
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi đăng ký',
+            detail: 'Mật khẩu xác nhận không khớp',
+            life: 3000
+        });
         return;
     }
 
     loading.value = true;
-    console.log('Attempting to register with:', {
-        username: registerData.username,
-        name: `${registerData.firstName} ${registerData.lastName}`,
-        email: registerData.email,
-        phone: registerData.phone
-    });
 
     try {
         const result = await AuthService.registerClient({
             username: registerData.username,
             password: registerData.password,
             email: registerData.email,
-            firstName: registerData.firstName,
-            lastName: registerData.lastName,
-            phone: registerData.phone,
-            fullName: `${registerData.firstName} ${registerData.lastName}`
+            fullName: registerData.fullName,
+            phoneNumber: registerData.phoneNumber,
+            gender: registerData.gender,
+            dateOfBirth: registerData.dateOfBirth,
+            address: registerData.address,
+            nationalId: registerData.nationalId
         });
-
-        console.log('Register API response data:', result);
 
         toast.add({
             severity: 'success',
@@ -126,76 +139,179 @@ const login = () => {
 </script>
 
 <template>
-    <Dialog :visible="modelValue" @update:visible="$emit('update:modelValue', $event)" modal header="Register Account" :style="{ width: '500px' }" :closable="true" class="register-dialog">
+    <Dialog :visible="modelValue" @update:visible="$emit('update:modelValue', $event)" modal :style="{ width: '500px' }" :closable="true" class="register-dialog">
         <template #header>
             <div class="text-center w-full">
-                <h3 class="text-xl font-bold text-gray-800 m-0">Register Account</h3>
+                <h3 class="text-xl font-bold text-gray-800 m-0">Đăng Ký Tài Khoản</h3>
             </div>
         </template>
 
         <div class="text-center mb-6">
             <h3 class="text-lg font-semibold"><span class="text-amber-600">LUXURY</span><span class="text-slate-800">HOTEL</span></h3>
-            <p class="text-sm text-gray-600 mt-2">Register to receive more benefits</p>
+            <p class="text-sm text-gray-600 mt-2">Đăng ký để nhận thêm nhiều ưu đãi</p>
+        </div>
+
+        <div class="field mb-3">
+            <label for="username" class="block text-sm font-medium mb-2">Tên đăng nhập</label>
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-user"></i>
+                <InputText
+                    id="username"
+                    v-model="registerData.username"
+                    placeholder="Nhập tên đăng nhập"
+                    class="w-full"
+                    :class="{ 'p-invalid': isSubmitted && !registerData.username }"
+                />
+            </span>
+            <small v-if="isSubmitted && !registerData.username" class="p-error block mt-1">Vui lòng nhập tên đăng nhập</small>
+        </div>
+
+        <div class="field mb-3">
+            <label for="fullName" class="block text-sm font-medium mb-2">Họ và tên</label>
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-id-card"></i>
+                <InputText
+                    id="fullName"
+                    v-model="registerData.fullName"
+                    placeholder="Nhập họ và tên đầy đủ"
+                    class="w-full"
+                    :class="{ 'p-invalid': isSubmitted && !registerData.fullName }"
+                />
+            </span>
+            <small v-if="isSubmitted && !registerData.fullName" class="p-error block mt-1">Vui lòng nhập họ tên</small>
+        </div>
+
+        <div class="field mb-3">
+            <label for="email" class="block text-sm font-medium mb-2">Email</label>
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-envelope"></i>
+                <InputText
+                    id="email"
+                    v-model="registerData.email"
+                    type="email"
+                    placeholder="Nhập địa chỉ email"
+                    class="w-full"
+                    :class="{ 'p-invalid': isSubmitted && !registerData.email }"
+                />
+            </span>
+            <small v-if="isSubmitted && !registerData.email" class="p-error block mt-1">Vui lòng nhập email</small>
+        </div>
+
+        <div class="field mb-3">
+            <label for="phoneNumber" class="block text-sm font-medium mb-2">Số điện thoại</label>
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-phone"></i>
+                <InputText
+                    id="phoneNumber"
+                    v-model="registerData.phoneNumber"
+                    placeholder="Nhập số điện thoại"
+                    class="w-full"
+                />
+            </span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="field">
-                <label for="firstName" class="block text-sm font-medium mb-2">First Name</label>
-                <InputText id="firstName" v-model="registerData.firstName" class="w-full" required />
-                <small v-if="isSubmitted && !registerData.firstName" class="p-error">First name is required</small>
+            <div class="field mb-3">
+                <label for="gender" class="block text-sm font-medium mb-2">Giới tính</label>
+                <Dropdown
+                    id="gender"
+                    v-model="registerData.gender"
+                    :options="['Male', 'Female', 'Other']"
+                    placeholder="Chọn giới tính"
+                    class="w-full"
+                />
             </div>
 
-            <div class="field">
-                <label for="lastName" class="block text-sm font-medium mb-2">Last Name</label>
-                <InputText id="lastName" v-model="registerData.lastName" class="w-full" required />
-                <small v-if="isSubmitted && !registerData.lastName" class="p-error">Last name is required</small>
+            <div class="field mb-3">
+                <label for="dateOfBirth" class="block text-sm font-medium mb-2">Ngày sinh</label>
+                <Calendar
+                    id="dateOfBirth"
+                    v-model="registerData.dateOfBirth"
+                    dateFormat="yy-mm-dd"
+                    placeholder="YYYY-MM-DD"
+                    class="w-full"
+                />
             </div>
         </div>
 
-        <div class="field mt-4">
-            <label for="username" class="block text-sm font-medium mb-2">Username</label>
-            <InputText id="username" v-model="registerData.username" class="w-full" required />
-            <small v-if="isSubmitted && !registerData.username" class="p-error">Username is required</small>
+        <div class="field mb-3">
+            <label for="address" class="block text-sm font-medium mb-2">Địa chỉ</label>
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-map-marker"></i>
+                <Textarea
+                    id="address"
+                    v-model="registerData.address"
+                    rows="2"
+                    placeholder="Nhập địa chỉ của bạn"
+                    class="w-full"
+                />
+            </span>
         </div>
 
-        <div class="field mt-4">
-            <label for="email" class="block text-sm font-medium mb-2">Email</label>
-            <InputText id="email" v-model="registerData.email" type="email" class="w-full" required />
-            <small v-if="isSubmitted && !registerData.email" class="p-error">Email is required</small>
+        <div class="field mb-3">
+            <label for="nationalId" class="block text-sm font-medium mb-2">CMND/CCCD</label>
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-id-card"></i>
+                <InputText
+                    id="nationalId"
+                    v-model="registerData.nationalId"
+                    placeholder="Nhập số CMND/CCCD"
+                    class="w-full"
+                />
+            </span>
         </div>
 
-        <div class="field mt-4">
-            <label for="phone" class="block text-sm font-medium mb-2">Phone Number</label>
-            <InputText id="phone" v-model="registerData.phone" class="w-full" required />
-            <small v-if="isSubmitted && !registerData.phone" class="p-error">Phone number is required</small>
+        <div class="field mb-3">
+            <label for="password" class="block text-sm font-medium mb-2">Mật khẩu</label>
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-lock"></i>
+                <Password
+                    id="password"
+                    v-model="registerData.password"
+                    placeholder="Nhập mật khẩu"
+                    toggleMask
+                    class="w-full"
+                    :class="{ 'p-invalid': isSubmitted && !registerData.password }"
+                />
+            </span>
+            <small v-if="isSubmitted && !registerData.password" class="p-error block mt-1">Vui lòng nhập mật khẩu</small>
         </div>
 
-        <div class="field mt-4">
-            <label for="reg-password" class="block text-sm font-medium mb-2">Password</label>
-            <Password id="reg-password" v-model="registerData.password" toggleMask class="w-full" required />
-            <small v-if="isSubmitted && !registerData.password" class="p-error">Password is required</small>
+        <div class="field mb-3">
+            <label for="confirmPassword" class="block text-sm font-medium mb-2">Xác nhận mật khẩu</label>
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-lock"></i>
+                <Password
+                    id="confirmPassword"
+                    v-model="registerData.confirmPassword"
+                    placeholder="Nhập lại mật khẩu"
+                    toggleMask
+                    :feedback="false"
+                    class="w-full"
+                    :class="{ 'p-invalid': isSubmitted && (!registerData.confirmPassword || registerData.password !== registerData.confirmPassword) }"
+                />
+            </span>
+            <small v-if="isSubmitted && !registerData.confirmPassword" class="p-error block mt-1">Vui lòng xác nhận mật khẩu</small>
+            <small v-else-if="isSubmitted && registerData.password !== registerData.confirmPassword" class="p-error block mt-1">Mật khẩu xác nhận không khớp</small>
         </div>
 
-        <div class="field mt-4">
-            <label for="confirmPassword" class="block text-sm font-medium mb-2">Confirm Password</label>
-            <Password id="confirmPassword" v-model="registerData.confirmPassword" toggleMask :feedback="false" class="w-full" required />
-            <small v-if="isSubmitted && !registerData.confirmPassword" class="p-error">Password confirmation is required</small>
-            <small v-else-if="isSubmitted && registerData.password !== registerData.confirmPassword" class="p-error">Passwords do not match</small>
-        </div>
-
-        <div class="field-checkbox mt-4">
+        <div class="field-checkbox mt-4 mb-3">
             <Checkbox id="terms" v-model="registerData.acceptTerms" :binary="true" />
-            <label for="terms" class="ml-2"> I agree to the <a href="#" class="text-amber-600 hover:underline">Terms of Service</a> and <a href="#" class="text-amber-600 hover:underline">Privacy Policy</a> </label>
-            <small v-if="isSubmitted && !registerData.acceptTerms" class="p-error block mt-1">You must agree to the terms to continue</small>
+            <label for="terms" class="ml-2"> Tôi đồng ý với <a href="#" class="text-blue-500 hover:text-blue-700 no-underline hover:underline">Điều khoản dịch vụ</a> và <a href="#" class="text-blue-500 hover:text-blue-700 no-underline hover:underline">Chính sách bảo mật</a> </label>
+            <small v-if="isSubmitted && !registerData.acceptTerms" class="p-error block mt-1">Bạn phải đồng ý với điều khoản để tiếp tục</small>
         </div>
 
-        <div class="flex flex-col mt-4">
-            <Button type="button" label="Register" class="w-full py-2 font-medium bg-amber-600 hover:bg-amber-700 border-amber-600" @click="register" :loading="loading" />
+        <Button
+            type="button"
+            label="Đăng ký"
+            class="w-full p-button-primary mb-3"
+            @click="register"
+            :loading="loading"
+        />
 
-            <div class="text-center mt-4">
-                <span class="text-sm text-gray-600">Already have an account?</span>
-                <Button type="button" label="Sign In" class="p-button-link p-button-sm text-amber-600 ml-2" @click="login" />
-            </div>
+        <div class="text-center">
+            <span>Đã có tài khoản? </span>
+            <a @click="login" class="text-blue-500 hover:text-blue-700 cursor-pointer font-medium no-underline">Đăng nhập ngay</a>
         </div>
     </Dialog>
 </template>

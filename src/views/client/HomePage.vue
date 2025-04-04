@@ -124,21 +124,20 @@ function handleBookNow(event) {
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                             <label class="block text-gray-700 mb-2">Ngày nhận phòng</label>
-                            <Calendar v-model="searchForm.checkIn" placeholder="Chọn ngày" class="w-full" showIcon minDate="new Date()" />
+                            <Calendar v-model="searchForm.checkIn" placeholder="Chọn ngày" class="w-full" showIcon :minDate="new Date()" />
                         </div>
                         <div>
                             <label class="block text-gray-700 mb-2">Ngày trả phòng</label>
-                            <Calendar v-model="searchForm.checkOut" placeholder="Chọn ngày" class="w-full" showIcon minDate="searchForm.checkIn || new Date()" />
+                            <Calendar v-model="searchForm.checkOut" placeholder="Chọn ngày" class="w-full" showIcon :minDate="searchForm.checkIn || new Date()" />
                         </div>
                         <div>
-                            <label class="block text-gray-700 mb-2">Số người</label>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label class="block text-xs text-gray-600 mb-1">Người lớn</label>
+                                    <label class="block text-xs text-gray-600 mb-2">Người lớn</label>
                                     <Dropdown v-model="searchForm.adults" class="w-full" :options="[1, 2, 3, 4, 5]" placeholder="Số lượng" />
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-gray-600 mb-1">Trẻ em</label>
+                                    <label class="block text-xs text-gray-600 mb-2">Trẻ em</label>
                                     <Dropdown v-model="searchForm.children" class="w-full" :options="[0, 1, 2, 3, 4]" placeholder="Số lượng" />
                                 </div>
                             </div>
