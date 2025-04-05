@@ -103,6 +103,12 @@ const routes = [
                 meta: { title: 'Xác nhận đặt phòng - Luxury Hotel' }
             },
             {
+                path: '/booking/confirm',
+                name: 'BookingConfirm',
+                component: () => import('@/views/client/BookingConfirmPage.vue'),
+                meta: { title: 'Xác nhận đặt phòng - Luxury Hotel' }
+            },
+            {
                 path: '/booking/confirmation/:id',
                 name: 'BookingConfirmation',
                 component: () => import('@/views/client/BookingConfirmationPage.vue'),

@@ -2,6 +2,10 @@ import ApiService from './ApiService';
 
 /**
  * Service quản lý các API liên quan đến thống kê hệ thống
+ *
+ * Ghi chú: Tất cả các API trong file này đều sẽ tự động hiển thị dữ liệu mẫu
+ * nếu API không trả về dữ liệu hoặc có lỗi. Khi API đã được cài đặt và trả về dữ liệu,
+ * các component sẽ tự động sử dụng dữ liệu thực.
  */
 export default {
     /**
@@ -9,6 +13,14 @@ export default {
      * @returns {Promise} Promise chứa thông tin tổng quan
      */
     getCountInfo() {
+        // return {
+        //   data: {
+        //     totalBookings: 28,
+        //     totalCustomers: 22,
+        //     totalRates: 8,
+        //     totalRevenue: 142500000.0
+        //   }
+        // };
         return ApiService.get('/api/v1/statistics/count-info');
     },
 

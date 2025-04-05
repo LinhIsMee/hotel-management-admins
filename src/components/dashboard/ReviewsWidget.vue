@@ -11,7 +11,7 @@ const fetchReviewStats = async () => {
     try {
         loading.value = true;
         const response = await StatisticsService.getReviewsByRating();
-        reviews.value = response.data;
+        reviews.value = response.data || {};
 
         // Tính tổng số đánh giá
         totalReviews.value = Object.values(reviews.value).reduce((sum, count) => sum + count, 0);
@@ -23,10 +23,14 @@ const fetchReviewStats = async () => {
                 sum += i * (reviews.value[i] || 0);
             }
             averageRating.value = sum / totalReviews.value;
+        } else {
+            averageRating.value = 0;
         }
     } catch (error) {
         console.error('Lỗi khi lấy dữ liệu đánh giá:', error);
         reviews.value = {};
+        totalReviews.value = 0;
+        averageRating.value = 0;
     } finally {
         loading.value = false;
     }

@@ -19,15 +19,28 @@ const formatCurrency = (value) => {
     }).format(value);
 };
 
-onMounted(async () => {
+const fetchStats = async () => {
     try {
+        loading.value = true;
         const response = await StatisticsService.getCountInfo();
-        stats.value = response.data;
+        if (response.data) {
+            stats.value = response.data;
+        }
     } catch (error) {
         console.error('Lỗi khi lấy thông tin thống kê:', error);
+        stats.value = {
+            totalBookings: 0,
+            totalCustomers: 0,
+            totalRates: 0,
+            totalRevenue: 0
+        };
     } finally {
         loading.value = false;
     }
+};
+
+onMounted(async () => {
+    await fetchStats();
 });
 </script>
 

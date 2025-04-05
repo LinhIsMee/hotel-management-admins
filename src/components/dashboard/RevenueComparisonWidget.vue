@@ -13,9 +13,16 @@ const fetchRevenueComparison = async () => {
     try {
         loading.value = true;
         const response = await StatisticsService.getRevenueComparison();
-        comparisonData.value = response.data;
+        if (response.data) {
+            comparisonData.value = response.data;
+        }
     } catch (error) {
         console.error('Lỗi khi lấy dữ liệu so sánh doanh thu:', error);
+        comparisonData.value = {
+            currentMonth: 0,
+            previousMonth: 0,
+            percentChange: 0
+        };
     } finally {
         loading.value = false;
     }
@@ -43,6 +50,10 @@ onMounted(() => {
         <div class="font-semibold text-xl mb-4">So sánh doanh thu</div>
         <div v-if="loading" class="flex justify-center items-center h-32">
             <i class="pi pi-spin pi-spinner text-2xl"></i>
+        </div>
+        <div v-else-if="comparisonData.currentMonth === 0 && comparisonData.previousMonth === 0"
+             class="flex justify-center items-center h-32 text-gray-500">
+            Không có dữ liệu so sánh doanh thu
         </div>
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <!-- Tháng hiện tại -->

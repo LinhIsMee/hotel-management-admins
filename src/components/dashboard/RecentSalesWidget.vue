@@ -12,7 +12,7 @@ const fetchRecentBookings = async () => {
     try {
         loading.value = true;
         const response = await StatisticsService.getRecentBookings(7); // Lấy 7 ngày gần đây
-        bookings.value = response.data;
+        bookings.value = response.data || [];
     } catch (error) {
         console.error('Lỗi khi lấy dữ liệu đặt phòng gần đây:', error);
         bookings.value = [];
@@ -71,6 +71,9 @@ const getSeverity = (status) => {
         <h5 class="text-xl font-medium mb-4">Đặt phòng gần đây</h5>
         <div v-if="loading" class="flex justify-center py-4">
             <i class="pi pi-spin pi-spinner text-2xl"></i>
+        </div>
+        <div v-else-if="bookings.length === 0" class="flex justify-center py-4 text-gray-500">
+            Không có dữ liệu đặt phòng gần đây
         </div>
         <DataTable v-else :value="bookings" class="p-datatable-sm" :rows="5" :rowsPerPageOptions="[5, 10, 20]" paginator>
             <Column field="id" header="ID" style="width: 5%"></Column>

@@ -23,6 +23,7 @@ import ProgressSpinner from 'primevue/progressspinner';
 import Textarea from 'primevue/textarea';
 import Accordion from 'primevue/accordion';
 import AccordionTab from 'primevue/accordiontab';
+import Chart from 'primevue/chart';
 
 import '@/assets/styles.scss';
 import './assets/styles/main.css';
@@ -57,6 +58,7 @@ app.component('ProgressSpinner', ProgressSpinner);
 app.component('Textarea', Textarea);
 app.component('Accordion', Accordion);
 app.component('AccordionTab', AccordionTab);
+app.component('Chart', Chart);
 
 const head = createHead();
 app.use(head);

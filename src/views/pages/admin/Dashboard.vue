@@ -11,6 +11,7 @@ import RevenueComparisonWidget from '@/components/dashboard/RevenueComparisonWid
 
 <template>
   <div class="dashboard-container">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">Tổng quan quản trị khách sạn</h1>
     <div class="grid grid-cols-12 gap-8">
         <StatsWidget />
 

@@ -45,7 +45,7 @@ onMounted(() => {
         const topbarEl = document.querySelector('.layout-topbar-menu');
         const menuButtonEl = document.querySelector('.layout-menu-button');
 
-        if (sidebarEl && !sidebarEl.contains(event.target) && !menuButtonEl.contains(event.target)) {
+        if (sidebarEl && !sidebarEl.contains(event.target) && (menuButtonEl && !menuButtonEl.contains(event.target))) {
             menuActive.value = false;
         }
 

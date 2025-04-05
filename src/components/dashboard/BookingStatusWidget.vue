@@ -30,7 +30,7 @@ const fetchBookingStatus = async () => {
     try {
         loading.value = true;
         const response = await StatisticsService.getBookingsByStatus();
-        statusData.value = response.data;
+        statusData.value = response.data || {};
     } catch (error) {
         console.error('Lỗi khi lấy dữ liệu trạng thái đặt phòng:', error);
         statusData.value = {};
@@ -89,7 +89,7 @@ function setChartOptions() {
             },
             tooltip: {
                 callbacks: {
-                    label: function(context) {
+                    label: function (context) {
                         const label = context.label || '';
                         const value = context.raw || 0;
                         const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
@@ -116,13 +116,13 @@ onMounted(async () => {
 
 <template>
     <div class="card">
-        <div class="font-semibold text-xl mb-4">Trạng thái đặt phòng</div>
-        <div v-if="loading" class="flex justify-center items-center h-64">
+        <div class="font-semibold text-xl">Trạng thái đặt phòng</div>
+        <div v-if="loading" class="flex justify-center items-center">
             <i class="pi pi-spin pi-spinner text-3xl"></i>
         </div>
-        <div v-else-if="Object.keys(statusData).length === 0" class="flex justify-center items-center h-64 text-gray-500">
-            Không có dữ liệu
+        <div v-else-if="Object.keys(statusData).length === 0" class="flex justify-center items-center  text-gray-500">
+            Không có dữ liệu trạng thái đặt phòng
         </div>
-        <Chart v-else type="pie" :data="chartData" :options="chartOptions" class="h-64" />
+        <Chart v-else type="pie" :data="chartData" :options="chartOptions" class="" />
     </div>
 </template>

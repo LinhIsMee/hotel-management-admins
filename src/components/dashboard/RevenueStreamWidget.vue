@@ -14,9 +14,10 @@ const fetchRevenueData = async () => {
     try {
         loading.value = true;
         const response = await StatisticsService.getRevenueByDay();
-        revenueData.value = response.data;
+        revenueData.value = response.data || {};
     } catch (error) {
         console.error('Lỗi khi lấy dữ liệu doanh thu:', error);
+        revenueData.value = {};
     } finally {
         loading.value = false;
     }
@@ -121,6 +122,9 @@ onMounted(async () => {
         <div class="font-semibold text-xl mb-4">Doanh thu theo ngày</div>
         <div v-if="loading" class="flex justify-center items-center h-80">
             <i class="pi pi-spin pi-spinner text-3xl"></i>
+        </div>
+        <div v-else-if="Object.keys(revenueData).length === 0" class="flex justify-center items-center h-80 text-gray-500">
+            Không có dữ liệu doanh thu
         </div>
         <Chart v-else type="bar" :data="chartData" :options="chartOptions" class="h-80" />
     </div>

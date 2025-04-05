@@ -16,7 +16,7 @@ const fetchMostBookedRooms = async () => {
     try {
         loading.value = true;
         const response = await StatisticsService.getMostBookedRooms(6); // Lấy 6 phòng được đặt nhiều nhất
-        rooms.value = response.data;
+        rooms.value = response.data || [];
     } catch (error) {
         console.error('Lỗi khi lấy dữ liệu phòng được đặt nhiều nhất:', error);
         rooms.value = [];
@@ -63,13 +63,13 @@ onMounted(() => {
         <ul v-else class="list-none p-0 m-0">
             <li v-for="(room, index) in rooms" :key="room.roomNumber" class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
                 <div>
-                    <span class="text-surface-900 dark:text-surface-0 font-medium mr-2 mb-1 md:mb-0">
+                    <span class="text-surface-900 font-medium mr-2 mb-1 md:mb-0">
                         Phòng {{ room.roomNumber }}
                     </span>
-                    <div class="mt-1 text-muted-color">{{ room.roomType }}</div>
+                    <div class="mt-1 text-gray-500">{{ room.roomType }}</div>
                 </div>
                 <div class="mt-2 md:mt-0 flex items-center">
-                    <div class="bg-surface-300 dark:bg-surface-500 rounded-border overflow-hidden w-40 lg:w-24" style="height: 8px">
+                    <div class="bg-gray-200 rounded overflow-hidden w-40 lg:w-24" style="height: 8px">
                         <div :class="`bg-${getRandomColorClass(index)}-500 h-full`" :style="{ width: `${room.occupancyRate}%` }"></div>
                     </div>
                     <span :class="`text-${getRandomColorClass(index)}-500 ml-4 font-medium`">{{ room.occupancyRate.toFixed(1) }}%</span>

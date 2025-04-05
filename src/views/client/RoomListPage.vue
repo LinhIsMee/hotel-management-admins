@@ -89,6 +89,7 @@ const childrenOptions = [
 const loadRoomData = async () => {
   // Sử dụng trực tiếp các hàm từ useRoomManagement để tự quản lý loading
   try {
+    loading.value = true;
     let loadedRooms = [];
     // Khi có ngày checkin và checkout, tìm phòng trống trong khoảng thời gian
     if (filters.value.checkIn && filters.value.checkOut) {
@@ -105,68 +106,25 @@ const loadRoomData = async () => {
 
     console.log('Dữ liệu phòng nhận được:', loadedRooms);
 
-    // Lấy dữ liệu loại phòng để bổ sung thông tin chi tiết
-    const roomTypesData = await fetchAllRoomTypes();
-    const roomTypeMap = {};
-
-    if (roomTypesData && roomTypesData.length > 0) {
-      roomTypesData.forEach(roomType => {
-        roomTypeMap[roomType.id] = roomType;
+    // Tính giá theo thời gian nếu có chọn ngày
+    if (filters.value.checkIn && filters.value.checkOut) {
+      loadedRooms.forEach(room => {
+        room.finalPrice = calculateTotalPrice(room, filters.value.checkIn, filters.value.checkOut);
+      });
+    } else {
+      loadedRooms.forEach(room => {
+        room.finalPrice = room.pricePerNight;
       });
     }
 
-    console.log('Dữ liệu loại phòng:', roomTypeMap);
-
-    // Nếu API không trả về ảnh, thêm ảnh mặc định
-    loadedRooms.forEach((room, index) => {
-      const roomTypeInfo = roomTypeMap[room.roomTypeId];
-
-      // Bổ sung thông tin từ room-types nếu có
-      if (roomTypeInfo) {
-        // Lấy mô tả từ loại phòng
-        room.description = roomTypeInfo.description;
-
-        // Sử dụng ảnh từ loại phòng nếu phòng không có ảnh
-        if (!room.images || room.images.length === 0) {
-          if (roomTypeInfo.imageUrl) {
-            room.imageUrl = roomTypeInfo.imageUrl;
-          } else {
-            room.imageUrl = availableImages[index % 3];
-          }
-        } else {
-          room.imageUrl = room.images[0];
-        }
-      } else {
-        // Fallback nếu không tìm thấy thông tin loại phòng
-        if (!room.images || room.images.length === 0) {
-          room.imageUrl = availableImages[index % 3];
-        } else {
-          room.imageUrl = room.images[0];
-        }
-
-        // Mô tả mặc định nếu không có thông tin loại phòng
-        room.description = `${room.roomTypeName} với đầy đủ tiện nghi hiện đại`;
-      }
-
-      // Đảm bảo amenities luôn là mảng
-      if (!room.amenities) {
-        room.amenities = ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng'];
-      }
-
-      // Tính giá theo thời gian nếu có chọn ngày
-      if (filters.value.checkIn && filters.value.checkOut) {
-        room.finalPrice = calculateTotalPrice(room, filters.value.checkIn, filters.value.checkOut);
-      } else {
-        room.finalPrice = room.pricePerNight;
-      }
-    });
-
     // Cập nhật danh sách phòng từ dữ liệu đã tải
     rooms.value = loadedRooms;
-    console.log('Đã cập nhật rooms.value với thông tin bổ sung:', rooms.value);
+    console.log('Đã cập nhật rooms.value:', rooms.value);
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu phòng:', error);
     rooms.value = []; // Đặt thành mảng rỗng nếu có lỗi
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -414,17 +372,22 @@ useHead({
                  class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
               <div class="flex flex-col md:flex-row">
                 <div class="md:w-1/3">
-                  <img :src="room.imageUrl" :alt="room.roomTypeName + ' - ' + room.roomNumber" class="w-full h-full object-cover" />
+                  <img
+                    :src="room.images && room.images.length > 0 ? room.images[0] : (room.imageUrl || 'https://via.placeholder.com/400x300?text=Không+có+ảnh')"
+                    :alt="room.roomTypeName + ' - ' + room.roomNumber"
+                    class="w-full h-full object-cover"
+                    @error="$event.target.src='https://via.placeholder.com/400x300?text=Không+có+ảnh'"
+                  />
                 </div>
                 <div class="md:w-2/3 p-6">
                   <div class="flex flex-col md:flex-row justify-between items-start mb-4">
                     <h3 class="text-xl font-bold text-gray-800 mb-2 md:mb-0">{{ room.roomTypeName }} - {{ room.roomNumber }}</h3>
                     <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold">
-                      {{ formatCurrency(room.finalPrice) }}/đêm
+                      {{ formatCurrency(room.pricePerNight) }}/đêm
                     </span>
                   </div>
 
-                  <p class="text-gray-600 mb-4">{{ room.description }}</p>
+                  <p class="text-gray-600 mb-4">{{ room.specialFeatures || room.notes || `${room.roomTypeName} với đầy đủ tiện nghi hiện đại` }}</p>
 
                   <div class="flex flex-wrap gap-2 mb-4">
                     <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
@@ -434,13 +397,30 @@ useHead({
                           class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
                       {{ amenity }}
                     </span>
-                    <span v-if="room.amenities.length > 3" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
+                    <span v-if="room.amenities && room.amenities.length > 3" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
                       +{{ room.amenities.length - 3 }}
                     </span>
                   </div>
 
+                  <div class="flex items-center gap-2 mb-4">
+                    <span class="px-2 py-1 rounded text-sm"
+                        :class="{
+                          'bg-green-100 text-green-800': room.status === 'VACANT',
+                          'bg-red-100 text-red-800': room.status === 'OCCUPIED',
+                          'bg-blue-100 text-blue-800': room.status === 'CLEANING',
+                          'bg-yellow-100 text-yellow-800': room.status === 'MAINTENANCE'
+                        }">
+                      {{
+                        room.status === 'VACANT' ? 'Phòng trống' :
+                        room.status === 'OCCUPIED' ? 'Đã đặt' :
+                        room.status === 'CLEANING' ? 'Đang dọn dẹp' :
+                        room.status === 'MAINTENANCE' ? 'Đang bảo trì' : 'Không xác định'
+                      }}
+                    </span>
+                  </div>
+
                   <div class="card-footer flex flex-col md:flex-row justify-between items-center mt-4">
-                    <span class="text-xl font-bold text-amber-600 mb-3 md:mb-0">{{ formatCurrency(room.finalPrice) }}<span class="text-sm text-gray-500">/đêm</span></span>
+                    <span class="text-xl font-bold text-amber-600 mb-3 md:mb-0">{{ formatCurrency(room.pricePerNight) }}<span class="text-sm text-gray-500">/đêm</span></span>
                     <router-link
                       :to="`/room/${room.id}`"
                       class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded transition duration-300 inline-block"
