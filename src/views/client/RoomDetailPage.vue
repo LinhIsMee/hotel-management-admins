@@ -10,6 +10,9 @@ import Rating from 'primevue/rating';
 import Skeleton from 'primevue/skeleton';
 import DatePicker from 'primevue/datepicker';
 import ProgressSpinner from 'primevue/progressspinner';
+import Checkbox from 'primevue/checkbox';
+import InputText from 'primevue/inputtext';
+import Button from 'primevue/button';
 
 const route = useRoute();
 const router = useRouter();
@@ -27,7 +30,10 @@ const booking = ref({
     checkInDate: null,
     checkOutDate: null,
     guests: 1,
-    specialRequests: ''
+    specialRequests: '',
+    payViaVnpay: false,
+    discountCode: '',
+    services: []
 });
 
 // Form đánh giá
@@ -47,6 +53,33 @@ const selectedImage = ref(null);
 const selectedImageIndex = ref(0);
 const galleryVisible = ref(false);
 const currentGalleryIndex = ref(0);
+
+// Thêm vào biến cho phần mã giảm giá
+const discountStatus = ref({
+    loading: false,
+    valid: false,
+    applied: false,
+    message: '',
+    discount: 0,
+    code: ''
+});
+
+// Thêm danh sách dịch vụ
+const availableServices = ref([
+    { id: 1, name: 'Bữa sáng', price: 150000, description: 'Buffet bữa sáng cho mỗi khách' },
+    { id: 2, name: 'Đưa đón sân bay', price: 350000, description: 'Dịch vụ đưa đón sân bay' },
+    { id: 3, name: 'Giặt ủi', price: 100000, description: 'Dịch vụ giặt ủi' },
+    { id: 4, name: 'Spa', price: 500000, description: 'Dịch vụ Spa và massage' }
+]);
+
+// Tính tổng tiền dịch vụ
+const serviceTotal = computed(() => {
+    if (!booking.value.services || booking.value.services.length === 0) return 0;
+    return booking.value.services.reduce((total, serviceId) => {
+        const service = availableServices.value.find(s => s.id === serviceId);
+        return total + (service ? service.price : 0);
+    }, 0);
+});
 
 // Các phương thức xử lý thư viện ảnh
 const selectImage = (index) => {
@@ -229,7 +262,19 @@ const days = computed(() => {
 
 const totalPrice = computed(() => {
     if (!room.value || days.value === 0) return 0;
-    return room.value.pricePerNight * days.value;
+
+    // Tính giá phòng
+    let total = room.value.pricePerNight * days.value;
+
+    // Cộng thêm giá dịch vụ
+    total += serviceTotal.value;
+
+    // Trừ giảm giá nếu có
+    if (discountStatus.value.applied) {
+        total -= discountStatus.value.discount;
+    }
+
+    return total > 0 ? total : 0;
 });
 
 // Xếp hạng trung bình
@@ -252,23 +297,96 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
+// Thêm phương thức kiểm tra và áp dụng mã giảm giá
+const checkDiscountCode = async () => {
+    if (!booking.value.discountCode) return;
+
+    discountStatus.value.loading = true;
+    discountStatus.value.valid = false;
+    discountStatus.value.applied = false;
+    discountStatus.value.message = '';
+
+    try {
+        // Giả lập API kiểm tra mã giảm giá
+        setTimeout(() => {
+            // Mã giảm giá mẫu: WELCOME20, SUMMER10, NEWYEAR30
+            const validCodes = {
+                'WELCOME20': { discount: 0.2, message: 'Giảm 20% cho đơn hàng' },
+                'SUMMER10': { discount: 0.1, message: 'Giảm 10% cho đơn hàng' },
+                'NEWYEAR30': { discount: 0.3, message: 'Giảm 30% cho đơn hàng' }
+            };
+
+            const code = booking.value.discountCode.toUpperCase();
+
+            if (validCodes[code]) {
+                const basePrice = room.value.pricePerNight * days.value;
+                const discountAmount = basePrice * validCodes[code].discount;
+
+                discountStatus.value.valid = true;
+                discountStatus.value.applied = true;
+                discountStatus.value.message = validCodes[code].message;
+                discountStatus.value.discount = discountAmount;
+                discountStatus.value.code = code;
+            } else {
+                discountStatus.value.valid = false;
+                discountStatus.value.message = 'Mã giảm giá không hợp lệ';
+            }
+
+            discountStatus.value.loading = false;
+        }, 500);
+    } catch (error) {
+        console.error('Lỗi khi kiểm tra mã giảm giá:', error);
+        discountStatus.value.loading = false;
+        discountStatus.value.message = 'Đã có lỗi xảy ra, vui lòng thử lại';
+    }
+};
+
+// Thêm phương thức xóa mã giảm giá
+const clearDiscountCode = () => {
+    booking.value.discountCode = '';
+    discountStatus.value.valid = false;
+    discountStatus.value.applied = false;
+    discountStatus.value.message = '';
+    discountStatus.value.discount = 0;
+    discountStatus.value.code = '';
+};
+
+// Mở rộng phương thức tiến hành đặt phòng
 const proceedToBooking = () => {
     if (!booking.value.checkInDate || !booking.value.checkOutDate) {
         // Hiển thị thông báo lỗi
         return;
     }
 
-    // Lưu thông tin đặt phòng vào localStorage hoặc store
+    // Lưu thông tin đặt phòng vào localStorage
     const bookingData = {
         roomId: roomId.value,
         roomName: room.value.name,
         roomImage: room.value.imageUrl,
         pricePerNight: room.value.pricePerNight,
+        bookingDays: days.value,
         ...booking.value,
+        serviceTotal: serviceTotal.value,
         totalPrice: totalPrice.value
     };
 
+    // Nếu có giảm giá, thêm thông tin giảm giá
+    if (discountStatus.value.applied) {
+        bookingData.discountCode = discountStatus.value.code;
+        bookingData.discountAmount = discountStatus.value.discount;
+    }
+
     localStorage.setItem('bookingData', JSON.stringify(bookingData));
+
+    // Nếu thanh toán qua VNPay, thực hiện chuyển hướng
+    if (booking.value.payViaVnpay) {
+        // Trong thực tế, bạn sẽ gọi API để tạo đường dẫn thanh toán VNPay
+        // Ở đây chúng ta giả lập việc chuyển hướng
+        alert('Hệ thống sẽ chuyển hướng đến cổng thanh toán VNPay...');
+        // window.location.href = 'https://sandbox.vnpayment.vn/paymentv2/...';
+    }
+
+    // Ngược lại thì chuyển đến trang thanh toán bình thường
     router.push('/booking/checkout');
 };
 
@@ -439,9 +557,58 @@ useHead(() => ({
                             <Dropdown v-model="booking.guests" :options="[1, 2, 3, 4]" class="w-full" />
                         </div>
 
-                        <div class="mb-6">
+                        <div class="mb-4">
                             <label class="block text-gray-700 mb-1">Yêu cầu đặc biệt</label>
                             <Textarea v-model="booking.specialRequests" rows="3" class="w-full" placeholder="Nhập yêu cầu đặc biệt (nếu có)" />
+                        </div>
+
+                        <!-- Thêm phần dịch vụ bổ sung -->
+                        <div class="mb-4">
+                            <h3 class="font-semibold text-gray-700 mb-2">Dịch vụ bổ sung</h3>
+                            <div class="space-y-2">
+                                <div v-for="service in availableServices" :key="service.id" class="flex items-center">
+                                    <Checkbox
+                                        v-model="booking.services"
+                                        :value="service.id"
+                                        :binary="false"
+                                        :inputId="`service_${service.id}`"
+                                    />
+                                    <label :for="`service_${service.id}`" class="ml-2 flex-grow">
+                                        {{ service.name }}
+                                        <span class="text-amber-600 font-medium">{{ formatCurrency(service.price) }}</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Thêm phần mã giảm giá -->
+                        <div class="mb-4">
+                            <h3 class="font-semibold text-gray-700 mb-2">Mã giảm giá</h3>
+                            <div class="flex space-x-2">
+                                <InputText
+                                    v-model="booking.discountCode"
+                                    placeholder="Nhập mã giảm giá"
+                                    class="flex-grow"
+                                    :disabled="discountStatus.applied"
+                                />
+                                <Button
+                                    v-if="!discountStatus.applied"
+                                    @click="checkDiscountCode"
+                                    label="Áp dụng"
+                                    :loading="discountStatus.loading"
+                                    class="bg-gray-600 hover:bg-gray-700"
+                                    :disabled="!booking.discountCode || discountStatus.loading"
+                                />
+                                <Button
+                                    v-else
+                                    @click="clearDiscountCode"
+                                    icon="pi pi-times"
+                                    class="bg-gray-600 hover:bg-gray-700"
+                                />
+                            </div>
+                            <small v-if="discountStatus.message" :class="discountStatus.valid ? 'text-green-600' : 'text-red-600'">
+                                {{ discountStatus.message }}
+                            </small>
                         </div>
 
                         <div v-if="days > 0" class="bg-gray-50 p-4 rounded-lg mb-6">
@@ -453,10 +620,30 @@ useHead(() => ({
                                 <span class="text-gray-700">Số đêm:</span>
                                 <span class="font-semibold">{{ days }} đêm</span>
                             </div>
+                            <div v-if="booking.services && booking.services.length > 0" class="flex justify-between mb-3">
+                                <span class="text-gray-700">Dịch vụ bổ sung:</span>
+                                <span class="font-semibold">{{ formatCurrency(serviceTotal) }}</span>
+                            </div>
+                            <div v-if="discountStatus.applied" class="flex justify-between mb-3 text-green-600">
+                                <span>Giảm giá ({{ discountStatus.code }}):</span>
+                                <span class="font-semibold">-{{ formatCurrency(discountStatus.discount) }}</span>
+                            </div>
                             <div class="flex justify-between text-lg font-bold mt-2 pt-2 border-t border-gray-200">
                                 <span>Tổng cộng:</span>
                                 <span class="text-amber-600">{{ formatCurrency(totalPrice) }}</span>
                             </div>
+                        </div>
+
+                        <!-- Thêm phần thanh toán VNPay -->
+                        <div class="mb-4">
+                            <div class="flex items-center">
+                                <Checkbox v-model="booking.payViaVnpay" :binary="true" inputId="pay_vnpay" />
+                                <label for="pay_vnpay" class="ml-2 flex items-center">
+                                    <span class="mr-2">Thanh toán qua VNPay</span>
+                                    <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPay" class="h-6" />
+                                </label>
+                            </div>
+                            <small class="text-gray-500 mt-1 block">Bạn sẽ được chuyển đến cổng thanh toán VNPay sau khi nhấn nút tiếp tục</small>
                         </div>
 
                         <Button @click="proceedToBooking" label="Tiếp tục đặt phòng" class="w-full p-button-lg" :disabled="!booking.checkInDate || !booking.checkOutDate" />
