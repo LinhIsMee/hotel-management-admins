@@ -2,6 +2,7 @@
 import nha_nghi_1 from '@/assets/images/nha-nghi-1.webp';
 import nha_nghi_2 from '@/assets/images/nha-nghi-2.webp';
 import nha_nghi_3 from '@/assets/images/nha-nghi-3.webp';
+import { useRoomManagement } from '@/composables/useRoomManagement';
 import { useHead } from '@vueuse/head';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -12,22 +13,21 @@ import Slider from 'primevue/slider';
 import MultiSelect from 'primevue/multiselect';
 import DatePicker from 'primevue/datepicker';
 
-// Import function để format date nếu chưa có
-const formatDate = (date) => {
-  if (!date) return '';
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 const router = useRouter();
 const route = useRoute();
-const rooms = ref([]);
-const loading = ref(true);
+const {
+    rooms,
+    loading,
+    fetchAllRooms,
+    fetchAvailableRooms,
+    fetchRoomsByOccupancy,
+    fetchAllRoomTypes,
+    formatCurrency,
+    formatDate,
+    calculateTotalPrice
+} = useRoomManagement();
 
-// Mảng chứa đường dẫn ảnh có sẵn
+// Mảng chứa đường dẫn ảnh có sẵn (backup nếu API không trả về ảnh)
 const availableImages = [nha_nghi_1, nha_nghi_2, nha_nghi_3];
 
 // Bộ lọc
@@ -58,13 +58,7 @@ const amenitiesList = ref([
 ]);
 
 // Danh sách loại phòng
-const roomTypes = ref([
-  'Phòng đơn',
-  'Phòng đôi',
-  'Phòng gia đình',
-  'Phòng VIP',
-  'Căn hộ studio'
-]);
+const roomTypes = ref([]);
 
 // Danh sách số người
 const occupancyOptions = ref([
@@ -91,6 +85,101 @@ const childrenOptions = [
   { label: '4 trẻ em', value: 4 }
 ];
 
+// Tải dữ liệu phòng dựa trên bộ lọc
+const loadRoomData = async () => {
+  // Sử dụng trực tiếp các hàm từ useRoomManagement để tự quản lý loading
+  try {
+    let loadedRooms = [];
+    // Khi có ngày checkin và checkout, tìm phòng trống trong khoảng thời gian
+    if (filters.value.checkIn && filters.value.checkOut) {
+      loadedRooms = await fetchAvailableRooms(filters.value.checkIn, filters.value.checkOut);
+    }
+    // Khi chọn số người, tìm phòng theo sức chứa
+    else if (filters.value.adults) {
+      loadedRooms = await fetchRoomsByOccupancy(filters.value.adults);
+    }
+    // Mặc định lấy tất cả phòng
+    else {
+      loadedRooms = await fetchAllRooms();
+    }
+
+    console.log('Dữ liệu phòng nhận được:', loadedRooms);
+
+    // Lấy dữ liệu loại phòng để bổ sung thông tin chi tiết
+    const roomTypesData = await fetchAllRoomTypes();
+    const roomTypeMap = {};
+
+    if (roomTypesData && roomTypesData.length > 0) {
+      roomTypesData.forEach(roomType => {
+        roomTypeMap[roomType.id] = roomType;
+      });
+    }
+
+    console.log('Dữ liệu loại phòng:', roomTypeMap);
+
+    // Nếu API không trả về ảnh, thêm ảnh mặc định
+    loadedRooms.forEach((room, index) => {
+      const roomTypeInfo = roomTypeMap[room.roomTypeId];
+
+      // Bổ sung thông tin từ room-types nếu có
+      if (roomTypeInfo) {
+        // Lấy mô tả từ loại phòng
+        room.description = roomTypeInfo.description;
+
+        // Sử dụng ảnh từ loại phòng nếu phòng không có ảnh
+        if (!room.images || room.images.length === 0) {
+          if (roomTypeInfo.imageUrl) {
+            room.imageUrl = roomTypeInfo.imageUrl;
+          } else {
+            room.imageUrl = availableImages[index % 3];
+          }
+        } else {
+          room.imageUrl = room.images[0];
+        }
+      } else {
+        // Fallback nếu không tìm thấy thông tin loại phòng
+        if (!room.images || room.images.length === 0) {
+          room.imageUrl = availableImages[index % 3];
+        } else {
+          room.imageUrl = room.images[0];
+        }
+
+        // Mô tả mặc định nếu không có thông tin loại phòng
+        room.description = `${room.roomTypeName} với đầy đủ tiện nghi hiện đại`;
+      }
+
+      // Đảm bảo amenities luôn là mảng
+      if (!room.amenities) {
+        room.amenities = ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng'];
+      }
+
+      // Tính giá theo thời gian nếu có chọn ngày
+      if (filters.value.checkIn && filters.value.checkOut) {
+        room.finalPrice = calculateTotalPrice(room, filters.value.checkIn, filters.value.checkOut);
+      } else {
+        room.finalPrice = room.pricePerNight;
+      }
+    });
+
+    // Cập nhật danh sách phòng từ dữ liệu đã tải
+    rooms.value = loadedRooms;
+    console.log('Đã cập nhật rooms.value với thông tin bổ sung:', rooms.value);
+  } catch (error) {
+    console.error('Lỗi khi tải dữ liệu phòng:', error);
+    rooms.value = []; // Đặt thành mảng rỗng nếu có lỗi
+  }
+};
+
+// Tải danh sách loại phòng
+const loadRoomTypes = async () => {
+  try {
+    const types = await fetchAllRoomTypes();
+    roomTypes.value = types.map(type => type.name);
+  } catch (error) {
+    console.error('Lỗi khi tải danh sách loại phòng:', error);
+  }
+};
+
 onMounted(async () => {
   // Lấy các query parameters
   if (route.query.checkIn) {
@@ -109,95 +198,11 @@ onMounted(async () => {
     filters.value.children = parseInt(route.query.children);
   }
 
-  try {
-    // Dữ liệu phòng mẫu thay vì gọi API
-    const mockRoomData = [
-      {
-        id: 1,
-        name: 'Phòng Deluxe Đơn',
-        type: 'Phòng đơn',
-        description: 'Phòng sang trọng với view thành phố, phù hợp cho doanh nhân và du khách đơn.',
-        pricePerNight: 1200000,
-        maxOccupancy: 1,
-        size: 28,
-        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar']
-      },
-      {
-        id: 2,
-        name: 'Phòng Superior Đôi',
-        type: 'Phòng đôi',
-        description: 'Phòng rộng rãi với giường đôi thoải mái, thích hợp cho cặp đôi.',
-        pricePerNight: 1500000,
-        maxOccupancy: 2,
-        size: 32,
-        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn']
-      },
-      {
-        id: 3,
-        name: 'Phòng Gia Đình',
-        type: 'Phòng gia đình',
-        description: 'Phòng rộng rãi với 2 giường đôi, thích hợp cho gia đình có con nhỏ.',
-        pricePerNight: 2500000,
-        maxOccupancy: 4,
-        size: 45,
-        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn', 'Bồn tắm']
-      },
-      {
-        id: 4,
-        name: 'Phòng VIP Suite',
-        type: 'Phòng VIP',
-        description: 'Phòng hạng sang với phòng khách riêng biệt, view toàn cảnh biển.',
-        pricePerNight: 4000000,
-        maxOccupancy: 2,
-        size: 60,
-        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn', 'Bồn tắm', 'Ban công', 'View biển']
-      },
-      {
-        id: 5,
-        name: 'Căn Hộ Studio',
-        type: 'Căn hộ studio',
-        description: 'Căn hộ tiện nghi với bếp nhỏ, phù hợp cho lưu trú dài ngày.',
-        pricePerNight: 3000000,
-        maxOccupancy: 3,
-        size: 50,
-        amenities: ['WiFi miễn phí', 'Điều hòa', 'TV màn hình phẳng', 'Minibar', 'Két an toàn', 'Bếp nhỏ']
-      }
-    ];
+  // Tải dữ liệu loại phòng
+  await loadRoomTypes();
 
-    // Gán ảnh ngẫu nhiên cho mỗi phòng
-    rooms.value = mockRoomData.map((room, index) => {
-      // Tính giá theo thời điểm nếu có chọn ngày
-      let finalPrice = room.pricePerNight;
-
-      if (filters.value.checkIn && filters.value.checkOut) {
-        const checkIn = new Date(filters.value.checkIn);
-        const isWeekend = checkIn.getDay() === 0 || checkIn.getDay() === 6;
-
-        // Tăng giá cuối tuần 20%
-        if (isWeekend) {
-          finalPrice = finalPrice * 1.2;
-        }
-
-        // Kiểm tra ngày lễ (có thể cần một danh sách ngày lễ)
-        // Đây chỉ là ví dụ
-        const specialDates = ['2023-12-25', '2024-01-01', '2024-04-30', '2024-05-01'];
-        const dateStr = formatDate(checkIn);
-        if (specialDates.includes(dateStr)) {
-          finalPrice = finalPrice * 1.3; // Tăng giá 30% trong ngày lễ
-        }
-      }
-
-      return {
-        ...room,
-        imageUrl: availableImages[index % 3], // Luân phiên 3 ảnh có sẵn
-        finalPrice: finalPrice
-      };
-    });
-  } catch (error) {
-    console.error('Lỗi khi tải dữ liệu phòng:', error);
-  } finally {
-    loading.value = false;
-  }
+  // Tải dữ liệu phòng
+  await loadRoomData();
 });
 
 // Đồng bộ giá trị min, max với priceRange
@@ -236,35 +241,34 @@ const updateSearch = () => {
     }
   });
 
-  // Tải lại dữ liệu - tạm thời comment lại vì chưa định nghĩa hàm
-  // loadRoomData();
+  // Tải lại dữ liệu phòng
+  loadRoomData();
 };
 
 // Lọc phòng theo các tiêu chí
 const filteredRooms = computed(() => {
   return rooms.value.filter(room => {
     // Lọc theo giá
-    if (room.finalPrice < filters.value.priceRange[0] || room.finalPrice > filters.value.priceRange[1]) {
-      return false;
-    }
-
-    // Lọc theo số người
-    if (filters.value.occupancy.length > 0 && !filters.value.occupancy.includes(Math.min(room.maxOccupancy, 4))) {
+    if (room.pricePerNight < filters.value.priceRange[0] || room.pricePerNight > filters.value.priceRange[1]) {
       return false;
     }
 
     // Lọc theo loại phòng
-    if (filters.value.roomType.length > 0 && !filters.value.roomType.includes(room.type)) {
+    if (filters.value.roomType.length > 0 && !filters.value.roomType.includes(room.roomTypeName)) {
+      return false;
+    }
+
+    // Lọc theo số người
+    if (filters.value.occupancy.length > 0 && !filters.value.occupancy.some(occ => room.maxOccupancy >= occ)) {
       return false;
     }
 
     // Lọc theo tiện nghi
     if (filters.value.amenities.length > 0) {
-      for (const amenity of filters.value.amenities) {
-        if (!room.amenities.includes(amenity)) {
-          return false;
-        }
-      }
+      // Kiểm tra xem phòng có chứa tất cả các tiện nghi được chọn không
+      return filters.value.amenities.every(amenity =>
+        room.amenities && room.amenities.includes(amenity)
+      );
     }
 
     return true;
@@ -290,25 +294,12 @@ const resetFilters = () => {
   };
 };
 
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(value);
-};
-
-// Thiết lập meta tags cho trang danh sách phòng
 useHead({
-  title: 'Danh sách phòng - Luxury Hotel',
+  title: 'Danh sách phòng',
   meta: [
-    {
-      name: 'description',
-      content: 'Khám phá danh sách phòng đa dạng tại Luxury Hotel với nhiều loại phòng từ Standard, Deluxe đến Suite. Đặt phòng trực tuyến với giá tốt nhất và nhiều ưu đãi đặc biệt.'
-    }
+    { name: 'description', content: 'Danh sách phòng tại khách sạn của chúng tôi' }
   ]
-})
+});
 </script>
 
 <template>
@@ -407,7 +398,7 @@ useHead({
 
         <!-- Room List -->
         <div class="w-full lg:w-3/4">
-          <div v-if="loading" class="flex justify-center py-10">
+          <div v-if="loading.rooms" class="flex justify-center py-10">
             <ProgressSpinner />
           </div>
 
@@ -423,11 +414,11 @@ useHead({
                  class="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
               <div class="flex flex-col md:flex-row">
                 <div class="md:w-1/3">
-                  <img :src="room.imageUrl" :alt="room.name" class="w-full h-full object-cover" />
+                  <img :src="room.imageUrl" :alt="room.roomTypeName + ' - ' + room.roomNumber" class="w-full h-full object-cover" />
                 </div>
                 <div class="md:w-2/3 p-6">
                   <div class="flex flex-col md:flex-row justify-between items-start mb-4">
-                    <h3 class="text-xl font-bold text-gray-800 mb-2 md:mb-0">{{ room.name }}</h3>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2 md:mb-0">{{ room.roomTypeName }} - {{ room.roomNumber }}</h3>
                     <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold">
                       {{ formatCurrency(room.finalPrice) }}/đêm
                     </span>

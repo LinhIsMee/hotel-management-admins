@@ -1,16 +1,29 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
+import StatisticsService from '@/services/StatisticsService';
 
-const bookings = ref([
-    { id: 1, customer: 'Nguyễn Văn A', roomNumber: '101', checkIn: '2023-10-15', amount: 1200000, status: 'CONFIRMED' },
-    { id: 2, customer: 'Trần Thị B', roomNumber: '203', checkIn: '2023-10-16', amount: 1500000, status: 'PENDING' },
-    { id: 3, customer: 'Lê Minh C', roomNumber: '305', checkIn: '2023-10-17', amount: 2100000, status: 'CONFIRMED' },
-    { id: 4, customer: 'Phạm Thanh D', roomNumber: '401', checkIn: '2023-10-18', amount: 1800000, status: 'CANCELLED' },
-    { id: 5, customer: 'Hoàng Văn E', roomNumber: '502', checkIn: '2023-10-19', amount: 2500000, status: 'CONFIRMED' }
-]);
+const bookings = ref([]);
+const loading = ref(true);
+
+const fetchRecentBookings = async () => {
+    try {
+        loading.value = true;
+        const response = await StatisticsService.getRecentBookings(7); // Lấy 7 ngày gần đây
+        bookings.value = response.data;
+    } catch (error) {
+        console.error('Lỗi khi lấy dữ liệu đặt phòng gần đây:', error);
+        bookings.value = [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+onMounted(() => {
+    fetchRecentBookings();
+});
 
 const formatDate = (value) => {
     if (value) {
@@ -43,6 +56,10 @@ const getSeverity = (status) => {
             return 'warning';
         case 'CANCELLED':
             return 'danger';
+        case 'CHECKED_IN':
+            return 'info';
+        case 'CHECKED_OUT':
+            return 'secondary';
         default:
             return null;
     }
@@ -52,18 +69,21 @@ const getSeverity = (status) => {
 <template>
     <div class="card mb-8">
         <h5 class="text-xl font-medium mb-4">Đặt phòng gần đây</h5>
-        <DataTable :value="bookings" class="p-datatable-sm" :rows="5" :rowsPerPageOptions="[5, 10, 20]" paginator>
+        <div v-if="loading" class="flex justify-center py-4">
+            <i class="pi pi-spin pi-spinner text-2xl"></i>
+        </div>
+        <DataTable v-else :value="bookings" class="p-datatable-sm" :rows="5" :rowsPerPageOptions="[5, 10, 20]" paginator>
             <Column field="id" header="ID" style="width: 5%"></Column>
-            <Column field="customer" header="Khách hàng" style="width: 25%"></Column>
+            <Column field="customerName" header="Khách hàng" style="width: 25%"></Column>
             <Column field="roomNumber" header="Phòng" style="width: 15%"></Column>
-            <Column field="checkIn" header="Ngày nhận">
+            <Column field="checkInDate" header="Ngày nhận">
                 <template #body="{ data }">
-                    {{ formatDate(data.checkIn) }}
+                    {{ formatDate(data.checkInDate) }}
                 </template>
             </Column>
-            <Column field="amount" header="Số tiền">
+            <Column field="totalPrice" header="Số tiền">
                 <template #body="{ data }">
-                    {{ formatCurrency(data.amount) }}
+                    {{ formatCurrency(data.totalPrice) }}
                 </template>
             </Column>
             <Column field="status" header="Trạng thái" style="width: 15%">

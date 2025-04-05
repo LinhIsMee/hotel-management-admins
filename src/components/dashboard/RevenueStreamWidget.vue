@@ -1,43 +1,47 @@
 <script setup>
 import { useLayout } from '@/layout/composables/layout';
 import { onMounted, ref, watch } from 'vue';
+import StatisticsService from '@/services/StatisticsService';
 
 const { getPrimary, getSurface, isDarkTheme } = useLayout();
 
 const chartData = ref(null);
 const chartOptions = ref(null);
+const loading = ref(true);
+const revenueData = ref({});
+
+const fetchRevenueData = async () => {
+    try {
+        loading.value = true;
+        const response = await StatisticsService.getRevenueByDay();
+        revenueData.value = response.data;
+    } catch (error) {
+        console.error('Lỗi khi lấy dữ liệu doanh thu:', error);
+    } finally {
+        loading.value = false;
+    }
+};
 
 function setChartData() {
     const documentStyle = getComputedStyle(document.documentElement);
 
+    // Lấy ngày và doanh thu từ API
+    const labels = Object.keys(revenueData.value);
+    const values = Object.values(revenueData.value);
+
     return {
-        labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+        labels,
         datasets: [
             {
                 type: 'bar',
-                label: 'Subscriptions',
+                label: 'Doanh thu',
                 backgroundColor: documentStyle.getPropertyValue('--p-primary-400'),
-                data: [4000, 10000, 15000, 4000],
-                barThickness: 32
-            },
-            {
-                type: 'bar',
-                label: 'Advertising',
-                backgroundColor: documentStyle.getPropertyValue('--p-primary-300'),
-                data: [2100, 8400, 2400, 7500],
-                barThickness: 32
-            },
-            {
-                type: 'bar',
-                label: 'Affiliate',
-                backgroundColor: documentStyle.getPropertyValue('--p-primary-200'),
-                data: [4100, 5200, 3400, 7400],
+                data: values,
+                barThickness: 20,
                 borderRadius: {
                     topLeft: 8,
                     topRight: 8
-                },
-                borderSkipped: true,
-                barThickness: 32
+                }
             }
         ]
     };
@@ -51,11 +55,29 @@ function setChartOptions() {
     return {
         maintainAspectRatio: false,
         aspectRatio: 0.8,
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let value = context.raw;
+                        return new Intl.NumberFormat('vi-VN', {
+                            style: 'currency',
+                            currency: 'VND',
+                            maximumFractionDigits: 0
+                        }).format(value);
+                    }
+                }
+            }
+        },
         scales: {
             x: {
-                stacked: true,
                 ticks: {
-                    color: textMutedColor
+                    color: textMutedColor,
+                    maxRotation: 45,
+                    minRotation: 45
                 },
                 grid: {
                     color: 'transparent',
@@ -63,9 +85,14 @@ function setChartOptions() {
                 }
             },
             y: {
-                stacked: true,
                 ticks: {
-                    color: textMutedColor
+                    color: textMutedColor,
+                    callback: function(value) {
+                        if (value >= 1000000) {
+                            return (value / 1000000) + 'M';
+                        }
+                        return value;
+                    }
                 },
                 grid: {
                     color: borderColor,
@@ -77,12 +104,13 @@ function setChartOptions() {
     };
 }
 
-watch([getPrimary, getSurface, isDarkTheme], () => {
+watch([getPrimary, getSurface, isDarkTheme, revenueData], () => {
     chartData.value = setChartData();
     chartOptions.value = setChartOptions();
 });
 
-onMounted(() => {
+onMounted(async () => {
+    await fetchRevenueData();
     chartData.value = setChartData();
     chartOptions.value = setChartOptions();
 });
@@ -90,7 +118,10 @@ onMounted(() => {
 
 <template>
     <div class="card">
-        <div class="font-semibold text-xl mb-4">Doanh thu</div>
-        <Chart type="bar" :data="chartData" :options="chartOptions" class="h-80" />
+        <div class="font-semibold text-xl mb-4">Doanh thu theo ngày</div>
+        <div v-if="loading" class="flex justify-center items-center h-80">
+            <i class="pi pi-spin pi-spinner text-3xl"></i>
+        </div>
+        <Chart v-else type="bar" :data="chartData" :options="chartOptions" class="h-80" />
     </div>
 </template>

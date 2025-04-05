@@ -128,7 +128,7 @@ function goToClientSite() {
             <Button label="Sign In" @click="login" class="login-button w-full" :loading="loading" />
 
             <div class="text-center mt-4">
-                <Button label="Back to Main Site" class="p-button-link" @click="goToClientSite" />
+                <Button label="Back to Main Site" class="login-button w-full" @click="goToClientSite" />
             </div>
 
             <div class="text-center mt-4 text-sm text-gray-600">© 2023 LUXURY HOTEL. All rights reserved.</div>
