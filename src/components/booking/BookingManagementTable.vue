@@ -61,7 +61,16 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['update:selectedBookings', 'view-details', 'edit', 'confirm', 'cancel', 'delete']);
+const emit = defineEmits([
+    'update:selectedBookings',
+    'view-details',
+    'edit',
+    'confirm',
+    'cancel',
+    'delete',
+    'check-in',
+    'check-out'
+]);
 
 // Tạo computed property cho selectedBookingsModel để sử dụng v-model
 import { computed } from 'vue';
@@ -90,6 +99,14 @@ const cancelBooking = (data) => {
 
 const confirmDeleteBooking = (data) => {
     emit('delete', data);
+};
+
+const checkInBooking = (data) => {
+    emit('check-in', data);
+};
+
+const checkOutBooking = (data) => {
+    emit('check-out', data);
 };
 
 // Computed properties để hiển thị đúng dữ liệu
@@ -245,6 +262,26 @@ const getRoomInfo = (booking) => {
                             severity="danger"
                             aria-label="Hủy"
                             @click="$emit('cancel', data)"
+                        />
+                        <!-- Nút check-in chỉ hiển thị khi trạng thái là CONFIRMED -->
+                        <Button
+                            v-if="can.checkIn && data.status === 'CONFIRMED'"
+                            icon="pi pi-sign-in"
+                            rounded
+                            text
+                            severity="info"
+                            aria-label="Check-in"
+                            @click="$emit('check-in', data)"
+                        />
+                        <!-- Nút check-out chỉ hiển thị khi trạng thái là CHECKED_IN -->
+                        <Button
+                            v-if="can.checkOut && data.status === 'CHECKED_IN'"
+                            icon="pi pi-sign-out"
+                            rounded
+                            text
+                            severity="info"
+                            aria-label="Check-out"
+                            @click="$emit('check-out', data)"
                         />
                         <Button
                             v-if="can.delete"

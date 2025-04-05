@@ -39,7 +39,7 @@ export function useBookingManagement() {
         { label: 'Đang chờ xử lý', value: 'PENDING' },
         { label: 'Đã xác nhận', value: 'CONFIRMED' },
         { label: 'Đã check-in', value: 'CHECKED_IN' },
-        { label: 'Đã check-out', value: 'CHECKED_OUT' },
+        { label: 'Đã hoàn thành', value: 'COMPLETED' },
         { label: 'Đã hủy', value: 'CANCELLED' }
     ]);
 
@@ -47,7 +47,9 @@ export function useBookingManagement() {
     const paymentStatuses = ref([
         { label: 'Chưa thanh toán', value: 'UNPAID' },
         { label: 'Đã thanh toán', value: 'PAID' },
-        { label: 'Đã hoàn tiền', value: 'REFUNDED' }
+        { label: 'Đang xử lý', value: 'PROCESSING' },
+        { label: 'Đã hoàn tiền', value: 'REFUNDED' },
+        { label: 'Thanh toán thất bại', value: 'FAILED' }
     ]);
 
     // Phương thức thanh toán
@@ -167,32 +169,80 @@ export function useBookingManagement() {
     const fetchAllBookings = async () => {
         loading.value = true;
         try {
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/`, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Không thể tải dữ liệu đặt phòng');
+            const headers = getAuthHeaders();
+            if (!headers) {
+                loading.value = false;
+                return;
             }
 
-            const data = await response.json();
-            console.log('Dữ liệu nhận được từ API:', data);
+            // Kiểm tra xem người dùng có quyền admin không
+            const isAdmin = localStorage.getItem('admin_token') ? true : false;
 
-            // Đảm bảo gán dữ liệu vào reactive ref bookings
-            bookings.value = data || [];
+            if (isAdmin) {
+                // Nếu là admin, chỉ gọi API admin
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/`, {
+                        headers
+                    });
 
-            // Thêm log để kiểm tra sau khi gán
-            console.log('Sau khi gán:', bookings.value);
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('Dữ liệu nhận được từ API admin:', data);
+                        // Đảm bảo gán dữ liệu vào reactive ref bookings
+                        bookings.value = data || [];
+                        updateStats();
+                        loading.value = false;
+                        return;
+                    }
 
-            // Cập nhật thống kê với hàm mới
-            updateStats();
+                    console.warn('Không thể gọi API admin, kiểm tra lại quyền truy cập');
+                    toast.add({
+                        severity: 'error',
+                        summary: 'Lỗi quyền truy cập',
+                        detail: 'Bạn không có quyền xem danh sách đặt phòng',
+                        life: 3000
+                    });
+                    bookings.value = [];
+                } catch (adminError) {
+                    console.error('Lỗi khi gọi API admin:', adminError);
+                    toast.add({
+                        severity: 'error',
+                        summary: 'Lỗi hệ thống',
+                        detail: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
+                        life: 3000
+                    });
+                    bookings.value = [];
+                }
+            } else {
+                // Nếu là user thường, gọi API user
+                try {
+                    const userResponse = await fetch(`${API_BASE_URL}/api/v1/user/bookings/my-bookings`, {
+                        headers
+                    });
+
+                    if (!userResponse.ok) {
+                        throw new Error(`Không thể tải dữ liệu đặt phòng: ${userResponse.statusText} (${userResponse.status})`);
+                    }
+
+                    const userData = await userResponse.json();
+                    console.log('Dữ liệu nhận được từ API user:', userData);
+
+                    bookings.value = userData || [];
+                    updateStats();
+                } catch (userError) {
+                    console.error('Lỗi khi tải dữ liệu đặt phòng của người dùng:', userError);
+                    toast.add({
+                        severity: 'error',
+                        summary: 'Lỗi',
+                        detail: 'Không thể tải dữ liệu đặt phòng của bạn',
+                        life: 3000
+                    });
+                    bookings.value = [];
+                }
+            }
         } catch (error) {
             console.error('Lỗi khi tải dữ liệu đặt phòng:', error);
             toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải dữ liệu đặt phòng', life: 3000 });
-            // Đặt bookings thành mảng rỗng khi có lỗi
             bookings.value = [];
         } finally {
             loading.value = false;
@@ -211,7 +261,7 @@ export function useBookingManagement() {
             }
 
             const response = await fetch(`${API_BASE_URL}/api/v1/bookings/user/${userId}`, {
-                headers: headers
+                headers
             });
 
             if (!response.ok) {
@@ -221,15 +271,7 @@ export function useBookingManagement() {
             const result = await response.json();
             console.log('Dữ liệu booking của người dùng:', result);
 
-            // API trả về mảng trực tiếp
-            if (Array.isArray(result)) {
-                bookings.value = result;
-            } else if (result.data) {
-                bookings.value = Array.isArray(result.data) ? result.data : [];
-            } else {
-                bookings.value = [];
-            }
-
+            bookings.value = Array.isArray(result) ? result : [];
             totalElements.value = bookings.value.length;
         } catch (error) {
             console.error('Lỗi khi tải dữ liệu đặt phòng của người dùng:', error);
@@ -256,8 +298,8 @@ export function useBookingManagement() {
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/status/${status}`, {
-                headers: headers
+            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/status/${status}`, {
+                headers
             });
 
             if (!response.ok) {
@@ -265,17 +307,9 @@ export function useBookingManagement() {
             }
 
             const result = await response.json();
-            console.log('Dữ liệu booking theo trạng thái:', result);
+            console.log(`Dữ liệu booking có trạng thái ${status}:`, result);
 
-            // API trả về mảng trực tiếp
-            if (Array.isArray(result)) {
-                bookings.value = result;
-            } else if (result.data) {
-                bookings.value = Array.isArray(result.data) ? result.data : [];
-            } else {
-                bookings.value = [];
-            }
-
+            bookings.value = Array.isArray(result) ? result : [];
             totalElements.value = bookings.value.length;
         } catch (error) {
             console.error('Lỗi khi tải dữ liệu đặt phòng theo trạng thái:', error);
@@ -302,33 +336,29 @@ export function useBookingManagement() {
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/date-range?startDate=${startDate}&endDate=${endDate}`, {
-                headers: headers
+            // Định dạng ngày nếu là đối tượng Date
+            const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
+            const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/date-range?startDate=${start}&endDate=${end}`, {
+                headers
             });
 
             if (!response.ok) {
-                throw new Error(`Lỗi khi tải danh sách đặt phòng theo thời gian: ${response.statusText} (${response.status})`);
+                throw new Error(`Lỗi khi tải danh sách đặt phòng theo khoảng thời gian: ${response.statusText} (${response.status})`);
             }
 
             const result = await response.json();
-            console.log('Dữ liệu booking theo khoảng thời gian:', result);
+            console.log(`Dữ liệu booking trong khoảng thời gian từ ${start} đến ${end}:`, result);
 
-            // API trả về mảng trực tiếp
-            if (Array.isArray(result)) {
-                bookings.value = result;
-            } else if (result.data) {
-                bookings.value = Array.isArray(result.data) ? result.data : [];
-            } else {
-                bookings.value = [];
-            }
-
+            bookings.value = Array.isArray(result) ? result : [];
             totalElements.value = bookings.value.length;
         } catch (error) {
-            console.error('Lỗi khi tải dữ liệu đặt phòng theo thời gian:', error);
+            console.error('Lỗi khi tải dữ liệu đặt phòng theo khoảng thời gian:', error);
             toast.add({
                 severity: 'error',
                 summary: 'Lỗi',
-                detail: error.message || 'Không thể tải danh sách đặt phòng theo thời gian',
+                detail: error.message || 'Không thể tải danh sách đặt phòng theo khoảng thời gian',
                 life: 3000
             });
             bookings.value = [];
@@ -343,8 +373,8 @@ export function useBookingManagement() {
             const headers = getAuthHeaders();
             if (!headers) return null;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/${id}`, {
-                headers: headers
+            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/${id}`, {
+                headers
             });
 
             if (!response.ok) {
@@ -352,85 +382,65 @@ export function useBookingManagement() {
             }
 
             const result = await response.json();
-            console.log('Thông tin chi tiết booking:', result);
+            console.log(`Dữ liệu booking có ID ${id}:`, result);
 
-            // API trả về object trực tiếp
-            if (result.data) {
-                return result.data;
-            } else {
-                return result;
-            }
+            return result;
         } catch (error) {
-            console.error('Lỗi khi tải thông tin đặt phòng:', error);
+            console.error('Lỗi khi tải thông tin chi tiết đặt phòng:', error);
             toast.add({
                 severity: 'error',
                 summary: 'Lỗi',
-                detail: error.message || 'Không thể tải thông tin đặt phòng',
+                detail: error.message || 'Không thể tải thông tin chi tiết đặt phòng',
                 life: 3000
             });
             return null;
         }
     };
 
-    // Tạo mới booking
+    // Tạo booking mới
     const createBooking = async (bookingData) => {
         try {
             const headers = getAuthHeaders(true);
             if (!headers) return null;
 
-            // Chuẩn bị dữ liệu cho API theo đúng mẫu yêu cầu
-            const apiData = {
-                userId: bookingData.userId,
-                roomIds: Array.isArray(bookingData.roomIds) ? bookingData.roomIds : Array.isArray(bookingData.rooms) ? bookingData.rooms.map((room) => room.roomId || room.id) : [],
-                status: bookingData.status || 'PENDING',
-                paymentStatus: bookingData.paymentStatus || 'UNPAID',
-                paymentMethod: bookingData.paymentMethod || 'CASH',
-                adults: bookingData.adults || 1,
-                children: bookingData.children || 0,
-                fullName: bookingData.fullName,
-                phone: bookingData.phone,
-                email: bookingData.email,
-                nationalId: bookingData.nationalId,
-                checkInDate: bookingData.checkInDate instanceof Date ? bookingData.checkInDate.toISOString().split('T')[0] : bookingData.checkInDate,
-                checkOutDate: bookingData.checkOutDate instanceof Date ? bookingData.checkOutDate.toISOString().split('T')[0] : bookingData.checkOutDate,
-                totalPrice: bookingData.totalPrice,
-                finalPrice: bookingData.finalPrice,
-                paymentDate: bookingData.paymentDate instanceof Date ? bookingData.paymentDate.toISOString().split('T')[0] : bookingData.paymentDate
-            };
+            // Phân biệt giữa API admin và API user
+            const endpoint = bookingData.isAdminCreated
+                ? `${API_BASE_URL}/api/v1/admin/bookings/create`
+                : `${API_BASE_URL}/api/v1/bookings/create`;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/create`, {
+            console.log(`Tạo booking mới qua endpoint: ${endpoint}`);
+            console.log('Dữ liệu gửi đi:', bookingData);
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: headers,
-                body: JSON.stringify(apiData)
+                headers,
+                body: JSON.stringify(bookingData)
             });
 
             if (!response.ok) {
-                const errorData = await response.text();
-                console.error('Server response:', errorData);
-                throw new Error(`Lỗi khi tạo đặt phòng: ${response.statusText} (${response.status})`);
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Dữ liệu không hợp lệ');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy phòng hoặc mã giảm giá');
+                } else {
+                    throw new Error(`Lỗi khi tạo đặt phòng: ${response.statusText} (${response.status})`);
+                }
             }
 
             const result = await response.json();
-            console.log('Booking đã được tạo:', result);
+            console.log('Kết quả tạo booking:', result);
 
             toast.add({
                 severity: 'success',
                 summary: 'Thành công',
-                detail: 'Tạo đặt phòng mới thành công',
+                detail: 'Đã tạo đặt phòng mới thành công',
                 life: 3000
             });
 
-            // Reload data
-            fetchAllBookings();
-
-            // API trả về booking đã tạo
-            if (result.data) {
-                return result.data;
-            } else {
-                return result;
-            }
+            return result;
         } catch (error) {
-            console.error('Lỗi khi tạo đặt phòng:', error);
+            console.error('Lỗi khi tạo đặt phòng mới:', error);
             toast.add({
                 severity: 'error',
                 summary: 'Lỗi',
@@ -447,57 +457,42 @@ export function useBookingManagement() {
             const headers = getAuthHeaders(true);
             if (!headers) return null;
 
-            // Chuẩn bị dữ liệu cho API theo đúng mẫu yêu cầu
-            const apiData = {
-                userId: bookingData.userId,
-                roomIds: Array.isArray(bookingData.roomIds) ? bookingData.roomIds : Array.isArray(bookingData.rooms) ? bookingData.rooms.map((room) => room.roomId || room.id) : [],
-                status: bookingData.status || 'PENDING',
-                paymentStatus: bookingData.paymentStatus || 'UNPAID',
-                paymentMethod: bookingData.paymentMethod || 'CASH',
-                adults: bookingData.adults || 1,
-                children: bookingData.children || 0,
-                fullName: bookingData.fullName,
-                phone: bookingData.phone,
-                email: bookingData.email,
-                nationalId: bookingData.nationalId,
-                checkInDate: bookingData.checkInDate instanceof Date ? bookingData.checkInDate.toISOString().split('T')[0] : bookingData.checkInDate,
-                checkOutDate: bookingData.checkOutDate instanceof Date ? bookingData.checkOutDate.toISOString().split('T')[0] : bookingData.checkOutDate,
-                totalPrice: bookingData.totalPrice,
-                finalPrice: bookingData.finalPrice,
-                paymentDate: bookingData.paymentDate instanceof Date ? bookingData.paymentDate.toISOString().split('T')[0] : bookingData.paymentDate
-            };
+            // Phân biệt giữa API admin và API user
+            const endpoint = bookingData.isAdminUpdate
+                ? `${API_BASE_URL}/api/v1/admin/bookings/update/${id}`
+                : `${API_BASE_URL}/api/v1/bookings/update/${id}`;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/update/${id}`, {
+            console.log(`Cập nhật booking qua endpoint: ${endpoint}`);
+            console.log('Dữ liệu gửi đi:', bookingData);
+
+            const response = await fetch(endpoint, {
                 method: 'PUT',
-                headers: headers,
-                body: JSON.stringify(apiData)
+                headers,
+                body: JSON.stringify(bookingData)
             });
 
             if (!response.ok) {
-                const errorData = await response.text();
-                console.error('Server response:', errorData);
-                throw new Error(`Lỗi khi cập nhật đặt phòng: ${response.statusText} (${response.status})`);
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Dữ liệu không hợp lệ');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi cập nhật đặt phòng: ${response.statusText} (${response.status})`);
+                }
             }
 
             const result = await response.json();
-            console.log('Booking đã được cập nhật:', result);
+            console.log('Kết quả cập nhật booking:', result);
 
             toast.add({
                 severity: 'success',
                 summary: 'Thành công',
-                detail: 'Cập nhật đặt phòng thành công',
+                detail: 'Đã cập nhật đặt phòng thành công',
                 life: 3000
             });
 
-            // Reload data
-            fetchAllBookings();
-
-            // API trả về booking đã cập nhật
-            if (result.data) {
-                return result.data;
-            } else {
-                return result;
-            }
+            return result;
         } catch (error) {
             console.error('Lỗi khi cập nhật đặt phòng:', error);
             toast.add({
@@ -516,36 +511,39 @@ export function useBookingManagement() {
             const headers = getAuthHeaders();
             if (!headers) return null;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/cancel/${id}`, {
+            // Sử dụng endpoint admin nếu đang ở trang admin
+            const isAdmin = localStorage.getItem('admin_role') === 'ADMIN';
+            const endpoint = isAdmin
+                ? `${API_BASE_URL}/api/v1/admin/bookings/cancel/${id}`
+                : `${API_BASE_URL}/api/v1/bookings/cancel/${id}`;
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: headers
+                headers
             });
 
             if (!response.ok) {
-                const errorData = await response.text();
-                console.error('Server response:', errorData);
-                throw new Error(`Lỗi khi hủy đặt phòng: ${response.statusText} (${response.status})`);
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Không thể hủy đặt phòng (không đúng trạng thái)');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi hủy đặt phòng: ${response.statusText} (${response.status})`);
+                }
             }
 
             const result = await response.json();
-            console.log('Booking đã được hủy:', result);
+            console.log('Kết quả hủy booking:', result);
 
             toast.add({
                 severity: 'success',
                 summary: 'Thành công',
-                detail: 'Hủy đặt phòng thành công',
+                detail: 'Đã hủy đặt phòng thành công',
                 life: 3000
             });
 
-            // Reload data
-            fetchAllBookings();
-
-            // API trả về booking đã hủy
-            if (result.data) {
-                return result.data;
-            } else {
-                return result;
-            }
+            return result;
         } catch (error) {
             console.error('Lỗi khi hủy đặt phòng:', error);
             toast.add({
@@ -564,42 +562,180 @@ export function useBookingManagement() {
             const headers = getAuthHeaders();
             if (!headers) return null;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/confirm/${id}`, {
+            // Sử dụng endpoint admin nếu đang ở trang admin
+            const isAdmin = localStorage.getItem('admin_role') === 'ADMIN';
+            const endpoint = isAdmin
+                ? `${API_BASE_URL}/api/v1/admin/bookings/confirm/${id}`
+                : `${API_BASE_URL}/api/v1/bookings/confirm/${id}`;
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: headers
+                headers
             });
 
             if (!response.ok) {
-                const errorData = await response.text();
-                console.error('Server response:', errorData);
-                throw new Error(`Lỗi khi xác nhận đặt phòng: ${response.statusText} (${response.status})`);
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Không thể xác nhận đặt phòng (không đúng trạng thái)');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi xác nhận đặt phòng: ${response.statusText} (${response.status})`);
+                }
             }
 
             const result = await response.json();
-            console.log('Booking đã được xác nhận:', result);
+            console.log('Kết quả xác nhận booking:', result);
 
             toast.add({
                 severity: 'success',
                 summary: 'Thành công',
-                detail: 'Xác nhận đặt phòng thành công',
+                detail: 'Đã xác nhận đặt phòng thành công',
                 life: 3000
             });
 
-            // Reload data
-            fetchAllBookings();
-
-            // API trả về booking đã xác nhận
-            if (result.data) {
-                return result.data;
-            } else {
-                return result;
-            }
+            return result;
         } catch (error) {
             console.error('Lỗi khi xác nhận đặt phòng:', error);
             toast.add({
                 severity: 'error',
                 summary: 'Lỗi',
                 detail: error.message || 'Không thể xác nhận đặt phòng',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // Check-in booking - Chỉ dành cho admin
+    const checkInBooking = async (id) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/check-in/${id}`, {
+                method: 'POST',
+                headers
+            });
+
+            if (!response.ok) {
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Không thể check-in đặt phòng (không đúng trạng thái)');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi check-in đặt phòng: ${response.statusText} (${response.status})`);
+                }
+            }
+
+            const result = await response.json();
+            console.log('Kết quả check-in booking:', result);
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Đã check-in đặt phòng thành công',
+                life: 3000
+            });
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi check-in đặt phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể check-in đặt phòng',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // Check-out booking - Chỉ dành cho admin
+    const checkOutBooking = async (id) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/check-out/${id}`, {
+                method: 'POST',
+                headers
+            });
+
+            if (!response.ok) {
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Không thể check-out đặt phòng (không đúng trạng thái)');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi check-out đặt phòng: ${response.statusText} (${response.status})`);
+                }
+            }
+
+            const result = await response.json();
+            console.log('Kết quả check-out booking:', result);
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Đã check-out và hoàn thành đặt phòng thành công',
+                life: 3000
+            });
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi check-out đặt phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể check-out đặt phòng',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // Xóa booking - Chỉ dành cho admin
+    const deleteBookingById = async (id) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/${id}`, {
+                method: 'DELETE',
+                headers
+            });
+
+            if (!response.ok) {
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Không thể xóa đặt phòng (có thể đã thanh toán hoặc check-in)');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi xóa đặt phòng: ${response.statusText} (${response.status})`);
+                }
+            }
+
+            const result = await response.json();
+            console.log('Kết quả xóa booking:', result);
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: result.message || 'Đã xóa đặt phòng thành công',
+                life: 3000
+            });
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi xóa đặt phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể xóa đặt phòng',
                 life: 3000
             });
             return null;
@@ -815,7 +951,7 @@ export function useBookingManagement() {
                 return 'info';
             case 'CHECKED_IN':
                 return 'success';
-            case 'CHECKED_OUT':
+            case 'COMPLETED':
                 return 'success';
             case 'CANCELLED':
                 return 'danger';
@@ -831,8 +967,12 @@ export function useBookingManagement() {
                 return 'success';
             case 'UNPAID':
                 return 'warning';
+            case 'PROCESSING':
+                return 'info';
             case 'REFUNDED':
                 return 'info';
+            case 'FAILED':
+                return 'danger';
             default:
                 return null;
         }
@@ -844,14 +984,14 @@ export function useBookingManagement() {
         const pendingCount = bookings.value.filter((b) => b.status === 'PENDING').length;
         const confirmedCount = bookings.value.filter((b) => b.status === 'CONFIRMED').length;
         const checkedInCount = bookings.value.filter((b) => b.status === 'CHECKED_IN').length;
-        const checkedOutCount = bookings.value.filter((b) => b.status === 'CHECKED_OUT').length;
+        const completedCount = bookings.value.filter((b) => b.status === 'COMPLETED').length;
         const cancelledCount = bookings.value.filter((b) => b.status === 'CANCELLED').length;
 
-        // Tính tổng doanh thu (chỉ tính các đơn đã check-out và đã thanh toán)
+        // Tính tổng doanh thu (chỉ tính các đơn đã hoàn thành và đã thanh toán)
         let revenue = 0;
 
         bookings.value
-            .filter((b) => b.status === 'CHECKED_OUT' && b.paymentStatus === 'PAID')
+            .filter((b) => b.status === 'COMPLETED' && b.paymentStatus === 'PAID')
             .forEach((booking) => {
                 // Xử lý vấn đề giá trị finalPrice bị âm
                 const price = booking.finalPrice;
@@ -878,7 +1018,7 @@ export function useBookingManagement() {
             pendingBookings: pendingCount,
             confirmedBookings: confirmedCount,
             checkedInBookings: checkedInCount,
-            checkedOutBookings: checkedOutCount,
+            completedBookings: completedCount,
             cancelledBookings: cancelledCount,
             totalRevenue: revenue
         };
@@ -896,14 +1036,40 @@ export function useBookingManagement() {
             const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
             const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/rooms/available?startDate=${start}&endDate=${end}`, { headers });
+            // Xác định API endpoint dựa trên role của người dùng
+            const isAdmin = localStorage.getItem('admin_role') === 'ADMIN';
+            const endpoint = isAdmin
+                ? `${API_BASE_URL}/api/v1/bookings/booked-rooms`
+                : `${API_BASE_URL}/api/v1/user/bookings/booked-rooms`;
+
+            const response = await fetch(`${endpoint}?startDate=${start}&endDate=${end}`, {
+                headers
+            });
 
             if (!response.ok) {
-                throw new Error(`Lỗi khi tìm phòng trống: ${response.statusText}`);
+                throw new Error(`Lỗi khi tìm phòng đã đặt: ${response.statusText}`);
             }
 
-            const result = await response.json();
-            return Array.isArray(result) ? result : [];
+            const bookedRooms = await response.json();
+            console.log('Danh sách phòng đã đặt:', bookedRooms);
+
+            // Lấy tất cả phòng
+            const allRoomsResponse = await fetch(`${API_BASE_URL}/api/v1/rooms`, {
+                headers
+            });
+
+            if (!allRoomsResponse.ok) {
+                throw new Error(`Lỗi khi lấy danh sách tất cả phòng: ${allRoomsResponse.statusText}`);
+            }
+
+            const allRooms = await allRoomsResponse.json();
+            console.log('Danh sách tất cả phòng:', allRooms);
+
+            // Lọc các phòng còn trống (không nằm trong danh sách phòng đã đặt)
+            const bookedRoomIds = bookedRooms.map(room => room.id || room.roomId);
+            const availableRooms = allRooms.filter(room => !bookedRoomIds.includes(room.id));
+
+            return availableRooms;
         } catch (error) {
             console.error('Lỗi khi tìm phòng trống:', error);
             toast.add({
@@ -914,6 +1080,312 @@ export function useBookingManagement() {
             });
             return [];
         }
+    };
+
+    // Lấy danh sách booking mới nhất
+    const fetchRecentBookings = async () => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return [];
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/recent`, {
+                headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi lấy danh sách đặt phòng mới nhất: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            console.log('Danh sách booking mới nhất:', result);
+
+            return Array.isArray(result) ? result : [];
+        } catch (error) {
+            console.error('Lỗi khi lấy danh sách đặt phòng mới nhất:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể lấy danh sách đặt phòng mới nhất',
+                life: 3000
+            });
+            return [];
+        }
+    };
+
+    // Lấy thông tin booking theo ID cho user
+    const fetchUserBookingById = async (id) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/user/bookings/${id}`, {
+                headers
+            });
+
+            if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error('Bạn không có quyền xem thông tin booking này');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi tải thông tin đặt phòng: ${response.statusText} (${response.status})`);
+                }
+            }
+
+            const result = await response.json();
+            console.log(`Dữ liệu booking có ID ${id} (user):`, result);
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi tải thông tin chi tiết đặt phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tải thông tin chi tiết đặt phòng',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // Lấy danh sách booking của user hiện tại
+    const fetchCurrentUserBookings = async () => {
+        try {
+            loading.value = true;
+
+            const headers = getAuthHeaders();
+            if (!headers) {
+                loading.value = false;
+                return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/user/bookings/my-bookings`, {
+                headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi tải danh sách đặt phòng: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            console.log('Dữ liệu booking của user hiện tại:', result);
+
+            bookings.value = Array.isArray(result) ? result : [];
+            totalElements.value = bookings.value.length;
+        } catch (error) {
+            console.error('Lỗi khi tải dữ liệu đặt phòng của user:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tải danh sách đặt phòng của bạn',
+                life: 3000
+            });
+            bookings.value = [];
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    // Tạo booking mới cho user và trả về URL thanh toán VNPay
+    const createUserBooking = async (bookingData) => {
+        try {
+            const headers = getAuthHeaders(true);
+            if (!headers) return null;
+
+            console.log('Tạo booking mới qua user API, dữ liệu gửi đi:', bookingData);
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/user/bookings/create`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(bookingData)
+            });
+
+            if (!response.ok) {
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Dữ liệu không hợp lệ');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy phòng hoặc mã giảm giá');
+                } else {
+                    throw new Error(`Lỗi khi tạo đặt phòng: ${response.statusText} (${response.status})`);
+                }
+            }
+
+            const result = await response.json();
+            console.log('Kết quả tạo booking cho user:', result);
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Đã tạo đặt phòng mới thành công, vui lòng thanh toán',
+                life: 3000
+            });
+
+            // Trả về cả thông tin booking và URL thanh toán
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi tạo đặt phòng mới:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tạo đặt phòng mới',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // Cập nhật booking cho user
+    const updateUserBooking = async (id, bookingData) => {
+        try {
+            const headers = getAuthHeaders(true);
+            if (!headers) return null;
+
+            console.log(`Cập nhật booking qua user API với ID ${id}:`, bookingData);
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/user/bookings/update/${id}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(bookingData)
+            });
+
+            if (!response.ok) {
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Không thể cập nhật (không đúng trạng thái)');
+                } else if (response.status === 403) {
+                    throw new Error('Bạn không có quyền cập nhật booking này');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi cập nhật đặt phòng: ${response.statusText} (${response.status})`);
+                }
+            }
+
+            const result = await response.json();
+            console.log('Kết quả cập nhật booking:', result);
+
+            // Kiểm tra nếu có URL thanh toán mới
+            if (result.payment && result.payment.paymentUrl) {
+                toast.add({
+                    severity: 'info',
+                    summary: 'Cập nhật thành công',
+                    detail: 'Thông tin đặt phòng đã thay đổi, vui lòng tiến hành thanh toán lại',
+                    life: 5000
+                });
+            } else {
+                toast.add({
+                    severity: 'success',
+                    summary: 'Thành công',
+                    detail: 'Đã cập nhật đặt phòng thành công',
+                    life: 3000
+                });
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi cập nhật đặt phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể cập nhật đặt phòng',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // Hủy booking cho user
+    const cancelUserBooking = async (id) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/user/bookings/cancel/${id}`, {
+                method: 'POST',
+                headers
+            });
+
+            if (!response.ok) {
+                if (response.status === 400) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Không thể hủy đặt phòng (không đúng trạng thái)');
+                } else if (response.status === 403) {
+                    throw new Error('Bạn không có quyền hủy booking này');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi hủy đặt phòng: ${response.statusText} (${response.status})`);
+                }
+            }
+
+            const result = await response.json();
+            console.log('Kết quả hủy booking:', result);
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Đã hủy đặt phòng thành công',
+                life: 3000
+            });
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi hủy đặt phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể hủy đặt phòng',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // Kiểm tra trạng thái thanh toán của booking
+    const checkBookingPaymentStatus = async (id) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/user/bookings/payment-status/${id}`, {
+                headers
+            });
+
+            if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error('Bạn không có quyền xem trạng thái thanh toán này');
+                } else if (response.status === 404) {
+                    throw new Error('Không tìm thấy booking');
+                } else {
+                    throw new Error(`Lỗi khi kiểm tra trạng thái thanh toán: ${response.statusText} (${response.status})`);
+                }
+            }
+
+            const result = await response.json();
+            console.log(`Thông tin thanh toán của booking ID ${id}:`, result);
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi kiểm tra trạng thái thanh toán:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể kiểm tra trạng thái thanh toán',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
+    // Tạo đường dẫn đến trang thanh toán VNPay từ response API
+    const redirectToVnPayPayment = (paymentInfo) => {
+        if (paymentInfo && paymentInfo.payment && paymentInfo.payment.paymentUrl) {
+            // Mở URL thanh toán trong cửa sổ mới
+            window.open(paymentInfo.payment.paymentUrl, '_blank');
+            return true;
+        }
+        return false;
     };
 
     return {
@@ -941,6 +1413,17 @@ export function useBookingManagement() {
         updateBooking,
         cancelBooking,
         confirmBooking,
+        checkInBooking,
+        checkOutBooking,
+        deleteBookingById,
+        fetchRecentBookings,
+        fetchUserBookingById,
+        fetchCurrentUserBookings,
+        createUserBooking,
+        updateUserBooking,
+        cancelUserBooking,
+        checkBookingPaymentStatus,
+        redirectToVnPayPayment,
         openNew,
         hideDialog,
         saveBooking,

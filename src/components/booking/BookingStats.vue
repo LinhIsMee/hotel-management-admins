@@ -8,7 +8,7 @@ defineProps({
             pendingBookings: 0,
             confirmedBookings: 0,
             checkedInBookings: 0,
-            checkedOutBookings: 0,
+            completedBookings: 0,
             cancelledBookings: 0,
             totalRevenue: 0
         })
@@ -75,15 +75,15 @@ defineProps({
                 </div>
             </div>
 
-            <!-- Đã trả phòng -->
+            <!-- Đã hoàn thành -->
             <div class="stats-card">
                 <div class="stats-card-content">
                     <div class="stats-icon purple">
-                        <i class="pi pi-sign-out"></i>
+                        <i class="pi pi-check-square"></i>
                     </div>
                     <div class="stats-data">
-                        <div class="stats-label">Đã trả phòng</div>
-                        <div class="stats-value">{{ stats.checkedOutBookings }}</div>
+                        <div class="stats-label">Đã hoàn thành</div>
+                        <div class="stats-value">{{ stats.completedBookings }}</div>
                     </div>
                 </div>
             </div>

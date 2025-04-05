@@ -45,6 +45,9 @@ const {
     getPaymentStatusSeverity,
     cancelBooking,
     confirmBooking,
+    checkInBooking,
+    checkOutBooking,
+    deleteBookingById,
     updateStats
 } = useBookingManagement();
 
@@ -284,10 +287,21 @@ const confirmDeleteBooking = (editBooking) => {
 };
 
 // Xóa đơn đặt
-const deleteBooking = () => {
-    bookings.value = bookings.value.filter((val) => val.id !== booking.value.id);
-    deleteBookingDialog.value = false;
-    booking.value = {};
+const deleteBooking = async () => {
+    try {
+        await deleteBookingById(booking.value.id);
+        deleteBookingDialog.value = false;
+        booking.value = {};
+        fetchAllBookings(); // Refresh data
+    } catch (error) {
+        console.error('Lỗi khi xóa booking:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Có lỗi xảy ra khi xóa đặt phòng',
+            life: 3000
+        });
+    }
 };
 
 // Mở dialog xác nhận xóa nhiều
@@ -404,6 +418,54 @@ const handleExport = () => {
         });
     }
 };
+
+// Hàm xử lý check-in booking
+const handleCheckInBooking = async (data) => {
+    if (can.checkIn?.value) {
+        try {
+            await checkInBooking(data.id);
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Đã check-in đặt phòng thành công',
+                life: 3000
+            });
+            fetchAllBookings(); // Refresh data
+        } catch (error) {
+            console.error('Lỗi khi check-in booking:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Có lỗi xảy ra khi check-in đặt phòng',
+                life: 3000
+            });
+        }
+    }
+};
+
+// Hàm xử lý check-out booking
+const handleCheckOutBooking = async (data) => {
+    if (can.checkOut?.value) {
+        try {
+            await checkOutBooking(data.id);
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Đã check-out đặt phòng thành công',
+                life: 3000
+            });
+            fetchAllBookings(); // Refresh data
+        } catch (error) {
+            console.error('Lỗi khi check-out booking:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Có lỗi xảy ra khi check-out đặt phòng',
+                life: 3000
+            });
+        }
+    }
+};
 </script>
 
 <template>
@@ -454,6 +516,8 @@ const handleExport = () => {
             @confirm="handleConfirmBooking"
             @cancel="handleCancelBooking"
             @delete="confirmDeleteBooking"
+            @check-in="handleCheckInBooking"
+            @check-out="handleCheckOutBooking"
         />
 
         <!-- Dialog chỉnh sửa booking -->

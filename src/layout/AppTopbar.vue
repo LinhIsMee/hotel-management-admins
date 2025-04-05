@@ -7,7 +7,8 @@ import AppConfigurator from './AppConfigurator.vue';
 
 const router = useRouter();
 const toast = useToast();
-const { toggleMenu, toggleDarkMode, isDarkTheme } = useLayout();
+const { toggleMenu, toggleDarkMode, isDarkTheme, layoutState } = useLayout();
+const mobileMenuActive = layoutState.staticMenuMobileActive;
 
 const logout = () => {
     // Gọi phương thức logoutAdmin từ AuthService

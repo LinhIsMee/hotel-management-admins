@@ -1,10 +1,10 @@
 <script setup>
 import Button from 'primevue/button';
-import Calendar from 'primevue/calendar';
 import Dialog from 'primevue/dialog';
-import Dropdown from 'primevue/dropdown';
 import InputNumber from 'primevue/inputnumber';
 import InputText from 'primevue/inputtext';
+import DatePicker from 'primevue/datepicker';
+import Select from 'primevue/select';
 import { computed, ref, watch } from 'vue';
 
 // Khai báo props
@@ -68,6 +68,21 @@ const normalizePaymentMethod = (method) => {
     }
 };
 
+// Hàm lấy ID người dùng hiện tại từ localStorage
+const getCurrentUserId = () => {
+    try {
+        const userData = localStorage.getItem('admin_user');
+        if (userData) {
+            const user = JSON.parse(userData);
+            return user.id || 0;
+        }
+        return 0;
+    } catch (error) {
+        console.error('Lỗi khi lấy ID người dùng:', error);
+        return 0;
+    }
+};
+
 // Cập nhật dữ liệu cục bộ khi props thay đổi
 watch(
     () => props.bookingData,
@@ -104,21 +119,6 @@ watch(
     },
     { immediate: true, deep: true }
 );
-
-// Hàm lấy ID người dùng hiện tại từ localStorage
-const getCurrentUserId = () => {
-    try {
-        const userData = localStorage.getItem('admin_user');
-        if (userData) {
-            const user = JSON.parse(userData);
-            return user.id || 0;
-        }
-        return 0;
-    } catch (error) {
-        console.error('Lỗi khi lấy ID người dùng:', error);
-        return 0;
-    }
-};
 
 // Trước khi lưu, đảm bảo dữ liệu đúng định dạng
 const save = () => {
@@ -212,7 +212,7 @@ const updateVisible = (val) => {
             <div class="col-12 md:col-6">
                 <div class="field">
                     <label for="checkInDate">Ngày nhận phòng <span class="text-red-500">*</span></label>
-                    <Calendar id="checkInDate" v-model="localBooking.checkInDate" :showIcon="true" dateFormat="dd/mm/yy" :class="{ 'p-invalid': submitted && !localBooking.checkInDate }" class="w-full" />
+                    <DatePicker id="checkInDate" v-model="localBooking.checkInDate" :showIcon="true" dateFormat="dd/mm/yy" :class="{ 'p-invalid': submitted && !localBooking.checkInDate }" class="w-full" />
                     <small class="p-error" v-if="submitted && !localBooking.checkInDate">Ngày nhận phòng là bắt buộc.</small>
                 </div>
             </div>
@@ -220,7 +220,7 @@ const updateVisible = (val) => {
             <div class="col-12 md:col-6">
                 <div class="field">
                     <label for="checkOutDate">Ngày trả phòng <span class="text-red-500">*</span></label>
-                    <Calendar id="checkOutDate" v-model="localBooking.checkOutDate" :showIcon="true" dateFormat="dd/mm/yy" :class="{ 'p-invalid': submitted && !localBooking.checkOutDate }" class="w-full" />
+                    <DatePicker id="checkOutDate" v-model="localBooking.checkOutDate" :showIcon="true" dateFormat="dd/mm/yy" :class="{ 'p-invalid': submitted && !localBooking.checkOutDate }" class="w-full" />
                     <small class="p-error" v-if="submitted && !localBooking.checkOutDate">Ngày trả phòng là bắt buộc.</small>
                 </div>
             </div>
@@ -243,28 +243,28 @@ const updateVisible = (val) => {
             <div class="col-12 md:col-4">
                 <div class="field">
                     <label for="status">Trạng thái đặt phòng</label>
-                    <Dropdown id="status" v-model="localBooking.status" :options="statuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái" class="w-full" />
+                    <Select id="status" v-model="localBooking.status" :options="statuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái" class="w-full" />
                 </div>
             </div>
 
             <div class="col-12 md:col-4">
                 <div class="field">
                     <label for="paymentStatus">Trạng thái thanh toán</label>
-                    <Dropdown id="paymentStatus" v-model="localBooking.paymentStatus" :options="paymentStatuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái thanh toán" class="w-full" />
+                    <Select id="paymentStatus" v-model="localBooking.paymentStatus" :options="paymentStatuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái thanh toán" class="w-full" />
                 </div>
             </div>
 
             <div class="col-12 md:col-4">
                 <div class="field">
                     <label for="paymentMethod">Phương thức thanh toán</label>
-                    <Dropdown id="paymentMethod" v-model="localBooking.paymentMethod" :options="actualPaymentMethods" optionLabel="label" optionValue="value" placeholder="Chọn phương thức thanh toán" class="w-full" />
+                    <Select id="paymentMethod" v-model="localBooking.paymentMethod" :options="actualPaymentMethods" optionLabel="label" optionValue="value" placeholder="Chọn phương thức thanh toán" class="w-full" />
                 </div>
             </div>
 
             <div class="col-12 md:col-6">
                 <div class="field">
                     <label for="paymentDate">Ngày thanh toán</label>
-                    <Calendar id="paymentDate" v-model="localBooking.paymentDate" :showIcon="true" dateFormat="dd/mm/yy" class="w-full" />
+                    <DatePicker id="paymentDate" v-model="localBooking.paymentDate" :showIcon="true" dateFormat="dd/mm/yy" class="w-full" />
                 </div>
             </div>
         </div>
@@ -294,15 +294,15 @@ const updateVisible = (val) => {
 }
 
 .booking-dialog :deep(.p-inputtext),
-.booking-dialog :deep(.p-dropdown),
-.booking-dialog :deep(.p-calendar),
+.booking-dialog :deep(.p-select),
+.booking-dialog :deep(.p-datepicker),
 .booking-dialog :deep(.p-inputnumber) {
     height: 2.357rem;
     font-size: 0.875rem;
 }
 
-.booking-dialog :deep(.p-dropdown-panel),
-.booking-dialog :deep(.p-calendar-panel) {
+.booking-dialog :deep(.p-select-panel),
+.booking-dialog :deep(.p-datepicker-panel) {
     font-size: 0.875rem;
 }
 

@@ -4,6 +4,7 @@ import { $t, updatePreset, updateSurfacePalette } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
 import Lara from '@primeuix/themes/lara';
 import Nora from '@primeuix/themes/nora';
+import SelectButton from 'primevue/selectbutton';
 import { ref } from 'vue';
 
 const { layoutConfig, isDarkTheme } = useLayout();

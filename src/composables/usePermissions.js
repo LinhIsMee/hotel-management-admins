@@ -6,9 +6,9 @@ export function usePermissions() {
 
     // Định nghĩa các quyền theo vai trò
     const rolePermissions = {
-        admin: ['view', 'create', 'edit', 'delete', 'confirm', 'cancel'],
-        manager: ['view', 'create', 'edit', 'confirm', 'cancel'],
-        staff: ['view', 'confirm'],
+        admin: ['view', 'create', 'edit', 'delete', 'confirm', 'cancel', 'checkIn', 'checkOut'],
+        manager: ['view', 'create', 'edit', 'confirm', 'cancel', 'checkIn', 'checkOut'],
+        staff: ['view', 'confirm', 'checkIn', 'checkOut'],
         viewer: ['view']
     };
 
@@ -25,7 +25,9 @@ export function usePermissions() {
         edit: computed(() => hasPermission('edit')),
         delete: computed(() => hasPermission('delete')),
         confirm: computed(() => hasPermission('confirm')),
-        cancel: computed(() => hasPermission('cancel'))
+        cancel: computed(() => hasPermission('cancel')),
+        checkIn: computed(() => hasPermission('checkIn')),
+        checkOut: computed(() => hasPermission('checkOut'))
     };
 
     // Thay đổi vai trò (cho mục đích thử nghiệm)

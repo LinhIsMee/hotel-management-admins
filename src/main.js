@@ -16,6 +16,7 @@ import InputText from 'primevue/inputtext';
 import Dialog from 'primevue/dialog';
 import Password from 'primevue/password';
 import Checkbox from 'primevue/checkbox';
+// LƯU Ý: Component Calendar đã lỗi thời từ phiên bản v4, nên thay thế bằng DatePicker
 import Calendar from 'primevue/calendar';
 import Select from 'primevue/select';
 import ProgressSpinner from 'primevue/progressspinner';
