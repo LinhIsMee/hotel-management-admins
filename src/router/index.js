@@ -8,7 +8,6 @@ import ClientLayout from '@/layout/ClientLayout.vue';
 // Client pages
 
 // Admin page imports
-import AdminLogin from '@/views/pages/auth/Login.vue';
 
 // Định nghĩa route guards
 const adminAuthGuard = (to, from, next) => {
@@ -163,7 +162,7 @@ const routes = [
             {
                 path: 'login',
                 name: 'admin-login',
-                component: AdminLogin,
+                component: () => import('@/views/pages/auth/Login.vue'),
                 beforeEnter: guestGuard
             },
             {
