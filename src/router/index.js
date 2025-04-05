@@ -157,7 +157,7 @@ const routes = [
 
     // Admin Auth routes
     {
-        path: '/auth',
+        path: '/ ',
         children: [
             {
                 path: 'login',
