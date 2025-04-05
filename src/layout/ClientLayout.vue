@@ -700,22 +700,22 @@ const handleRegister = () => {
                 <!-- Thanh cuối footer - Copyright và phương thức thanh toán -->
                 <div class="mt-10 pt-6 border-t border-gray-800">
                     <div class="flex flex-col md:flex-row justify-between items-center">
-                        <p class="text-gray-400 text-sm">&copy; 2023 Luxury Hotel. Tất cả quyền được bảo lưu.</p>
+                        <p class="text-gray-400 text-sm">&copy; 2025 Luxury Hotel. Tất cả quyền được bảo lưu.</p>
 
                         <!-- Phương thức thanh toán - Sử dụng biểu tượng -->
-                        <div class="mt-4 md:mt-0">
+                        <!-- <div class="mt-4 md:mt-0">
                             <div class="flex items-center space-x-3">
-                                <span class="text-gray-400 text-sm">Chúng tôi chấp nhận:</span>
-                                <!-- Thay thế bằng biểu tượng -->
-                                <div class="flex space-x-2">
+                                <span class="text-gray-400 text-sm">Chúng tôi chấp nhận:</span> -->
+
+                                <!-- <div class="flex space-x-2">
                                     <span class="bg-white px-2 py-1 rounded text-blue-600 font-bold text-sm">VISA</span>
                                     <span class="bg-white px-2 py-1 rounded text-orange-600 font-bold text-sm">MASTER</span>
                                     <span class="bg-white px-2 py-1 rounded text-blue-800 font-bold text-sm">PAYPAL</span>
                                     <span class="bg-purple-600 px-2 py-1 rounded text-white font-bold text-sm">MOMO</span>
                                     <span class="bg-blue-500 px-2 py-1 rounded text-white font-bold text-sm">VNPAY</span>
-                                </div>
-                            </div>
-                        </div>
+                                </div> -->
+                            <!-- </div>
+                        </div> -->
                     </div>
                 </div>
             </div>
