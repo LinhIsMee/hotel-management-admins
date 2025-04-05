@@ -1,7 +1,7 @@
 {
     "name": "luxuryhotel_v1",
     "version": "1.0.0",
-    "description": "Luxury Hotel - Huy Chiến - Chỉ giao diện",
+    "description": "Luxury Hotel ",
     "author": "Huy Chiến",
     "scripts": {
         "dev": "vite",
