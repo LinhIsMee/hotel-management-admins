@@ -1,7 +1,10 @@
 <script setup>
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import ProgressSpinner from 'primevue/progressspinner';
+import Button from 'primevue/button';
+import Dialog from 'primevue/dialog';
 
 // Import trực tiếp các ảnh
 import nhaNghi1 from '@/assets/images/nha-nghi-1.webp';
@@ -25,7 +28,20 @@ const booking = ref({
     totalPrice: 9500000,
     status: 'CONFIRMED',
     paymentStatus: 'PAID',
-    paymentMethod: 'CREDIT_CARD'
+    paymentMethod: 'CREDIT_CARD',
+    contactInfo: {
+        fullName: 'Nguyễn Văn A',
+        email: 'nguyenvana@example.com',
+        phone: '0901234567',
+        nationality: 'VN',
+        specialRequests: 'Phòng có view đẹp'
+    },
+    services: {
+        breakfast: true,
+        earlyCheckin: false,
+        lateCheckout: true,
+        airportPickup: false
+    }
 });
 const loading = ref(false);
 
@@ -74,6 +90,19 @@ const calculateNights = () => {
     const checkIn = new Date(booking.value.checkInDate);
     const checkOut = new Date(booking.value.checkOutDate);
     return Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+};
+
+// Kiểm tra có dịch vụ bổ sung không
+const hasAdditionalServices = computed(() => {
+    if (!booking.value.services) return false;
+    return !!Object.values(booking.value.services).find(value => value === true);
+});
+
+// Tính tổng tiền cho bữa sáng
+const getBreakfastTotal = () => {
+    if (!booking.value.services || !booking.value.services.breakfast) return 0;
+    const nights = calculateNights();
+    return 150000 * nights * booking.value.totalGuests;
 };
 
 // Lấy class và label cho trạng thái đặt phòng
@@ -160,6 +189,20 @@ const getPaymentMethodLabel = (method) => {
     }
 };
 
+// Lấy tên quốc gia theo mã
+const getCountryName = (code) => {
+    const countries = {
+        'VN': 'Việt Nam',
+        'US': 'Hoa Kỳ',
+        'GB': 'Anh',
+        'JP': 'Nhật Bản',
+        'KR': 'Hàn Quốc',
+        'CN': 'Trung Quốc'
+    };
+
+    return countries[code] || code || 'Việt Nam';
+};
+
 // Hủy đặt phòng
 const cancelBooking = () => {
     // Xác nhận trước khi hủy
@@ -182,6 +225,29 @@ const cancelBooking = () => {
 const changeImage = (image) => {
     selectedImage.value = image;
 };
+
+// Sửa đổi đặt phòng
+const editBooking = () => {
+    toast.add({
+        severity: 'info',
+        summary: 'Tính năng đang phát triển',
+        detail: 'Chức năng sửa đổi đặt phòng sẽ sớm được cập nhật',
+        life: 3000
+    });
+};
+
+// In xác nhận đặt phòng
+const printBookingConfirmation = () => {
+    window.print();
+};
+
+// Kiểm tra có thể hủy không
+const canCancel = computed(() => {
+    return booking.value.status !== 'CANCELLED' && booking.value.status !== 'CHECK_OUT';
+});
+
+// Dialog hiển thị xác nhận hủy
+const showCancelDialog = ref(false);
 </script>
 
 <template>
@@ -207,7 +273,7 @@ const changeImage = (image) => {
                     <h1 class="text-2xl font-bold text-gray-800 mb-2">Đặt phòng thành công!</h1>
                     <p class="text-gray-600 mb-2">Cảm ơn bạn đã đặt phòng tại Luxury Hotel</p>
                     <p class="font-medium">Mã đặt phòng: <span class="text-amber-600">{{ booking.id }}</span></p>
-                    <p class="text-sm text-gray-500 mt-2">Email xác nhận đã được gửi đến {{ booking.contactInfo.email }}</p>
+                    <p class="text-sm text-gray-500 mt-2">Email xác nhận đã được gửi đến {{ booking.contactInfo && booking.contactInfo.email }}</p>
                 </div>
 
                 <!-- Thông tin chi tiết đặt phòng -->
@@ -298,13 +364,13 @@ const changeImage = (image) => {
                                     </div>
                                     <div class="flex items-center">
                                         <i class="pi pi-flag text-gray-500 mr-2"></i>
-                                        <span>{{ getCountryName(booking.contactInfo.nationality) }}</span>
+                                        <span>{{ booking.contactInfo && getCountryName(booking.contactInfo.nationality) }}</span>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Yêu cầu đặc biệt -->
-                            <div v-if="booking.contactInfo.specialRequests" class="mb-6">
+                            <div v-if="booking.contactInfo && booking.contactInfo.specialRequests" class="mb-6">
                                 <h3 class="font-semibold text-gray-800 mb-3">Yêu cầu đặc biệt</h3>
                                 <p class="bg-gray-50 p-3 rounded-lg text-gray-700">{{ booking.contactInfo.specialRequests }}</p>
                             </div>

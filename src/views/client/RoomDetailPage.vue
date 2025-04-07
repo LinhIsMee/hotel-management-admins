@@ -242,9 +242,9 @@ const checkDiscountCode = () => {
     discountStatus.value.loading = true;
 
     // Giả lập kiểm tra mã giảm giá
-    setTimeout(() => {
+        setTimeout(() => {
         // Xác minh một số mã mẫu
-        const validCodes = {
+            const validCodes = {
             'SUMMER10': 10,
             'WELCOME15': 15,
             'SPECIAL20': 20
@@ -253,15 +253,15 @@ const checkDiscountCode = () => {
         const discount = validCodes[booking.value.discountCode.toUpperCase()];
 
         if (discount) {
-            discountStatus.value.valid = true;
-            discountStatus.value.applied = true;
+                discountStatus.value.valid = true;
+                discountStatus.value.applied = true;
             discountStatus.value.discount = discount;
             discountStatus.value.message = `Đã áp dụng mã giảm giá ${discount}%`;
-        } else {
-            discountStatus.value.valid = false;
+            } else {
+                discountStatus.value.valid = false;
             discountStatus.value.applied = false;
             discountStatus.value.message = 'Mã giảm giá không hợp lệ hoặc đã hết hạn';
-        }
+            }
 
         discountStatus.value.loading = false;
     }, 1000);
@@ -369,14 +369,14 @@ const submitReview = () => {
 
 useHead({
     title: computed(() => room.value ? `${room.value.roomTypeName} - Chi tiết phòng` : 'Chi tiết phòng'),
-    meta: [
-        {
-            name: 'description',
+  meta: [
+    {
+      name: 'description',
             content: computed(() => room.value ?
                 `${room.value.description || 'Chi tiết phòng khách sạn sang trọng với nhiều tiện nghi hiện đại.'}` :
                 'Chi tiết phòng khách sạn')
-        }
-    ]
+    }
+  ]
 });
 </script>
 

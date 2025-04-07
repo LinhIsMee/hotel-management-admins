@@ -75,7 +75,7 @@ const getSeverity = (status) => {
         <div v-else-if="bookings.length === 0" class="flex justify-center py-4 text-gray-500">
             Không có dữ liệu đặt phòng gần đây
         </div>
-        <DataTable v-else :value="bookings" class="p-datatable-sm" :rows="5" :rowsPerPageOptions="[5, 10, 20]" paginator>
+        <DataTable v-else :value="bookings" class="p-datatable-sm" :rows="20" :rowsPerPageOptions="[20, 50, 100]" paginator>
             <Column field="id" header="ID" style="width: 5%"></Column>
             <Column field="customerName" header="Khách hàng" style="width: 25%"></Column>
             <Column field="roomNumber" header="Phòng" style="width: 15%"></Column>

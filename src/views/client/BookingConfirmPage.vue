@@ -205,12 +205,32 @@ const confirmBooking = async () => {
 
         // Nếu thanh toán qua VNPay
         if (paymentMethod.value === 'VNPAY') {
-            // Trong thực tế, API sẽ trả về URL để redirect đến trang thanh toán VNPay
-            alert('Đang chuyển hướng đến trang thanh toán VNPay...');
-            // Giả lập điều hướng đến trang xác nhận
-            setTimeout(() => {
-                router.push(`/booking/confirmation/${result.id}`);
-            }, 1500);
+            // Tạo request để lấy URL thanh toán VNPay
+            const paymentResponse = await fetch('/api/v1/payments/create-payment-url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    bookingId: result.id,
+                    amount: bookingInfo.value.totalPrice,
+                    orderInfo: 'Thanh toán đặt phòng khách sạn',
+                    returnUrl: `${window.location.origin}/payment-callback`
+                })
+            });
+
+            if (!paymentResponse.ok) {
+                throw new Error('Không thể tạo URL thanh toán');
+            }
+
+            const paymentResult = await paymentResponse.json();
+
+            // Chuyển hướng đến trang thanh toán VNPay
+            if (paymentResult.paymentUrl) {
+                window.location.href = paymentResult.paymentUrl;
+            } else {
+                throw new Error('Không nhận được URL thanh toán');
+            }
         } else {
             // Điều hướng đến trang xác nhận đặt phòng
             router.push(`/booking/confirmation/${result.id}`);

@@ -109,6 +109,12 @@ const routes = [
                 meta: { title: 'Xác nhận đặt phòng - Luxury Hotel' }
             },
             {
+                path: '/payment-callback',
+                name: 'PaymentCallback',
+                component: () => import('@/views/client/PaymentCallbackPage.vue'),
+                meta: { title: 'Kết quả thanh toán - Luxury Hotel' }
+            },
+            {
                 path: '/booking/confirmation/:id',
                 name: 'BookingConfirmation',
                 component: () => import('@/views/client/BookingConfirmationPage.vue'),
