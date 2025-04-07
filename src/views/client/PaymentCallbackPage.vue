@@ -14,6 +14,7 @@ const processingBooking = ref(false);
 const paymentInfo = ref({
     amount: 0,
     bankCode: '',
+    bankName: '',
     bankTranNo: '',
     cardType: '',
     orderInfo: '',
@@ -23,7 +24,11 @@ const paymentInfo = ref({
     transactionNo: '',
     transactionStatus: '',
     txnRef: '',
-    secureHash: ''
+    secureHash: '',
+    formattedAmount: '',
+    paymentStatus: '',
+    message: '',
+    success: false
 });
 
 const paymentStatus = ref({
@@ -32,30 +37,49 @@ const paymentStatus = ref({
     bookingId: null
 });
 
-// Chuyển đổi số tiền từ số nguyên (đơn vị xu) sang VND
+// Chuyển đổi số tiền từ số nguyên sang VND
 const formatAmount = (amount) => {
     const amountNumber = parseInt(amount);
     if (isNaN(amountNumber)) return '0';
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amountNumber / 100);
+
+    // VNPay có thể trả về số tiền ở 2 định dạng:
+    // 1. Đơn vị là xu (trường amount cần chia 100)
+    // 2. Đơn vị là VND (trường amount và vnp_Amount mới)
+
+    // Nếu amount > 10^8, giả định là đơn vị xu (cần chia 100)
+    // Nếu không, giả định là đơn vị VND
+    const divisor = amountNumber > 100000000 ? 100 : 1;
+
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amountNumber / divisor);
 };
 
-// Format ngày từ định dạng yyyyMMddHHmmss
+// Format ngày từ nhiều định dạng khác nhau
 const formatPayDate = (payDate) => {
-    if (!payDate || payDate.length < 14) return '';
+    if (!payDate) return '';
 
-    try {
-        const year = payDate.substring(0, 4);
-        const month = payDate.substring(4, 6);
-        const day = payDate.substring(6, 8);
-        const hour = payDate.substring(8, 10);
-        const minute = payDate.substring(10, 12);
-        const second = payDate.substring(12, 14);
-
-        return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
-    } catch (error) {
-        console.error('Lỗi khi format ngày thanh toán:', error);
+    // Nếu là định dạng mới từ VNPay (đã được format sẵn: dd/MM/yyyy HH:mm:ss)
+    if (payDate.includes('/')) {
         return payDate;
     }
+
+    // Nếu là định dạng cũ từ VNPay (yyyyMMddHHmmss)
+    try {
+        if (payDate.length >= 14) {
+            const year = payDate.substring(0, 4);
+            const month = payDate.substring(4, 6);
+            const day = payDate.substring(6, 8);
+            const hour = payDate.substring(8, 10);
+            const minute = payDate.substring(10, 12);
+            const second = payDate.substring(12, 14);
+
+            return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
+        }
+    } catch (error) {
+        console.error('Lỗi khi format ngày thanh toán:', error);
+    }
+
+    // Trả về giá trị ban đầu nếu không thể format
+    return payDate;
 };
 
 // Phân tích thông tin thanh toán từ query parameters
@@ -63,29 +87,37 @@ const parsePaymentInfo = () => {
     const queryParams = route.query;
 
     paymentInfo.value = {
-        amount: queryParams.vnp_Amount || 0,
-        bankCode: queryParams.vnp_BankCode || '',
+        amount: queryParams.vnp_Amount || queryParams.amount || 0,
+        bankCode: queryParams.vnp_BankCode || queryParams.bankCode || '',
+        bankName: queryParams.bankName || '',
         bankTranNo: queryParams.vnp_BankTranNo || '',
-        cardType: queryParams.vnp_CardType || '',
-        orderInfo: queryParams.vnp_OrderInfo || '',
-        payDate: queryParams.vnp_PayDate || '',
+        cardType: queryParams.vnp_CardType || queryParams.cardType || '',
+        orderInfo: queryParams.vnp_OrderInfo || queryParams.orderInfo || '',
+        payDate: queryParams.vnp_PayDate || queryParams.paymentTime || '',
         responseCode: queryParams.vnp_ResponseCode || '',
         tmnCode: queryParams.vnp_TmnCode || '',
-        transactionNo: queryParams.vnp_TransactionNo || '',
+        transactionNo: queryParams.vnp_TransactionNo || queryParams.transactionNo || '',
         transactionStatus: queryParams.vnp_TransactionStatus || '',
         txnRef: queryParams.vnp_TxnRef || '',
-        secureHash: queryParams.vnp_SecureHash || ''
+        secureHash: queryParams.vnp_SecureHash || queryParams.vnp_SecureHash || '',
+        formattedAmount: queryParams.formattedAmount || '',
+        paymentStatus: queryParams.paymentStatus || '',
+        message: queryParams.message || '',
+        success: queryParams.success === 'true'
     };
 
-    // Kiểm tra trạng thái thanh toán dựa vào mã phản hồi
-    const isSuccess = paymentInfo.value.responseCode === '00' && paymentInfo.value.transactionStatus === '00';
+    // Kiểm tra trạng thái thanh toán dựa vào mã phản hồi hoặc trường success
+    const isSuccess = (paymentInfo.value.responseCode === '00' && paymentInfo.value.transactionStatus === '00') ||
+                      paymentInfo.value.success;
 
     paymentStatus.value = {
         success: isSuccess,
         message: isSuccess
-            ? 'Thanh toán thành công'
-            : 'Thanh toán thất bại. Vui lòng liên hệ với khách sạn hoặc thử lại.',
-        bookingId: paymentInfo.value.txnRef || null
+            ? paymentInfo.value.message || 'Thanh toán thành công'
+            : paymentInfo.value.message || 'Thanh toán thất bại. Vui lòng liên hệ với khách sạn hoặc thử lại.',
+        bookingId: queryParams.vnp_OrderInfo ? queryParams.vnp_OrderInfo.replace('Thanh toán đặt phòng #', '') :
+                  (paymentInfo.value.orderInfo ? paymentInfo.value.orderInfo.replace('Thanh toán đặt phòng #', '') :
+                  (paymentInfo.value.txnRef || null))
     };
 };
 
@@ -197,12 +229,12 @@ onMounted(() => {
                     <div class="space-y-3">
                         <div class="flex justify-between border-b border-gray-100 pb-2">
                             <span class="text-gray-600">Số tiền:</span>
-                            <span class="font-semibold">{{ formatAmount(paymentInfo.amount) }}</span>
+                            <span class="font-semibold">{{ paymentInfo.formattedAmount || formatAmount(paymentInfo.amount) }}</span>
                         </div>
 
                         <div class="flex justify-between border-b border-gray-100 pb-2">
                             <span class="text-gray-600">Ngân hàng:</span>
-                            <span class="font-semibold">{{ paymentInfo.bankCode }}</span>
+                            <span class="font-semibold">{{ paymentInfo.bankName || paymentInfo.bankCode }}</span>
                         </div>
 
                         <div class="flex justify-between border-b border-gray-100 pb-2">
@@ -226,8 +258,13 @@ onMounted(() => {
                                 'font-semibold',
                                 paymentStatus.success ? 'text-green-600' : 'text-red-600'
                             ]">
-                                {{ paymentStatus.success ? 'Thành công' : 'Thất bại' }}
+                                {{ paymentInfo.paymentStatus || (paymentStatus.success ? 'Thành công' : 'Thất bại') }}
                             </span>
+                        </div>
+
+                        <div v-if="paymentInfo.orderInfo" class="flex justify-between border-b border-gray-100 pb-2">
+                            <span class="text-gray-600">Nội dung:</span>
+                            <span class="font-semibold">{{ paymentInfo.orderInfo }}</span>
                         </div>
 
                         <div v-if="paymentStatus.bookingId" class="flex justify-between pb-2">

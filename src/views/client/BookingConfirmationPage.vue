@@ -6,68 +6,179 @@ import ProgressSpinner from 'primevue/progressspinner';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 
-// Import trực tiếp các ảnh
-import nhaNghi1 from '@/assets/images/nha-nghi-1.webp';
-import nhaNghi2 from '@/assets/images/nha-nghi-2.webp';
-import nhaNghi3 from '@/assets/images/nha-nghi-3.webp';
-
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 
 const booking = ref({
-    id: 'B453252',
-    roomName: 'Phòng Deluxe',
-    roomImage: nhaNghi1,
-    checkInDate: '2023-12-25',
-    checkOutDate: '2023-12-30',
-    guestName: 'Nguyễn Văn A',
-    guestEmail: 'nguyenvana@example.com',
-    guestPhone: '0901234567',
-    totalGuests: 2,
-    totalPrice: 9500000,
-    status: 'CONFIRMED',
-    paymentStatus: 'PAID',
-    paymentMethod: 'CREDIT_CARD',
+    id: '',
+    roomName: '',
+    roomImage: null,
+    checkInDate: '',
+    checkOutDate: '',
+    guestName: '',
+    guestEmail: '',
+    guestPhone: '',
+    nationalId: '',
+    totalGuests: 0,
+    totalPrice: 0,
+    finalPrice: 0,
+    status: '',
+    paymentStatus: '',
+    paymentMethod: '',
+    paymentDate: null,
+    createdAt: '',
     contactInfo: {
-        fullName: 'Nguyễn Văn A',
-        email: 'nguyenvana@example.com',
-        phone: '0901234567',
+        fullName: '',
+        email: '',
+        phone: '',
+        nationalId: '',
         nationality: 'VN',
-        specialRequests: 'Phòng có view đẹp'
+        specialRequests: ''
     },
-    services: {
-        breakfast: true,
-        earlyCheckin: false,
-        lateCheckout: true,
-        airportPickup: false
-    }
+    discount: {
+        code: '',
+        value: 0,
+        type: ''
+    },
+    rooms: []
 });
 const loading = ref(false);
-
-// Sử dụng các biến import cho danh sách ảnh
-const roomImages = ref([
-    nhaNghi1,
-    nhaNghi2,
-    nhaNghi3
-]);
-
-const selectedImage = ref(nhaNghi1);
+const bookingPolicies = ref({
+    checkInTime: '14:00',
+    checkOutTime: '12:00',
+    cancellationPolicy: 'Bạn có thể hủy miễn phí trước 1 ngày so với ngày nhận phòng. Nếu hủy muộn hơn, bạn sẽ bị tính phí 1 đêm đầu tiên.',
+    idRequirement: 'Khách hàng cần xuất trình giấy tờ tùy thân có ảnh khi nhận phòng.'
+});
+const hotelInfo = ref({
+    name: 'Luxury Hotel',
+    address: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+    phone: '+84 28 1234 5678',
+    email: 'booking@luxuryhotel.vn'
+});
+const selectedImage = ref(null);
 
 onMounted(async () => {
     const bookingId = route.params.id;
     loading.value = true;
 
     try {
-        // Giả lập lấy dữ liệu từ API
-        setTimeout(() => {
-            // Thực tế sẽ gọi API lấy dữ liệu thay vì fake dữ liệu
-            // Giả sử đã set dữ liệu booking mặc định ở trên
-            booking.value.id = bookingId || 'B453252';
-            loading.value = false;
-        }, 800);
+        // Gọi API để lấy thông tin đặt phòng
+        const response = await fetch(`/api/v1/user/bookings/detail/${bookingId}`);
+
+        if (!response.ok) {
+            throw new Error('Không thể tải thông tin đặt phòng');
+        }
+
+        const result = await response.json();
+        const bookingData = result.booking;
+        const paymentData = result.payment;
+
+        // Cập nhật dữ liệu booking
+        booking.value = {
+            ...booking.value,
+            id: bookingData.id,
+            guestName: bookingData.fullName || 'Không có tên',
+            guestEmail: bookingData.email || 'Không có email',
+            guestPhone: bookingData.phone || 'Không có số điện thoại',
+            nationalId: bookingData.nationalId || 'Không có',
+            checkInDate: bookingData.checkInDate,
+            checkOutDate: bookingData.checkOutDate,
+            totalPrice: bookingData.totalPrice || 0,
+            finalPrice: bookingData.finalPrice || bookingData.totalPrice,
+            status: bookingData.status || 'PENDING',
+            paymentStatus: bookingData.paymentStatus || paymentData?.paymentStatus || 'UNPAID',
+            paymentMethod: bookingData.paymentMethod || paymentData?.paymentMethod || 'CASH',
+            paymentDate: bookingData.paymentDate || paymentData?.paymentDate,
+            createdAt: bookingData.createdAt,
+            contactInfo: {
+                fullName: bookingData.fullName || 'Không có tên',
+                email: bookingData.email || 'Không có email',
+                phone: bookingData.phone || 'Không có số điện thoại',
+                nationalId: bookingData.nationalId || 'Không có',
+                nationality: 'VN',
+                specialRequests: ''
+            },
+            discount: {
+                code: bookingData.discountCode || '',
+                value: bookingData.discountValue || 0,
+                type: bookingData.discountType || ''
+            },
+            rooms: Array.isArray(bookingData.rooms) ? bookingData.rooms.map(room => ({
+                roomId: room.roomId,
+                roomNumber: room.roomNumber,
+                roomType: room.roomType,
+                price: room.price,
+                images: room.images || []
+            })) : []
+        };
+
+        // Tính tổng số khách (mặc định 2 người/phòng)
+        booking.value.totalGuests = bookingData.rooms ? bookingData.rooms.length * 2 : 2;
+
+        // Nếu có phòng, lấy thông tin phòng đầu tiên làm thông tin chính
+        if (booking.value.rooms && booking.value.rooms.length > 0) {
+            const firstRoom = booking.value.rooms[0];
+            booking.value.roomName = firstRoom.roomType;
+            booking.value.roomImage = firstRoom.images && firstRoom.images.length > 0 ? firstRoom.images[0] : null;
+
+            // Đặt ảnh đã chọn về ảnh đầu tiên của phòng đầu tiên
+            if (firstRoom.images && firstRoom.images.length > 0) {
+                selectedImage.value = firstRoom.images[0];
+            }
+        }
+
+        // Cập nhật chính sách đặt phòng nếu API trả về
+        if (result.policies) {
+            bookingPolicies.value = {
+                ...bookingPolicies.value,
+                ...result.policies
+            };
+        }
+
+        // Gọi API để lấy thông tin chính sách đặt phòng (nếu cần)
+        try {
+            const policiesResponse = await fetch('/api/v1/policies');
+            if (policiesResponse.ok) {
+                const policiesData = await policiesResponse.json();
+                if (policiesData) {
+                    bookingPolicies.value = {
+                        ...bookingPolicies.value,
+                        ...policiesData
+                    };
+                }
+            }
+        } catch (policyError) {
+            console.error('Lỗi khi tải chính sách đặt phòng:', policyError);
+            // Không bắt lỗi vì đây không phải thông tin thiết yếu
+        }
+
+        // Gọi API để lấy thông tin khách sạn
+        try {
+            const hotelResponse = await fetch('/api/v1/hotel-info');
+            if (hotelResponse.ok) {
+                const hotelData = await hotelResponse.json();
+                if (hotelData) {
+                    hotelInfo.value = {
+                        ...hotelInfo.value,
+                        ...hotelData
+                    };
+                }
+            }
+        } catch (hotelError) {
+            console.error('Lỗi khi tải thông tin khách sạn:', hotelError);
+            // Không bắt lỗi vì đây không phải thông tin thiết yếu
+        }
+
+        loading.value = false;
     } catch (error) {
         console.error('Lỗi khi tải thông tin đặt phòng:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: error.message || 'Không thể tải thông tin đặt phòng',
+            life: 3000
+        });
         loading.value = false;
     }
 });
@@ -92,19 +203,6 @@ const calculateNights = () => {
     return Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24));
 };
 
-// Kiểm tra có dịch vụ bổ sung không
-const hasAdditionalServices = computed(() => {
-    if (!booking.value.services) return false;
-    return !!Object.values(booking.value.services).find(value => value === true);
-});
-
-// Tính tổng tiền cho bữa sáng
-const getBreakfastTotal = () => {
-    if (!booking.value.services || !booking.value.services.breakfast) return 0;
-    const nights = calculateNights();
-    return 150000 * nights * booking.value.totalGuests;
-};
-
 // Lấy class và label cho trạng thái đặt phòng
 const getStatusClass = (status) => {
     switch (status) {
@@ -118,6 +216,8 @@ const getStatusClass = (status) => {
             return 'bg-purple-100 text-purple-800';
         case 'CANCELLED':
             return 'bg-red-100 text-red-800';
+        case 'PENDING':
+            return 'bg-yellow-100 text-yellow-800';
         default:
             return 'bg-gray-100 text-gray-800';
     }
@@ -135,6 +235,8 @@ const getStatusLabel = (status) => {
             return 'Đã trả phòng';
         case 'CANCELLED':
             return 'Đã hủy';
+        case 'PENDING':
+            return 'Chờ xác nhận';
         default:
             return status;
     }
@@ -204,21 +306,48 @@ const getCountryName = (code) => {
 };
 
 // Hủy đặt phòng
-const cancelBooking = () => {
-    // Xác nhận trước khi hủy
-    if (!confirm('Bạn có chắc chắn muốn hủy đặt phòng này không?')) {
-        return;
+const cancelBooking = async () => {
+    // Đóng dialog hủy đặt phòng
+    showCancelDialog.value = false;
+
+    // Hiển thị loading
+    loading.value = true;
+
+    try {
+        // Gọi API để hủy đặt phòng
+        const response = await fetch(`/api/v1/bookings/${booking.value.id}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Không thể hủy đặt phòng');
+        }
+
+        const result = await response.json();
+
+        // Cập nhật trạng thái đặt phòng
+        booking.value.status = 'CANCELLED';
+
+        toast.add({
+            severity: 'success',
+            summary: 'Hủy đặt phòng thành công',
+            detail: 'Đơn đặt phòng của bạn đã được hủy',
+            life: 3000
+        });
+    } catch (error) {
+        console.error('Lỗi khi hủy đặt phòng:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: error.message || 'Không thể hủy đặt phòng',
+            life: 3000
+        });
+    } finally {
+        loading.value = false;
     }
-
-    // Giả lập API hủy đặt phòng
-    booking.value.status = 'CANCELLED';
-
-    toast.add({
-        severity: 'success',
-        summary: 'Hủy đặt phòng thành công',
-        detail: 'Đơn đặt phòng của bạn đã được hủy',
-        life: 3000
-    });
 };
 
 // Thêm hàm để thay đổi ảnh đang được hiển thị
@@ -226,15 +355,6 @@ const changeImage = (image) => {
     selectedImage.value = image;
 };
 
-// Sửa đổi đặt phòng
-const editBooking = () => {
-    toast.add({
-        severity: 'info',
-        summary: 'Tính năng đang phát triển',
-        detail: 'Chức năng sửa đổi đặt phòng sẽ sớm được cập nhật',
-        life: 3000
-    });
-};
 
 // In xác nhận đặt phòng
 const printBookingConfirmation = () => {
@@ -268,12 +388,45 @@ const showCancelDialog = ref(false);
                 <!-- Thông báo thành công -->
                 <div class="bg-white rounded-lg shadow-md p-6 mb-8 text-center">
                     <div class="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-4">
-                        <i class="pi pi-check-circle text-3xl text-green-500"></i>
+                        <i v-if="booking.status === 'CONFIRMED'" class="pi pi-check-circle text-3xl text-green-500"></i>
+                        <i v-else-if="booking.status === 'PENDING'" class="pi pi-clock text-3xl text-yellow-500"></i>
+                        <i v-else-if="booking.status === 'CANCELLED'" class="pi pi-times-circle text-3xl text-red-500"></i>
+                        <i v-else class="pi pi-check-circle text-3xl text-green-500"></i>
                     </div>
-                    <h1 class="text-2xl font-bold text-gray-800 mb-2">Đặt phòng thành công!</h1>
-                    <p class="text-gray-600 mb-2">Cảm ơn bạn đã đặt phòng tại Luxury Hotel</p>
+                    <h1 class="text-2xl font-bold text-gray-800 mb-2">
+                        <span v-if="booking.status === 'CONFIRMED'">Đặt phòng thành công!</span>
+                        <span v-else-if="booking.status === 'PENDING'">Đặt phòng đang chờ xác nhận!</span>
+                        <span v-else-if="booking.status === 'CANCELLED'">Đặt phòng đã bị hủy!</span>
+                        <span v-else>Đặt phòng thành công!</span>
+                    </h1>
+                    <p class="text-gray-600 mb-2">Cảm ơn bạn đã đặt phòng tại {{ hotelInfo?.name || 'Luxury Hotel' }}</p>
                     <p class="font-medium">Mã đặt phòng: <span class="text-amber-600">{{ booking.id }}</span></p>
-                    <p class="text-sm text-gray-500 mt-2">Email xác nhận đã được gửi đến {{ booking.contactInfo && booking.contactInfo.email }}</p>
+                    <p v-if="booking.contactInfo && booking.contactInfo.email" class="text-sm text-gray-500 mt-2">Email xác nhận đã được gửi đến {{ booking.contactInfo.email }}</p>
+                </div>
+
+                <!-- Chi tiết phòng -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                    <h3 class="font-semibold text-gray-800 mb-3">Chi tiết phòng</h3>
+                    <div v-for="(room, index) in booking.rooms" :key="index" class="border border-gray-200 rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-semibold">{{ room.roomType }}</h4>
+                                <p class="text-gray-600">Số phòng: {{ room.roomNumber }}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-semibold">{{ formatCurrency(room.price) }}</p>
+                                <p class="text-sm text-gray-500">/đêm</p>
+                            </div>
+                        </div>
+                        <div v-if="room.images && room.images.length > 0" class="mt-4 grid grid-cols-3 gap-2">
+                            <img v-for="(image, imgIndex) in room.images"
+                                 :key="imgIndex"
+                                 :src="image"
+                                 :alt="room.roomType"
+                                 class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80"
+                                 @click="changeImage(image)" />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Thông tin chi tiết đặt phòng -->
@@ -284,7 +437,9 @@ const showCancelDialog = ref(false);
                             <h2 class="text-xl font-semibold text-gray-800 mb-4">Chi tiết đặt phòng</h2>
 
                             <div class="flex flex-col md:flex-row md:items-center mb-6">
-                                <img :src="selectedImage" :alt="booking.roomName" class="w-full md:w-48 h-36 object-cover rounded-lg mb-4 md:mb-0 md:mr-6" />
+                                <div v-if="booking.roomImage" class="w-full md:w-48 h-36 mb-4 md:mb-0 md:mr-6">
+                                    <img :src="booking.roomImage" :alt="booking.roomName" class="w-full h-full object-cover rounded-lg" />
+                                </div>
                                 <div>
                                     <h3 class="text-lg font-semibold text-gray-800 mb-1">{{ booking.roomName }}</h3>
                                     <div class="flex items-center text-gray-600 mb-1">
@@ -307,7 +462,7 @@ const showCancelDialog = ref(false);
                                     <div>
                                         <h4 class="font-semibold mb-2">Nhận phòng</h4>
                                         <p class="text-gray-700">{{ formatDate(booking.checkInDate) }}</p>
-                                        <p class="text-gray-600 text-sm">Từ 14:00 (Nhận phòng sớm có phụ phí)</p>
+                                        <p class="text-gray-600 text-sm">Từ {{ bookingPolicies?.checkInTime || '14:00' }} (Nhận phòng sớm có phụ phí)</p>
                                     </div>
                                 </div>
 
@@ -318,30 +473,7 @@ const showCancelDialog = ref(false);
                                     <div>
                                         <h4 class="font-semibold mb-2">Trả phòng</h4>
                                         <p class="text-gray-700">{{ formatDate(booking.checkOutDate) }}</p>
-                                        <p class="text-gray-600 text-sm">Đến 12:00 (Trả phòng muộn có phụ phí)</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Dịch vụ bổ sung -->
-                            <div v-if="hasAdditionalServices" class="mb-6">
-                                <h3 class="font-semibold text-gray-800 mb-3">Dịch vụ bổ sung</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2">
-                                    <div v-if="booking.services.breakfast" class="flex items-center">
-                                        <i class="pi pi-check-circle text-green-500 mr-2"></i>
-                                        <span>Bữa sáng</span>
-                                    </div>
-                                    <div v-if="booking.services.earlyCheckin" class="flex items-center">
-                                        <i class="pi pi-check-circle text-green-500 mr-2"></i>
-                                        <span>Nhận phòng sớm</span>
-                                    </div>
-                                    <div v-if="booking.services.lateCheckout" class="flex items-center">
-                                        <i class="pi pi-check-circle text-green-500 mr-2"></i>
-                                        <span>Trả phòng muộn</span>
-                                    </div>
-                                    <div v-if="booking.services.airportPickup" class="flex items-center">
-                                        <i class="pi pi-check-circle text-green-500 mr-2"></i>
-                                        <span>Đưa đón sân bay</span>
+                                        <p class="text-gray-600 text-sm">Đến {{ bookingPolicies?.checkOutTime || '12:00' }} (Trả phòng muộn có phụ phí)</p>
                                     </div>
                                 </div>
                             </div>
@@ -381,15 +513,15 @@ const showCancelDialog = ref(false);
                                 <ul class="space-y-2 text-gray-700">
                                     <li class="flex items-start">
                                         <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
-                                        <span>Nhận phòng từ 14:00 và trả phòng trước 12:00.</span>
+                                        <span>Chính sách nhận phòng: Nhận phòng từ {{ bookingPolicies?.checkInTime || '14:00' }} và trả phòng trước {{ bookingPolicies?.checkOutTime || '12:00' }}.</span>
                                     </li>
                                     <li class="flex items-start">
                                         <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
-                                        <span>Bạn có thể hủy miễn phí trước 1 ngày so với ngày nhận phòng. Nếu hủy muộn hơn, bạn sẽ bị tính phí 1 đêm đầu tiên.</span>
+                                        <span>Chính sách hủy phòng: {{ bookingPolicies?.cancellationPolicy || 'Bạn có thể hủy miễn phí trước 1 ngày so với ngày nhận phòng. Nếu hủy muộn hơn, bạn sẽ bị tính phí 1 đêm đầu tiên.' }}</span>
                                     </li>
                                     <li class="flex items-start">
                                         <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
-                                        <span>Khách hàng cần xuất trình giấy tờ tùy thân có ảnh khi nhận phòng.</span>
+                                        <span>{{ bookingPolicies?.idRequirement || 'Khách hàng cần xuất trình giấy tờ tùy thân có ảnh khi nhận phòng.' }}</span>
                                     </li>
                                 </ul>
                             </div>
@@ -408,68 +540,51 @@ const showCancelDialog = ref(false);
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Trạng thái:</span>
-                                    <span class="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Đã xác nhận</span>
+                                    <span :class="getStatusClass(booking.status)" class="inline-block px-2 py-1 rounded-full text-xs font-semibold">{{ getStatusLabel(booking.status) }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Thanh toán:</span>
-                                    <span :class="getPaymentStatusClass()">{{ getPaymentStatusLabel() }}</span>
+                                    <span :class="getPaymentStatusClass(booking.paymentStatus)" class="inline-block px-2 py-1 rounded-full text-xs font-semibold">{{ getPaymentStatusLabel(booking.paymentStatus) }}</span>
                                 </div>
                             </div>
 
                             <div class="border-t border-gray-200 pt-4 pb-4">
                                 <div class="flex justify-between mb-2">
-                                    <span class="text-gray-600">Phòng ({{ calculateNights() }} đêm)</span>
+                                    <span class="text-gray-600">Tổng tiền phòng ({{ booking.rooms.length }} phòng x {{ calculateNights() }} đêm)</span>
                                     <span>{{ formatCurrency(booking.totalPrice) }}</span>
                                 </div>
 
-                                <div v-if="booking.services?.breakfast" class="flex justify-between mb-2">
-                                    <span class="text-gray-600">Bữa sáng</span>
-                                    <span>{{ formatCurrency(getBreakfastTotal()) }}</span>
+                                <div v-if="booking.discount.code" class="flex justify-between mb-2 text-green-600">
+                                    <span>Giảm giá ({{ booking.discount.code }})</span>
+                                    <span>-{{ formatCurrency(booking.discount.value) }}</span>
                                 </div>
 
-                                <div v-if="booking.services?.earlyCheckin" class="flex justify-between mb-2">
-                                    <span class="text-gray-600">Nhận phòng sớm</span>
-                                    <span>{{ formatCurrency(200000) }}</span>
-                                </div>
-
-                                <div v-if="booking.services?.lateCheckout" class="flex justify-between mb-2">
-                                    <span class="text-gray-600">Trả phòng muộn</span>
-                                    <span>{{ formatCurrency(200000) }}</span>
-                                </div>
-
-                                <div v-if="booking.services?.airportPickup" class="flex justify-between mb-2">
-                                    <span class="text-gray-600">Đưa đón sân bay</span>
-                                    <span>{{ formatCurrency(350000) }}</span>
-                                </div>
-
-                                <div v-if="booking.couponCode" class="flex justify-between mb-2 text-green-600">
-                                    <span>Giảm giá ({{ booking.couponCode }})</span>
-                                    <span>-{{ formatCurrency(booking.couponDiscount || 0) }}</span>
-                                </div>
-                            </div>
-
-                            <div class="border-t border-gray-200 pt-4 mb-6">
-                                <div class="flex justify-between font-bold text-lg">
+                                <div class="flex justify-between font-bold text-lg mt-4">
                                     <span>Tổng cộng</span>
-                                    <span class="text-amber-600">{{ formatCurrency(booking.totalPrice) }}</span>
+                                    <span class="text-amber-600">{{ formatCurrency(booking.finalPrice) }}</span>
                                 </div>
-                                <div class="text-sm text-gray-500 mt-1">
-                                    <span v-if="booking.paymentMethod === 'pay_later'">Thanh toán tại khách sạn</span>
-                                    <span v-else-if="booking.paymentMethod === 'bank_transfer'">Chuyển khoản ngân hàng</span>
-                                    <span v-else-if="booking.paymentMethod === 'credit_card'">Đã thanh toán qua thẻ</span>
-                                    <span v-else-if="booking.paymentMethod === 'e_wallet'">Đã thanh toán qua ví điện tử</span>
+
+                                <div class="text-sm text-gray-500 mt-2">
+                                    <span v-if="booking.paymentStatus === 'UNPAID'">Chưa thanh toán</span>
+                                    <span v-else-if="booking.paymentStatus === 'PAID'">Đã thanh toán</span>
+                                    <span v-else-if="booking.paymentStatus === 'PARTIAL'">Đã đặt cọc</span>
+                                    <span v-else-if="booking.paymentStatus === 'REFUNDED'">Đã hoàn tiền</span>
+                                </div>
+
+                                <div v-if="booking.paymentDate" class="text-sm text-gray-500 mt-1">
+                                    Ngày thanh toán: {{ formatDate(booking.paymentDate) }}
                                 </div>
                             </div>
 
                             <div class="space-y-3">
                                 <Button label="In xác nhận đặt phòng" icon="pi pi-print" class="w-full p-button-outlined" @click="printBookingConfirmation" />
-                                <Button label="Sửa đổi đặt phòng" icon="pi pi-pencil" class="w-full p-button-outlined" @click="editBooking" />
+                                <!-- <Button label="Sửa đổi đặt phòng" icon="pi pi-pencil" class="w-full p-button-outlined" @click="editBooking" /> -->
                                 <Button v-if="canCancel" label="Hủy đặt phòng" icon="pi pi-times" class="w-full p-button-outlined p-button-danger" @click="showCancelDialog = true" />
                             </div>
                         </div>
 
                         <!-- Thông tin khách sạn -->
-                        <div class="bg-white rounded-lg shadow-md p-6">
+                        <!-- <div class="bg-white rounded-lg shadow-md p-6">
                             <h2 class="text-xl font-semibold text-gray-800 mb-4">Thông tin khách sạn</h2>
 
                             <div class="space-y-4">
@@ -477,7 +592,7 @@ const showCancelDialog = ref(false);
                                     <i class="pi pi-map-marker text-amber-600 text-xl mr-3 mt-1"></i>
                                     <div>
                                         <h3 class="font-semibold mb-1">Địa chỉ</h3>
-                                        <p class="text-gray-600">123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh</p>
+                                        <p class="text-gray-600">{{ hotelInfo.address || '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh' }}</p>
                                     </div>
                                 </div>
 
@@ -485,7 +600,7 @@ const showCancelDialog = ref(false);
                                     <i class="pi pi-phone text-amber-600 text-xl mr-3 mt-1"></i>
                                     <div>
                                         <h3 class="font-semibold mb-1">Điện thoại</h3>
-                                        <p class="text-gray-600">+84 28 1234 5678</p>
+                                        <p class="text-gray-600">{{ hotelInfo.phone || '+84 28 1234 5678' }}</p>
                                     </div>
                                 </div>
 
@@ -493,11 +608,11 @@ const showCancelDialog = ref(false);
                                     <i class="pi pi-envelope text-amber-600 text-xl mr-3 mt-1"></i>
                                     <div>
                                         <h3 class="font-semibold mb-1">Email</h3>
-                                        <p class="text-gray-600">booking@luxuryhotel.vn</p>
+                                        <p class="text-gray-600">{{ hotelInfo.email || 'booking@luxuryhotel.vn' }}</p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
             </div>
