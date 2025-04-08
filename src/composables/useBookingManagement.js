@@ -896,6 +896,18 @@ export function useBookingManagement() {
     const formatDate = (value) => {
         if (value) {
             try {
+                // Handle VnPay date format (YYYYMMDDHHmmss)
+                if (typeof value === 'string' && value.length === 14 && !isNaN(value)) {
+                    const year = value.substring(0, 4);
+                    const month = value.substring(4, 6);
+                    const day = value.substring(6, 8);
+                    const hour = value.substring(8, 10);
+                    const minute = value.substring(10, 12);
+                    const second = value.substring(12, 14);
+                    
+                    return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
+                }
+                
                 const date = new Date(value);
                 if (isNaN(date.getTime())) {
                     return value; // Trả về giá trị gốc nếu không phải ngày hợp lệ
@@ -932,6 +944,10 @@ export function useBookingManagement() {
 
     // Get payment status label
     const getPaymentStatusLabel = (statusValue) => {
+        // Check if it's VnPay code "00" which means payment successful
+        if (statusValue === '00') {
+            return 'Thành công';
+        }
         const status = paymentStatuses.value.find((s) => s.value === statusValue);
         return status ? status.label : statusValue;
     };
