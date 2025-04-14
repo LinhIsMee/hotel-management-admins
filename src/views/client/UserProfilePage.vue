@@ -44,6 +44,49 @@ const isLoggedIn = computed(() => {
     return AuthService.isClientAuthenticated();
 });
 
+// Hàm lấy danh sách đặt phòng
+const fetchBookings = async () => {
+    try {
+        loading.value = true;
+        const userToken = localStorage.getItem('user_token');
+        const user = userToken ? JSON.parse(userToken) : null;
+
+        if (!user || !user.accessToken) {
+            throw new Error('Chưa đăng nhập');
+        }
+
+        const response = await fetch('http://localhost:9000/api/v1/user/bookings/my-bookings', {
+            headers: {
+                'Authorization': `Bearer ${user.accessToken}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Không thể tải danh sách đặt phòng');
+        }
+
+        const data = await response.json();
+        bookings.value = data.map(booking => ({
+            id: booking.id,
+            roomName: booking.roomName || 'Phòng không xác định',
+            checkInDate: booking.checkInDate,
+            checkOutDate: booking.checkOutDate,
+            status: booking.status,
+            totalPrice: booking.totalPrice
+        }));
+    } catch (error) {
+        console.error('Lỗi khi tải danh sách đặt phòng:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Không thể tải danh sách đặt phòng',
+            life: 3000
+        });
+    } finally {
+        loading.value = false;
+    }
+};
+
 onMounted(async () => {
     // Kiểm tra đăng nhập
     if (!AuthService.isClientAuthenticated()) {
@@ -124,6 +167,8 @@ onMounted(async () => {
     } finally {
         loading.value = false;
     }
+
+    fetchBookings();
 });
 
 // Cập nhật thông tin cá nhân
@@ -241,40 +286,28 @@ const updatePassword = async () => {
     }
 };
 
-// Format tình trạng đặt phòng
+// Hàm format trạng thái đặt phòng
 const getStatusLabel = (status) => {
-    switch (status) {
-        case 'NEW':
-            return 'Mới';
-        case 'CONFIRMED':
-            return 'Đã xác nhận';
-        case 'CHECK_IN':
-            return 'Đã nhận phòng';
-        case 'CHECK_OUT':
-            return 'Đã trả phòng';
-        case 'CANCELLED':
-            return 'Đã hủy';
-        default:
-            return status;
-    }
+    const statusMap = {
+        'NEW': 'Mới',
+        'CONFIRMED': 'Đã xác nhận',
+        'CHECKED_IN': 'Đã nhận phòng',
+        'CHECKED_OUT': 'Đã trả phòng',
+        'CANCELLED': 'Đã hủy'
+    };
+    return statusMap[status] || status;
 };
 
-// Lấy class cho trạng thái
+// Hàm style cho trạng thái
 const getStatusClass = (status) => {
-    switch (status) {
-        case 'NEW':
-            return 'bg-blue-100 text-blue-800';
-        case 'CONFIRMED':
-            return 'bg-green-100 text-green-800';
-        case 'CHECK_IN':
-            return 'bg-purple-100 text-purple-800';
-        case 'CHECK_OUT':
-            return 'bg-gray-100 text-gray-800';
-        case 'CANCELLED':
-            return 'bg-red-100 text-red-800';
-        default:
-            return 'bg-gray-100 text-gray-800';
-    }
+    const classMap = {
+        'NEW': 'bg-blue-100 text-blue-800',
+        'CONFIRMED': 'bg-green-100 text-green-800',
+        'CHECKED_IN': 'bg-amber-100 text-amber-800',
+        'CHECKED_OUT': 'bg-gray-100 text-gray-800',
+        'CANCELLED': 'bg-red-100 text-red-800'
+    };
+    return classMap[status] || 'bg-gray-100 text-gray-800';
 };
 
 // Format ngày
@@ -291,9 +324,9 @@ const showLoginDialog = () => {
     window.dispatchEvent(event);
 };
 
-// Chuyển hướng đến trang chi tiết đặt phòng (sử dụng router)
+// Xem chi tiết đặt phòng
 const viewBookingDetails = (bookingId) => {
-    router.push(`/booking/confirmation/${bookingId}`);
+    router.push(`/booking/detail/${bookingId}`);
 };
 </script>
 

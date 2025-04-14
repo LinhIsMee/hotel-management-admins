@@ -41,13 +41,41 @@ const contactInfo = ref({
     email: '',
     phone: '',
     specialRequests: '',
-    nationality: 'VN'
+    nationality: 'VN',
+    nationalId: '',
+    children: 0
 });
+
+// Thêm state để lưu thông tin user
+const userInfo = ref(null);
+
+// Hàm lấy thông tin user từ localStorage
+const getUserInfo = () => {
+    try {
+        const userToken = localStorage.getItem('user_token');
+        if (userToken) {
+            userInfo.value = JSON.parse(userToken);
+
+            // Tự động điền thông tin user vào form
+            if (userInfo.value) {
+                contactInfo.value.fullName = userInfo.value.fullName || '';
+                contactInfo.value.email = userInfo.value.email || '';
+                contactInfo.value.phone = userInfo.value.phone || '';
+                contactInfo.value.nationalId = userInfo.value.nationalId || '';
+            }
+        }
+    } catch (error) {
+        console.error('Lỗi khi lấy thông tin user từ localStorage:', error);
+    }
+};
 
 // Phương thức thanh toán
 const paymentMethod = ref('CASH');
 
 onMounted(async () => {
+    // Lấy thông tin user từ localStorage
+    getUserInfo();
+
     // Lấy thông tin từ query parameters
     const { roomId, checkIn, checkOut, guests, services, discount, payment } = route.query;
 
@@ -158,7 +186,7 @@ const confirmBooking = async () => {
         return;
     }
 
-    if (!contactInfo.value.fullName || !contactInfo.value.email || !contactInfo.value.phone) {
+    if (!contactInfo.value.fullName || !contactInfo.value.email || !contactInfo.value.phone || !contactInfo.value.nationalId) {
         toast.add({
             severity: 'warn',
             summary: 'Cảnh báo',
@@ -171,25 +199,25 @@ const confirmBooking = async () => {
     submitting.value = true;
 
     try {
-        // Tạo đối tượng đặt phòng
+        // Tạo payload theo format API mới
         const bookingData = {
-            roomId: bookingInfo.value.roomId,
+            userId: userInfo.value?.id || null,
+            roomIds: [parseInt(bookingInfo.value.roomId)],
             checkInDate: bookingInfo.value.checkInDate,
             checkOutDate: bookingInfo.value.checkOutDate,
+            discountCode: bookingInfo.value.discount || '',
+            ipAddress: '127.0.0.1', // Có thể cần API riêng để lấy IP
+            returnUrl: `${window.location.origin}/payment-callback`,
+            fullName: contactInfo.value.fullName,
+            phone: contactInfo.value.phone,
+            email: contactInfo.value.email,
+            nationalId: contactInfo.value.nationalId,
             adults: bookingInfo.value.guests,
-            children: 0,
-            totalPrice: bookingInfo.value.totalPrice,
-            contactInfo: contactInfo.value,
-            paymentMethod: paymentMethod.value,
-            status: 'NEW',
-            services: bookingInfo.value.services.reduce((obj, serviceId) => {
-                obj[serviceId] = true;
-                return obj;
-            }, {})
+            children: contactInfo.value.children || 0
         };
 
-        // Gửi request đặt phòng
-        const response = await fetch('/api/v1/bookings', {
+        // Gọi API đặt phòng mới
+        const response = await fetch('/api/v1/payments/create-booking-payment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -203,37 +231,11 @@ const confirmBooking = async () => {
 
         const result = await response.json();
 
-        // Nếu thanh toán qua VNPay
-        if (paymentMethod.value === 'VNPAY') {
-            // Tạo request để lấy URL thanh toán VNPay
-            const paymentResponse = await fetch('/api/v1/payments/create-payment-url', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    bookingId: result.id,
-                    amount: bookingInfo.value.totalPrice,
-                    orderInfo: 'Thanh toán đặt phòng khách sạn',
-                    returnUrl: `${window.location.origin}/payment-callback`
-                })
-            });
-
-            if (!paymentResponse.ok) {
-                throw new Error('Không thể tạo URL thanh toán');
-            }
-
-            const paymentResult = await paymentResponse.json();
-
-            // Chuyển hướng đến trang thanh toán VNPay
-            if (paymentResult.paymentUrl) {
-                window.location.href = paymentResult.paymentUrl;
-            } else {
-                throw new Error('Không nhận được URL thanh toán');
-            }
+        // Chuyển hướng đến trang thanh toán VNPay
+        if (result.paymentUrl) {
+            window.location.href = result.paymentUrl;
         } else {
-            // Điều hướng đến trang xác nhận đặt phòng
-            router.push(`/booking/confirmation/${result.id}`);
+            throw new Error('Không nhận được URL thanh toán');
         }
 
         toast.add({
@@ -361,6 +363,18 @@ const cancelBookingProcess = () => {
                                         <option value="KR">Hàn Quốc</option>
                                         <option value="CN">Trung Quốc</option>
                                     </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="block text-gray-700 mb-1">CCCD/Passport *</label>
+                                    <input v-model="contactInfo.nationalId" type="text"
+                                           class="w-full border border-gray-300 rounded-md p-2"
+                                           placeholder="Nhập số CCCD hoặc Passport" />
+                                </div>
+                                <div class="form-group">
+                                    <label class="block text-gray-700 mb-1">Số trẻ em</label>
+                                    <input v-model="contactInfo.children" type="number" min="0"
+                                           class="w-full border border-gray-300 rounded-md p-2"
+                                           placeholder="Nhập số trẻ em" />
                                 </div>
                             </div>
                             <div class="form-group mt-4">
