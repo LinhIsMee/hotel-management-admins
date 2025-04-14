@@ -116,12 +116,12 @@ const showForgotPasswordModal = () => {
                 <small v-if="submitted && !form.password" class="p-error">Vui lòng nhập mật khẩu</small>
             </div>
 
-            <div class="flex align-items-center justify-content-between">
+            <div class="flex align-items-center">
                 <div class="flex align-items-center">
                     <Checkbox id="rememberme" v-model="form.rememberMe" :binary="true" class="mr-2" />
                     <label for="rememberme">Ghi nhớ đăng nhập</label>
                 </div>
-                <a @click="showForgotPasswordModal" class="font-medium no-underline text-amber-600 cursor-pointer">Quên mật khẩu?</a>
+                <a @click="showForgotPasswordModal" class="font-medium no-underline text-amber-600 cursor-pointer ml-auto">Quên mật khẩu?</a>
             </div>
 
             <Button type="submit" label="Đăng nhập" :loading="loading" class="w-full" />

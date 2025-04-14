@@ -157,8 +157,13 @@ const openLoginModal = () => {
 const handleLoginSuccess = async (user) => {
     console.log('Login success with user:', user);
 
-    // Lấy thông tin người dùng đầy đủ từ API
-    await updateCurrentUser();
+    // Cập nhật thông tin người dùng trực tiếp
+    if (user) {
+        currentUser.value = user;
+    } else {
+        // Nếu không có thông tin user trong sự kiện, lấy từ API hoặc localStorage
+        await updateCurrentUser();
+    }
 
     toast.add({
         severity: 'success',
@@ -360,7 +365,7 @@ const mockUserData = {
     avatar: 'https://randomuser.me/api/portraits/men/32.jpg'
 };
 
-const login = () => {
+const login = async () => {
     if (!loginForm.value.email || !loginForm.value.password) {
         toast.add({
             severity: 'error',
@@ -374,8 +379,8 @@ const login = () => {
     isLoading.value = true;
 
     // Giả lập API call
-    setTimeout(() => {
-        isLoading.value = false;
+    try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const userData = {
             id: '1',
@@ -390,7 +395,7 @@ const login = () => {
         localStorage.setItem('userInfo', JSON.stringify(userData));
         localStorage.setItem('user_token', 'demo_token_' + Math.random().toString(36).substr(2, 9));
 
-        // Cập nhật state
+        // Cập nhật state ngay lập tức để hiển thị trên navbar
         currentUser.value = userData;
 
         // Đóng modal
@@ -416,73 +421,26 @@ const login = () => {
         if (redirectPath) {
             router.push({ path: redirectPath });
         }
-    }, 1000);
+    } catch (error) {
+        console.error('Lỗi đăng nhập:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Đăng nhập thất bại',
+            detail: 'Có lỗi xảy ra, vui lòng thử lại sau',
+            life: 3000
+        });
+    } finally {
+        isLoading.value = false;
+    }
 };
 
-const register = () => {
-    // Validate form
-    if (!registerForm.value.fullName || !registerForm.value.email || !registerForm.value.password || !registerForm.value.confirmPassword) {
-        toast.add({
-            severity: 'error',
-            summary: 'Lỗi',
-            detail: 'Vui lòng nhập đầy đủ thông tin',
-            life: 3000
-        });
-        return;
-    }
+// Thêm các phương thức handleLogin và handleRegister
+const handleLogin = () => {
+    login();
+};
 
-    if (registerForm.value.password !== registerForm.value.confirmPassword) {
-        toast.add({
-            severity: 'error',
-            summary: 'Lỗi',
-            detail: 'Mật khẩu xác nhận không khớp',
-            life: 3000
-        });
-        return;
-    }
-
-    if (!registerForm.value.agreeTerms) {
-        toast.add({
-            severity: 'warn',
-            summary: 'Lưu ý',
-            detail: 'Vui lòng đồng ý với điều khoản dịch vụ',
-            life: 3000
-        });
-        return;
-    }
-
-    isLoading.value = true;
-
-    // Giả lập API call
-    setTimeout(() => {
-        isLoading.value = false;
-
-        // Đóng modal đăng ký và mở modal đăng nhập
-        showRegisterModal.value = false;
-
-        // Reset form
-        registerForm.value = {
-            fullName: '',
-            email: '',
-            phone: '',
-            password: '',
-            confirmPassword: '',
-            agreeTerms: false
-        };
-
-        // Thông báo
-        toast.add({
-            severity: 'success',
-            summary: 'Đăng ký thành công',
-            detail: 'Vui lòng đăng nhập để tiếp tục',
-            life: 3000
-        });
-
-        // Mở modal đăng nhập
-        setTimeout(() => {
-            showLoginModal.value = true;
-        }, 500);
-    }, 1000);
+const handleRegister = () => {
+    register();
 };
 
 const closeMobileMenu = () => {
@@ -494,14 +452,6 @@ const handleMobileLogout = () => {
     closeMobileMenu();
 };
 
-// Thêm các phương thức handleLogin và handleRegister
-const handleLogin = () => {
-    login();
-};
-
-const handleRegister = () => {
-    register();
-};
 </script>
 
 <template>
@@ -703,7 +653,7 @@ const handleRegister = () => {
                         <p class="text-gray-400 text-sm">&copy; 2025 Luxury Hotel. Tất cả quyền được bảo lưu.</p>
 
                         <!-- Phương thức thanh toán - Sử dụng biểu tượng -->
-                        
+
                         <!-- <div class="mt-4 md:mt-0">
                             <div class="flex items-center space-x-3">
                                 <span class="text-gray-400 text-sm">Chúng tôi chấp nhận:</span> -->
@@ -730,6 +680,7 @@ const handleRegister = () => {
             @login="handleLogin"
             @register="handleRegisterClick"
             @forgot-password="showForgotPasswordModal"
+            @login-success="handleLoginSuccess"
         />
         <RegisterModal
             v-model:visible="showRegisterModal"

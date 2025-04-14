@@ -200,11 +200,55 @@ class AuthService {
                 username: credentials.username,
                 accessToken: data.accessToken,
                 token: data.token,
-                role: data.role
+                role: data.role,
+                fullName: data.fullName || credentials.username,
+                avatar: data.avatar || 'https://randomuser.me/api/portraits/men/32.jpg' // Avatar mặc định
             };
 
+            // Lưu vào localStorage
             localStorage.setItem(TOKEN_KEY_USER, JSON.stringify(userInfo));
-            return userInfo;
+
+            // Cố gắng lấy thêm thông tin chi tiết của người dùng nếu API hỗ trợ
+            try {
+                const profileResponse = await fetch(`${API_URL}/user/profile`, {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${data.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (profileResponse.ok) {
+                    const profileData = await profileResponse.json();
+
+                    // Cập nhật thông tin đầy đủ
+                    const updatedUserInfo = {
+                        ...userInfo,
+                        fullName: profileData.fullName || userInfo.fullName,
+                        email: profileData.email,
+                        phone: profileData.phone,
+                        avatar: profileData.avatar || userInfo.avatar,
+                        name: profileData.fullName || userInfo.fullName
+                    };
+
+                    // Cập nhật lại localStorage
+                    localStorage.setItem(TOKEN_KEY_USER, JSON.stringify(updatedUserInfo));
+
+                    // Trả về thông tin đầy đủ
+                    return {
+                        ...updatedUserInfo,
+                        user: updatedUserInfo // Đảm bảo có trường user cho emit event
+                    };
+                }
+            } catch (profileError) {
+                console.warn('Could not fetch detailed user profile:', profileError);
+                // Tiếp tục với thông tin cơ bản nếu không lấy được profile
+            }
+
+            return {
+                ...userInfo,
+                user: userInfo // Đảm bảo có trường user cho emit event
+            };
         } catch (error) {
             console.error('Login error:', error);
             throw error;
