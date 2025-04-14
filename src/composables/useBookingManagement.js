@@ -460,7 +460,7 @@ export function useBookingManagement() {
             // Phân biệt giữa API admin và API user
             const endpoint = bookingData.isAdminUpdate
                 ? `${API_BASE_URL}/api/v1/admin/bookings/update/${id}`
-                : `${API_BASE_URL}/api/v1/bookings/update/${id}`;
+                : `${API_BASE_URL}/api/v1/admin/bookings/update/${id}`;
 
             console.log(`Cập nhật booking qua endpoint: ${endpoint}`);
             console.log('Dữ liệu gửi đi:', bookingData);
@@ -904,10 +904,10 @@ export function useBookingManagement() {
                     const hour = value.substring(8, 10);
                     const minute = value.substring(10, 12);
                     const second = value.substring(12, 14);
-                    
+
                     return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
                 }
-                
+
                 const date = new Date(value);
                 if (isNaN(date.getTime())) {
                     return value; // Trả về giá trị gốc nếu không phải ngày hợp lệ

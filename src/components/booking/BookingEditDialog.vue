@@ -261,12 +261,12 @@ const updateVisible = (val) => {
                 </div>
             </div>
 
-            <div class="col-12 md:col-6">
+            <!-- <div class="col-12 md:col-6">
                 <div class="field">
                     <label for="paymentDate">Ngày thanh toán</label>
                     <DatePicker id="paymentDate" v-model="localBooking.paymentDate" :showIcon="true" dateFormat="dd/mm/yy" class="w-full" />
                 </div>
-            </div>
+            </div> -->
         </div>
 
         <template #footer>
