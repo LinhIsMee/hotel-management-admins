@@ -289,10 +289,28 @@ const confirmDeleteBooking = (editBooking) => {
 // Xóa đơn đặt
 const deleteBooking = async () => {
     try {
-        await deleteBookingById(booking.value.id);
+        const response = await fetch(`http://localhost:9000/api/v1/admin/bookings/${booking.value.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Không thể xóa đơn đặt phòng');
+        }
+
         deleteBookingDialog.value = false;
         booking.value = {};
-        fetchAllBookings(); // Refresh data
+        await fetchAllBookings(); // Refresh data
+        updateStats(); // Cập nhật thống kê
+
+        toast.add({
+            severity: 'success',
+            summary: 'Thành công',
+            detail: 'Đã xóa đơn đặt phòng',
+            life: 3000
+        });
     } catch (error) {
         console.error('Lỗi khi xóa booking:', error);
         toast.add({
@@ -304,18 +322,69 @@ const deleteBooking = async () => {
     }
 };
 
-// Mở dialog xác nhận xóa nhiều
-const confirmDeleteSelected = () => {
-    if (can.delete.value && selectedBookings.value?.length) {
-    deleteBookingsDialog.value = true;
+// Xử lý xóa nhiều đơn đặt phòng
+const deleteSelectedBookings = async () => {
+    try {
+        if (!selectedBookings.value || selectedBookings.value.length === 0) {
+            toast.add({
+                severity: 'warn',
+                summary: 'Cảnh báo',
+                detail: 'Vui lòng chọn ít nhất một đơn đặt phòng để xóa',
+                life: 3000
+            });
+            return;
+        }
+
+        // Xác nhận xóa
+        deleteBookingsDialog.value = true;
+    } catch (error) {
+        console.error('Lỗi khi xóa đơn đặt phòng:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Không thể xóa đơn đặt phòng. Vui lòng thử lại sau.',
+            life: 3000
+        });
     }
 };
 
-// Xóa nhiều đơn đặt
-const deleteSelectedBookings = () => {
-    bookings.value = bookings.value.filter((val) => !selectedBookings.value.includes(val));
-    deleteBookingsDialog.value = false;
-    selectedBookings.value = [];
+// Xác nhận xóa nhiều đơn đặt phòng
+const confirmDeleteSelected = async () => {
+    try {
+        const deletePromises = selectedBookings.value.map(booking =>
+            fetch(`http://localhost:9000/api/v1/admin/bookings/${booking.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+                }
+            })
+        );
+
+        await Promise.all(deletePromises);
+
+        // Cập nhật lại danh sách
+        await fetchAllBookings();
+        selectedBookings.value = [];
+        deleteBookingsDialog.value = false;
+
+        toast.add({
+            severity: 'success',
+            summary: 'Thành công',
+            detail: 'Đã xóa các đơn đặt phòng đã chọn',
+            life: 3000
+        });
+
+        // Cập nhật thống kê
+        updateStats();
+    } catch (error) {
+        console.error('Lỗi khi xóa đơn đặt phòng:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Không thể xóa đơn đặt phòng. Vui lòng thử lại sau.',
+            life: 3000
+        });
+    }
 };
 
 // Tìm index theo ID
@@ -491,7 +560,7 @@ const handleCheckOutBooking = async (data) => {
             @filter-by-status="filterByStatus"
             @reset-filters="resetFilters"
             @add-new="openNew"
-            @delete-selected="confirmDeleteSelected"
+            @delete-selected="deleteSelectedBookings"
             @export-data="handleExport"
         />
 
@@ -547,7 +616,7 @@ const handleCheckOutBooking = async (data) => {
 
         <BookingDeleteDialog v-model:visible="deleteBookingDialog" :booking="selectedBooking" :multiple="false" @confirm="deleteBooking" />
 
-        <BookingDeleteDialog v-model:visible="deleteBookingsDialog" :multiple="true" :selectedCount="selectedBookings ? selectedBookings.length : 0" @confirm="deleteSelectedBookings" />
+        <BookingDeleteDialog v-model:visible="deleteBookingsDialog" :multiple="true" :selectedCount="selectedBookings ? selectedBookings.length : 0" @confirm="confirmDeleteSelected" />
     </div>
 </template>
 

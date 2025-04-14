@@ -206,7 +206,7 @@ const confirmBooking = async () => {
             checkInDate: bookingInfo.value.checkInDate,
             checkOutDate: bookingInfo.value.checkOutDate,
             discountCode: bookingInfo.value.discount || '',
-            ipAddress: '127.0.0.1', // Có thể cần API riêng để lấy IP
+            ipAddress: '127.0.0.1',
             returnUrl: `${window.location.origin}/payment-callback`,
             fullName: contactInfo.value.fullName,
             phone: contactInfo.value.phone,
@@ -217,13 +217,25 @@ const confirmBooking = async () => {
         };
 
         // Gọi API đặt phòng mới
-        const response = await fetch('/api/v1/payments/create-booking-payment', {
+        const response = await fetch('http://localhost:5173/api/v1/payments/create-booking-payment', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userInfo.value?.accessToken}`
             },
             body: JSON.stringify(bookingData)
         });
+
+        if (response.status === 409) {
+            const errorData = await response.json();
+            toast.add({
+                severity: 'error',
+                summary: 'Không thể đặt phòng',
+                detail: `${errorData.message}. Vui lòng chọn phòng khác hoặc thay đổi thời gian đặt phòng.`,
+                life: 5000
+            });
+            return;
+        }
 
         if (!response.ok) {
             throw new Error('Không thể đặt phòng');
