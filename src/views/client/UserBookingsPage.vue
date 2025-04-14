@@ -2,11 +2,88 @@
 import AuthService from '@/services/AuthService';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useToast } from 'primevue/usetoast';
 
 const router = useRouter();
+const toast = useToast();
 const bookings = ref([]);
 const loading = ref(true);
 const currentUser = ref(null);
+const API_BASE_URL = 'http://localhost:9000';
+
+// Hàm lấy token từ localStorage
+const getAuthToken = () => {
+    try {
+        // Lấy thông tin người dùng từ AuthService
+        const user = AuthService.getCurrentUser();
+        if (!user || !user.accessToken) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi xác thực',
+                detail: 'Không tìm thấy token đăng nhập, vui lòng đăng nhập lại',
+                life: 3000
+            });
+            return null;
+        }
+        return user.accessToken;
+    } catch (error) {
+        console.error('Lỗi khi lấy token:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi xác thực',
+            detail: 'Có lỗi xảy ra khi xác thực, vui lòng đăng nhập lại',
+            life: 3000
+        });
+        return null;
+    }
+};
+
+// Tạo header xác thực
+const getAuthHeaders = () => {
+    const token = getAuthToken();
+    if (!token) return null;
+
+    return {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+    };
+};
+
+// Lấy danh sách đặt phòng của người dùng hiện tại
+const fetchCurrentUserBookings = async () => {
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) {
+            loading.value = false;
+            return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/v1/user/bookings/my-bookings`, {
+            method: 'GET',
+            headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`Lỗi khi tải danh sách đặt phòng: ${response.statusText} (${response.status})`);
+        }
+
+        const result = await response.json();
+        console.log('Dữ liệu booking của người dùng:', result);
+
+        bookings.value = Array.isArray(result) ? result : [];
+    } catch (error) {
+        console.error('Lỗi khi tải dữ liệu đặt phòng:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: error.message || 'Không thể tải danh sách đặt phòng của bạn',
+            life: 3000
+        });
+        bookings.value = [];
+    } finally {
+        loading.value = false;
+    }
+};
 
 onMounted(async () => {
     if (!AuthService.isClientAuthenticated()) {
@@ -15,23 +92,7 @@ onMounted(async () => {
     }
 
     currentUser.value = AuthService.getCurrentUser();
-
-    try {
-        // Giả lập tải dữ liệu đặt phòng từ API
-        const response = await fetch('/demo/data/bookings.json');
-        const data = await response.json();
-
-        // Lọc các đơn đặt phòng theo người dùng hiện tại (giả lập)
-        bookings.value = data.data.slice(0, 5).map((booking) => ({
-            ...booking,
-            id: Math.floor(Math.random() * 10000), // Tạo ID ngẫu nhiên
-            customerEmail: currentUser.value?.email || 'guest@example.com'
-        }));
-    } catch (error) {
-        console.error('Lỗi khi tải dữ liệu đặt phòng:', error);
-    } finally {
-        loading.value = false;
-    }
+    await fetchCurrentUserBookings();
 });
 
 // Định dạng ngày
@@ -45,12 +106,15 @@ const formatDate = (dateString) => {
 const getStatusClass = (status) => {
     switch (status) {
         case 'NEW':
+        case 'PENDING':
             return 'bg-blue-100 text-blue-800';
         case 'CONFIRMED':
             return 'bg-green-100 text-green-800';
         case 'CHECK_IN':
+        case 'CHECKED_IN':
             return 'bg-amber-100 text-amber-800';
         case 'CHECK_OUT':
+        case 'COMPLETED':
             return 'bg-purple-100 text-purple-800';
         case 'CANCELLED':
             return 'bg-red-100 text-red-800';
@@ -62,12 +126,15 @@ const getStatusClass = (status) => {
 const getStatusLabel = (status) => {
     switch (status) {
         case 'NEW':
-            return 'Mới';
+        case 'PENDING':
+            return 'Chờ xác nhận';
         case 'CONFIRMED':
             return 'Đã xác nhận';
         case 'CHECK_IN':
+        case 'CHECKED_IN':
             return 'Đã nhận phòng';
         case 'CHECK_OUT':
+        case 'COMPLETED':
             return 'Đã trả phòng';
         case 'CANCELLED':
             return 'Đã hủy';
@@ -80,8 +147,10 @@ const getStatusLabel = (status) => {
 const getPaymentStatusClass = (paymentStatus) => {
     switch (paymentStatus) {
         case 'PAID':
+        case '00':  // Mã thành công từ VNPay
             return 'bg-green-100 text-green-800';
         case 'UNPAID':
+        case 'PENDING':
             return 'bg-red-100 text-red-800';
         case 'PARTIAL':
             return 'bg-amber-100 text-amber-800';
@@ -95,8 +164,10 @@ const getPaymentStatusClass = (paymentStatus) => {
 const getPaymentStatusLabel = (paymentStatus) => {
     switch (paymentStatus) {
         case 'PAID':
+        case '00':  // Mã thành công từ VNPay
             return 'Đã thanh toán';
         case 'UNPAID':
+        case 'PENDING':
             return 'Chưa thanh toán';
         case 'PARTIAL':
             return 'Đã đặt cọc';
@@ -115,6 +186,15 @@ const formatCurrency = (value) => {
 // Chuyển hướng đến trang chi tiết đặt phòng
 const viewBookingDetails = (bookingId) => {
     router.push(`/booking/confirmation/${bookingId}`);
+};
+
+// Lấy thông tin phòng để hiển thị
+const getRoomNames = (rooms) => {
+    if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
+        return 'Không có thông tin phòng';
+    }
+
+    return rooms.map(room => `${room.roomNumber} (${room.roomType})`).join(', ');
 };
 </script>
 
@@ -155,7 +235,7 @@ const viewBookingDetails = (bookingId) => {
                             <div class="space-y-2 mb-3">
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Phòng:</span>
-                                    <span class="font-medium">{{ booking.roomName }}</span>
+                                    <span class="font-medium">{{ getRoomNames(booking.rooms) }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Nhận phòng:</span>
@@ -167,7 +247,7 @@ const viewBookingDetails = (bookingId) => {
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Tổng tiền:</span>
-                                    <span class="font-semibold">{{ formatCurrency(booking.totalAmount) }}</span>
+                                    <span class="font-semibold">{{ booking.formattedAmount || formatCurrency(booking.totalPrice) }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Thanh toán:</span>
@@ -201,8 +281,8 @@ const viewBookingDetails = (bookingId) => {
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm font-medium text-gray-900">#{{ booking.id }}</div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">{{ booking.roomName }}</div>
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm text-gray-900">{{ getRoomNames(booking.rooms) }}</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm text-gray-900">{{ formatDate(booking.checkInDate) }}</div>
@@ -221,7 +301,7 @@ const viewBookingDetails = (bookingId) => {
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm font-semibold text-gray-900">{{ formatCurrency(booking.totalAmount) }}</div>
+                                        <div class="text-sm font-semibold text-gray-900">{{ booking.formattedAmount || formatCurrency(booking.totalPrice) }}</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <Button label="Xem chi tiết" @click="viewBookingDetails(booking.id)" severity="secondary" size="small" />
