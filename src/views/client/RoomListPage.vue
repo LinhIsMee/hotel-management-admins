@@ -85,6 +85,29 @@ const childrenOptions = [
   { label: '4 trẻ em', value: 4 }
 ];
 
+// Lấy ngày hiện tại (đầu ngày)
+const today = computed(() => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+});
+
+// Ngày tối thiểu cho ngày trả phòng (ngày sau ngày nhận phòng)
+const minCheckOutDate = computed(() => {
+  if (!filters.value.checkIn) return today.value;
+  const nextDay = new Date(filters.value.checkIn);
+  nextDay.setDate(nextDay.getDate() + 1);
+  return nextDay;
+});
+
+// Xử lý khi ngày nhận phòng thay đổi
+const handleCheckInChange = (value) => {
+  // Nếu ngày trả phòng nhỏ hơn ngày nhận phòng + 1, reset ngày trả phòng
+  if (filters.value.checkOut && filters.value.checkOut <= value) {
+    filters.value.checkOut = null;
+  }
+};
+
 // Tải dữ liệu phòng dựa trên bộ lọc
 const loadRoomData = async () => {
   // Sử dụng trực tiếp các hàm từ useRoomManagement để tự quản lý loading
@@ -270,11 +293,27 @@ useHead({
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label class="block text-gray-700 font-medium mb-2">Ngày nhận phòng</label>
-            <DatePicker v-model="filters.checkIn" placeholder="Chọn ngày" class="w-full" showIcon />
+            <DatePicker
+              v-model="filters.checkIn"
+              placeholder="Chọn ngày"
+              class="w-full"
+              showIcon
+              :minDate="today"
+              @change="handleCheckInChange"
+              :showClear="true"
+            />
           </div>
           <div>
             <label class="block text-gray-700 font-medium mb-2">Ngày trả phòng</label>
-            <DatePicker v-model="filters.checkOut" placeholder="Chọn ngày" class="w-full" showIcon />
+            <DatePicker
+              v-model="filters.checkOut"
+              placeholder="Chọn ngày"
+              class="w-full"
+              showIcon
+              :minDate="minCheckOutDate"
+              :disabled="!filters.checkIn"
+              :showClear="true"
+            />
           </div>
           <div>
             <div class="grid grid-cols-2 gap-2">
