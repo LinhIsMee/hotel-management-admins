@@ -362,7 +362,7 @@ const mockUserData = {
     id: '1',
     name: 'Nguyễn Văn A',
     email: 'nguyenvana@example.com',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg'
+    avatar: 'https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/top-36-anh-dai-dien-dep-cho-nu/anh-dai-dien-dep-cho-nu-che-mat-anime.jpg?1708401649581'
 };
 
 const login = async () => {
@@ -388,7 +388,7 @@ const login = async () => {
             fullName: 'Nguyễn Văn A',
             email: loginForm.value.email,
             phone: '0987654321',
-            avatar: 'https://randomuser.me/api/portraits/men/32.jpg'
+            avatar: 'https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/top-36-anh-dai-dien-dep-cho-nu/anh-dai-dien-dep-cho-nu-che-mat-anime.jpg?1708401649581'
         };
 
         // Lưu thông tin user vào localStorage - demo sử dụng token đơn giản

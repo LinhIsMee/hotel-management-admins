@@ -202,7 +202,7 @@ class AuthService {
                 token: data.token,
                 role: data.role,
                 fullName: data.fullName || credentials.username,
-                avatar: data.avatar || 'https://randomuser.me/api/portraits/men/32.jpg' // Avatar mặc định
+                avatar: data.avatar || 'https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/top-36-anh-dai-dien-dep-cho-nu/anh-dai-dien-dep-cho-nu-che-mat-anime.jpg?1708401649581' // Avatar mặc định
             };
 
             // Lưu vào localStorage

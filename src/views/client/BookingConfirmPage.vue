@@ -29,10 +29,10 @@ const bookingInfo = ref({
 
 // Danh sách dịch vụ bổ sung
 const availableServices = ref([
-    { id: 'breakfast', name: 'Bữa sáng', price: 150000 },
-    { id: 'earlyCheckin', name: 'Nhận phòng sớm', price: 200000 },
-    { id: 'lateCheckout', name: 'Trả phòng muộn', price: 200000 },
-    { id: 'airportPickup', name: 'Đưa đón sân bay', price: 350000 }
+    { id: 1, name: 'Bữa sáng', price: 150000 },
+    { id: 2, name: 'Đưa đón sân bay', price: 350000 },
+    { id: 3, name: 'Giặt ủi', price: 100000 },
+    { id: 4, name: 'Spa', price: 500000 }
 ]);
 
 // Thông tin liên hệ
@@ -138,7 +138,8 @@ const calculateTotalPrice = () => {
 
     // Thêm giá dịch vụ
     bookingInfo.value.services.forEach(serviceId => {
-        const service = availableServices.value.find(s => s.id === serviceId);
+        const numericId = parseInt(serviceId);
+        const service = availableServices.value.find(s => s.id === numericId);
         if (service) {
             total += service.price;
         }
@@ -199,6 +200,17 @@ const confirmBooking = async () => {
     submitting.value = true;
 
     try {
+        // Chuẩn bị dữ liệu dịch vụ bổ sung
+        const services = bookingInfo.value.services.map(serviceId => {
+            const numericId = parseInt(serviceId);
+            const service = availableServices.value.find(s => s.id === numericId);
+            return service ? {
+                id: service.id,
+                name: service.name,
+                price: service.price
+            } : null;
+        }).filter(s => s !== null);
+
         // Tạo payload theo format API mới
         const bookingData = {
             userId: userInfo.value?.id || null,
@@ -213,7 +225,10 @@ const confirmBooking = async () => {
             email: contactInfo.value.email,
             nationalId: contactInfo.value.nationalId,
             adults: bookingInfo.value.guests,
-            children: contactInfo.value.children || 0
+            children: contactInfo.value.children || 0,
+            services: services,
+            specialRequests: contactInfo.value.specialRequests || '',
+            totalPrice: bookingInfo.value.totalPrice
         };
 
         // Gọi API đặt phòng mới
@@ -344,7 +359,7 @@ const cancelBookingProcess = () => {
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2">
                                 <div v-for="serviceId in bookingInfo.services" :key="serviceId" class="flex items-center">
                                     <i class="pi pi-check-circle text-green-500 mr-2"></i>
-                                    <span>{{ availableServices.find(s => s.id === serviceId)?.name || serviceId }}</span>
+                                    <span>{{ availableServices.find(s => s.id === parseInt(serviceId))?.name || serviceId }}</span>
                                 </div>
                             </div>
                         </div>
@@ -433,35 +448,46 @@ const cancelBookingProcess = () => {
                     <div class="bg-white rounded-lg shadow-md p-6 sticky top-4">
                         <h2 class="text-xl font-semibold text-gray-800 mb-4">Tóm tắt đặt phòng</h2>
 
-                        <div class="bg-gray-50 p-4 rounded-lg mb-6">
-                            <div class="flex justify-between mb-3">
-                                <span class="text-gray-700">Phòng:</span>
-                                <span class="font-semibold">{{ roomData.roomTypeName || 'Phòng khách sạn' }}</span>
-                            </div>
-                            <div class="flex justify-between mb-3">
-                                <span class="text-gray-700">Giá phòng:</span>
-                                <span class="font-semibold">{{ formatCurrency(roomData.pricePerNight || 0) }}/đêm</span>
-                            </div>
-                            <div class="flex justify-between mb-3">
-                                <span class="text-gray-700">Số đêm:</span>
-                                <span class="font-semibold">{{ calculateNights() }} đêm</span>
-                            </div>
+                        <div class="bg-gray-50 rounded-lg p-4 mt-4">
+                            <h3 class="font-semibold text-gray-800 mb-3">Chi tiết giá</h3>
 
-                            <template v-if="bookingInfo.services && bookingInfo.services.length > 0">
-                                <div v-for="serviceId in bookingInfo.services" :key="serviceId" class="flex justify-between mb-2">
-                                    <span class="text-gray-700">{{ availableServices.find(s => s.id === serviceId)?.name || serviceId }}:</span>
-                                    <span class="font-semibold">{{ formatCurrency(availableServices.find(s => s.id === serviceId)?.price || 0) }}</span>
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-700">Giá phòng:</span>
+                                    <span class="font-semibold">{{ formatCurrency(roomData?.pricePerNight || 0) }}</span>
                                 </div>
-                            </template>
 
-                            <div v-if="bookingInfo.discount" class="flex justify-between mb-3 text-green-600">
-                                <span>Giảm giá:</span>
-                                <span class="font-semibold">10%</span>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-700">Số đêm:</span>
+                                    <span class="font-semibold">{{ calculateNights() }}</span>
+                                </div>
+
+                                <div class="flex justify-between">
+                                    <span class="text-gray-700">Tổng tiền phòng:</span>
+                                    <span class="font-semibold">{{ formatCurrency((roomData?.pricePerNight || 0) * calculateNights()) }}</span>
+                                </div>
+
+                                <!-- Dịch vụ bổ sung -->
+                                <template v-if="bookingInfo.services && bookingInfo.services.length > 0">
+                                    <div class="pt-2 border-t border-gray-200">
+                                        <h4 class="font-medium text-gray-700 mb-2">Dịch vụ bổ sung:</h4>
+                                        <div v-for="serviceId in bookingInfo.services" :key="serviceId" class="flex justify-between mb-2">
+                                            <span class="text-gray-700">{{ availableServices.find(s => s.id === parseInt(serviceId))?.name || serviceId }}:</span>
+                                            <span class="font-semibold">{{ formatCurrency(availableServices.find(s => s.id === parseInt(serviceId))?.price || 0) }}</span>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Giảm giá nếu có -->
+                                <div v-if="bookingInfo.discount" class="flex justify-between pt-2 border-t border-gray-200 text-green-600">
+                                    <span>Giảm giá ({{ bookingInfo.discount }}):</span>
+                                    <span class="font-semibold">-10%</span>
+                                </div>
                             </div>
 
-                            <div class="flex justify-between text-lg font-bold mt-3 pt-3 border-t border-gray-200">
-                                <span>Tổng cộng:</span>
-                                <span class="text-amber-600">{{ formatCurrency(bookingInfo.totalPrice) }}</span>
+                            <div class="flex justify-between pt-3 border-t border-gray-300">
+                                <span class="text-lg font-bold">Tổng cộng:</span>
+                                <span class="text-lg font-bold text-amber-600">{{ formatCurrency(bookingInfo.totalPrice) }}</span>
                             </div>
                         </div>
 

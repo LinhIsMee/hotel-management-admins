@@ -1,7 +1,4 @@
 <script setup>
-import nha_nghi_1 from '@/assets/images/nha-nghi-1.webp';
-import nha_nghi_2 from '@/assets/images/nha-nghi-2.webp';
-import nha_nghi_3 from '@/assets/images/nha-nghi-3.webp';
 import { useRoomManagement } from '@/composables/useRoomManagement';
 import { useHead } from '@vueuse/head';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -19,16 +16,14 @@ const {
     rooms,
     loading,
     fetchAllRooms,
-    fetchAvailableRooms,
-    fetchRoomsByOccupancy,
     fetchAllRoomTypes,
     formatCurrency,
     formatDate,
     calculateTotalPrice
 } = useRoomManagement();
 
-// Mảng chứa đường dẫn ảnh có sẵn (backup nếu API không trả về ảnh)
-const availableImages = [nha_nghi_1, nha_nghi_2, nha_nghi_3];
+// API endpoint
+const API_BASE_URL = 'http://127.0.0.1:9000/api/v1';
 
 // Bộ lọc
 const filters = ref({
@@ -108,44 +103,80 @@ const handleCheckInChange = (value) => {
   }
 };
 
+// Lấy danh sách phòng có sẵn theo ngày
+const fetchAvailableRoomsByDate = async (checkIn, checkOut) => {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/rooms/available?checkInDate=${formatDate(checkIn)}&checkOutDate=${formatDate(checkOut)}`
+    );
+    if (!response.ok) throw new Error('Không thể tải dữ liệu phòng');
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Lỗi khi tải danh sách phòng:', error);
+    return [];
+  }
+};
+
+// Kiểm tra xem phòng có được đặt trong khoảng thời gian không
+const isRoomBookedInRange = (room, startDate, endDate) => {
+  if (!room.bookingPeriods || !startDate || !endDate) return false;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  return room.bookingPeriods.some(period => {
+    const bookingStart = new Date(period.checkInDate);
+    const bookingEnd = new Date(period.checkOutDate);
+    return (
+      (bookingStart <= end && bookingEnd >= start) ||
+      (start <= bookingEnd && end >= bookingStart)
+    );
+  });
+};
+
+// Lấy thông tin đặt phòng sắp tới
+const getUpcomingBookings = (room) => {
+  if (!room.bookingPeriods) return [];
+
+  const today = new Date();
+  return room.bookingPeriods
+    .filter(period => new Date(period.checkOutDate) >= today)
+    .sort((a, b) => new Date(a.checkInDate) - new Date(b.checkInDate))
+    .slice(0, 3); // Chỉ lấy 3 booking gần nhất
+};
+
 // Tải dữ liệu phòng dựa trên bộ lọc
 const loadRoomData = async () => {
-  // Sử dụng trực tiếp các hàm từ useRoomManagement để tự quản lý loading
   try {
     loading.value = true;
     let loadedRooms = [];
-    // Khi có ngày checkin và checkout, tìm phòng trống trong khoảng thời gian
+
+    // Nếu có ngày check-in và check-out, tìm phòng trống trong khoảng thời gian
     if (filters.value.checkIn && filters.value.checkOut) {
-      loadedRooms = await fetchAvailableRooms(filters.value.checkIn, filters.value.checkOut);
-    }
-    // Khi chọn số người, tìm phòng theo sức chứa
-    else if (filters.value.adults) {
-      loadedRooms = await fetchRoomsByOccupancy(filters.value.adults);
-    }
-    // Mặc định lấy tất cả phòng
-    else {
+      loadedRooms = await fetchAvailableRoomsByDate(
+        filters.value.checkIn,
+        filters.value.checkOut
+      );
+    } else {
+      // Mặc định lấy tất cả phòng
       loadedRooms = await fetchAllRooms();
     }
 
-    console.log('Dữ liệu phòng nhận được:', loadedRooms);
-
     // Tính giá theo thời gian nếu có chọn ngày
-    if (filters.value.checkIn && filters.value.checkOut) {
-      loadedRooms.forEach(room => {
-        room.finalPrice = calculateTotalPrice(room, filters.value.checkIn, filters.value.checkOut);
-      });
-    } else {
-      loadedRooms.forEach(room => {
-        room.finalPrice = room.pricePerNight;
-      });
-    }
+    loadedRooms.forEach(room => {
+      room.finalPrice = filters.value.checkIn && filters.value.checkOut
+        ? calculateTotalPrice(room, filters.value.checkIn, filters.value.checkOut)
+        : room.pricePerNight;
 
-    // Cập nhật danh sách phòng từ dữ liệu đã tải
+      // Thêm thông tin về booking sắp tới
+      room.upcomingBookings = getUpcomingBookings(room);
+    });
+
     rooms.value = loadedRooms;
-    console.log('Đã cập nhật rooms.value:', rooms.value);
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu phòng:', error);
-    rooms.value = []; // Đặt thành mảng rỗng nếu có lỗi
+    rooms.value = [];
   } finally {
     loading.value = false;
   }
@@ -257,7 +288,15 @@ const filteredRooms = computed(() => {
 });
 
 const navigateToDetail = (roomId) => {
-  router.push(`/room/${roomId}`);
+  router.push({
+    path: `/room/${roomId}`,
+    query: {
+      checkIn: filters.value.checkIn ? formatDate(filters.value.checkIn) : undefined,
+      checkOut: filters.value.checkOut ? formatDate(filters.value.checkOut) : undefined,
+      adults: filters.value.adults || undefined,
+      children: filters.value.children || undefined
+    }
+  });
 };
 
 const resetFilters = () => {
@@ -441,31 +480,36 @@ useHead({
                     </span>
                   </div>
 
-                  <div class="flex items-center gap-2 mb-4">
-                    <span class="px-2 py-1 rounded text-sm"
-                        :class="{
-                          'bg-green-100 text-green-800': room.status === 'VACANT',
-                          'bg-red-100 text-red-800': room.status === 'OCCUPIED',
-                          'bg-blue-100 text-blue-800': room.status === 'CLEANING',
-                          'bg-yellow-100 text-yellow-800': room.status === 'MAINTENANCE'
-                        }">
-                      {{
-                        room.status === 'VACANT' ? 'Phòng trống' :
-                        room.status === 'OCCUPIED' ? 'Đã đặt' :
-                        room.status === 'CLEANING' ? 'Đang dọn dẹp' :
-                        room.status === 'MAINTENANCE' ? 'Đang bảo trì' : 'Không xác định'
-                      }}
+                  <!-- Thông tin đặt phòng -->
+                  <div v-if="room.upcomingBookings && room.upcomingBookings.length > 0" class="mt-4">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Lịch đặt phòng sắp tới:</h4>
+                    <div class="space-y-2">
+                      <div v-for="(booking, index) in room.upcomingBookings" :key="index"
+                           class="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                        <i class="pi pi-calendar mr-2"></i>
+                        {{ formatDate(booking.checkInDate) }} - {{ formatDate(booking.checkOutDate) }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 mt-4">
+                    <!-- Chỉ giữ lại phần hiển thị nếu phòng đã được đặt trong khoảng thời gian đã chọn -->
+                    <span v-if="filters.checkIn && filters.checkOut && isRoomBookedInRange(room, filters.checkIn, filters.checkOut)"
+                          class="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">
+                      Đã được đặt trong thời gian này
                     </span>
                   </div>
 
                   <div class="card-footer flex flex-col md:flex-row justify-between items-center mt-4">
-                    <span class="text-xl font-bold text-amber-600 mb-3 md:mb-0">{{ formatCurrency(room.pricePerNight) }}<span class="text-sm text-gray-500">/đêm</span></span>
-                    <router-link
-                      :to="`/room/${room.id}`"
-                      class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded transition duration-300 inline-block"
+                    <span class="text-xl font-bold text-amber-600 mb-3 md:mb-0">
+                      {{ formatCurrency(room.pricePerNight) }}<span class="text-sm text-gray-500">/đêm</span>
+                    </span>
+                    <button
+                      @click="navigateToDetail(room.id)"
+                      class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded transition duration-300"
                     >
                       Xem chi tiết
-                    </router-link>
+                    </button>
                   </div>
                 </div>
               </div>

@@ -188,6 +188,17 @@ onMounted(async () => {
     try {
         loading.value = true;
 
+        // Lấy thông tin tìm kiếm từ query params
+        if (route.query.checkIn) {
+            booking.value.checkInDate = new Date(route.query.checkIn);
+        }
+        if (route.query.checkOut) {
+            booking.value.checkOutDate = new Date(route.query.checkOut);
+        }
+        if (route.query.adults) {
+            booking.value.guests = parseInt(route.query.adults);
+        }
+
         // Tải thông tin chi tiết phòng từ API
         const roomData = await fetchRoomById(roomId.value);
 
@@ -198,39 +209,46 @@ onMounted(async () => {
             if (roomData.images && roomData.images.length > 0) {
                 roomImages.value = roomData.images;
             } else {
-                // Sử dụng ảnh fallback nếu API không trả về ảnh
-                const additionalImages = [
-                    'https://images.unsplash.com/photo-1566665797739-1674de7a421a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80',
-                    'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
-                    'https://images.unsplash.com/photo-1584132905271-512c958d674a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
-                    'https://images.unsplash.com/photo-1585412727339-54e4bae3bbf9?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80'
-                ];
-
-                roomImages.value = [availableImages[0], ...additionalImages];
-                room.value.imageUrl = availableImages[0];
+                roomImages.value = availableImages;
             }
-
             selectedImage.value = roomImages.value[0];
 
             // Tải phòng liên quan
             await loadRelatedRooms();
 
-            // Lấy đánh giá từ phòng nếu có, hoặc tạo dữ liệu giả
-            if (roomData.recentReviews && roomData.recentReviews.length > 0) {
-                reviews.value = roomData.recentReviews;
-            } else {
-                generateFakeReviews();
-            }
+            // Tạo đánh giá giả
+            generateFakeReviews();
         } else {
             // Không tìm thấy phòng, chuyển về trang danh sách
             router.push('/rooms');
         }
     } catch (error) {
-        console.error('Lỗi khi tải dữ liệu phòng:', error);
+        console.error('Lỗi khi tải thông tin phòng:', error);
     } finally {
         loading.value = false;
     }
 });
+
+// Thêm computed properties để kiểm tra ngày
+const today = computed(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+});
+
+const minCheckOutDate = computed(() => {
+    if (!booking.value.checkInDate) return today.value;
+    const nextDay = new Date(booking.value.checkInDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return nextDay;
+});
+
+// Xử lý khi ngày nhận phòng thay đổi
+const handleCheckInChange = (value) => {
+    if (booking.value.checkOutDate && booking.value.checkOutDate <= value) {
+        booking.value.checkOutDate = null;
+    }
+};
 
 // Kiểm tra mã giảm giá (giả lập)
 const checkDiscountCode = () => {
@@ -480,14 +498,31 @@ useHead({
                     <div class="bg-white p-6 rounded-lg shadow-md sticky top-4">
                         <h2 class="text-xl font-bold mb-4 text-gray-800">Đặt phòng</h2>
 
-                        <div class="mb-4">
-                            <label class="block text-gray-700 mb-1">Ngày nhận phòng</label>
-                            <DatePicker v-model="booking.checkInDate" class="w-full" showIcon />
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="block text-gray-700 mb-1">Ngày trả phòng</label>
-                            <DatePicker v-model="booking.checkOutDate" class="w-full" showIcon />
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">Ngày nhận phòng</label>
+                                <DatePicker
+                                    v-model="booking.checkInDate"
+                                    placeholder="Chọn ngày"
+                                    class="w-full"
+                                    showIcon
+                                    :minDate="today"
+                                    @change="handleCheckInChange"
+                                    :showClear="true"
+                                />
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">Ngày trả phòng</label>
+                                <DatePicker
+                                    v-model="booking.checkOutDate"
+                                    placeholder="Chọn ngày"
+                                    class="w-full"
+                                    showIcon
+                                    :minDate="minCheckOutDate"
+                                    :disabled="!booking.checkInDate"
+                                    :showClear="true"
+                                />
+                            </div>
                         </div>
 
                         <div class="mb-4">

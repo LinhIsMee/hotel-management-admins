@@ -72,7 +72,7 @@ export const useUserStore = defineStore('user', () => {
         id: 1,
         name: 'Nguyễn Văn A',
         email: credentials.email,
-        avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
+        avatar: 'https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/top-36-anh-dai-dien-dep-cho-nu/anh-dai-dien-dep-cho-nu-che-mat-anime.jpg?1708401649581',
         phone: '0987654321'
       };
 
@@ -108,7 +108,7 @@ export const useUserStore = defineStore('user', () => {
         id: Date.now(),
         name: userData.name,
         email: userData.email,
-        avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
+        avatar: 'https://chiemtaimobile.vn/images/companies/1/%E1%BA%A2nh%20Blog/avatar-facebook-dep/top-36-anh-dai-dien-dep-cho-nu/anh-dai-dien-dep-cho-nu-che-mat-anime.jpg?1708401649581',
         phone: userData.phone || ''
       };
 
