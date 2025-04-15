@@ -40,19 +40,6 @@ const statuses = ref([
     { label: 'Đang dọn dẹp', value: 'CLEANING' }
 ]);
 
-// Đặc điểm đặc biệt có sẵn
-const availableSpecialFeatures = ref([
-    { name: 'View thành phố', value: 'View thành phố' },
-    { name: 'View biển', value: 'View biển' },
-    { name: 'View biển toàn cảnh', value: 'View biển toàn cảnh' },
-    { name: 'Ban công', value: 'Ban công' },
-    { name: 'Ban công lớn', value: 'Ban công lớn' },
-    { name: 'Bếp nhỏ', value: 'Bếp nhỏ' },
-    { name: 'Phòng khách riêng', value: 'Phòng khách riêng' },
-    { name: 'Phòng ăn riêng', value: 'Phòng ăn riêng' },
-    { name: 'Bồn tắm spa', value: 'Bồn tắm spa' }
-]);
-
 // Hàm helper lấy token từ localStorage
 const getAuthToken = () => {
     try {
@@ -120,7 +107,7 @@ const fetchRoomTypes = async () => {
         const headers = getAuthHeaders();
         if (!headers) return;
 
-        const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/room-types`, {
             headers: headers
         });
 
@@ -431,11 +418,6 @@ const getStatusSeverity = (status) => {
 
 const getStatusLabel = (status) => {
     return statuses.value.find((s) => s.value === status)?.label || status;
-};
-
-const formatSpecialFeatures = (features) => {
-    if (!features) return 'Không có';
-    return Array.isArray(features) && features.length > 0 ? features.join(', ') : 'Không có';
 };
 </script>
 
