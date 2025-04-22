@@ -5,6 +5,7 @@ import nha_nghi_3 from '@/assets/images/nha-nghi-3.webp';
 import { useHead } from '@vueuse/head';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 
 const router = useRouter();
 const featuredRooms = ref([]);
@@ -34,15 +35,15 @@ useHead({
 
 onMounted(async () => {
     try {
-        // Sẽ thay thế bằng API thực tế sau này
-        const response = await fetch('/demo/data/room-types.json');
-        const data = await response.json();
+        // Gọi API lấy phòng nổi bật
+        const response = await axios.get('http://127.0.0.1:9000/api/v1/rooms/featured');
 
-        // Lấy 3 phòng nổi bật và gán ảnh từ mảng có sẵn
-        featuredRooms.value = data.data.slice(0, 3).map((room, index) => {
+        // Gán ảnh từ mảng có sẵn cho mỗi phòng
+        featuredRooms.value = response.data.map((room, index) => {
             return {
                 ...room,
-                imageUrl: availableImages[index % 3] // Lấy ảnh theo index và loop lại nếu cần
+                imageUrl: availableImages[index % 3], // Lấy ảnh theo index và loop lại nếu cần
+                description: room.notes || room.specialFeatures || `${room.roomTypeName} - ${room.roomNumber}` // Sử dụng notes hoặc specialFeatures làm mô tả
             };
         });
     } catch (error) {
