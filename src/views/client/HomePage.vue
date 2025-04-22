@@ -3,7 +3,7 @@ import nha_nghi_1 from '@/assets/images/nha-nghi-1.webp';
 import nha_nghi_2 from '@/assets/images/nha-nghi-2.webp';
 import nha_nghi_3 from '@/assets/images/nha-nghi-3.webp';
 import { useHead } from '@vueuse/head';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 
@@ -19,7 +19,22 @@ const searchForm = ref({
     checkIn: null,
     checkOut: null,
     adults: 2,
-    children: 0
+    children: 0,
+    childrenAgeRange: {
+        from: 1,
+        to: 3
+    }
+});
+
+// Điều khiển hiển thị dropdown chọn khách
+const showGuestSelect = ref(false);
+
+// Tạo mảng các độ tuổi từ 1-17
+const ageOptions = computed(() => {
+    return Array.from({ length: 17 }, (_, i) => ({
+        label: `${i + 1} tuổi`,
+        value: i + 1
+    }));
 });
 
 // Thiết lập meta tags cho trang chủ
@@ -51,6 +66,15 @@ onMounted(async () => {
     } finally {
         loading.value = false;
     }
+
+    // Click outside để đóng dropdown
+    document.addEventListener('click', (e) => {
+        const dropdown = document.querySelector('.guest-select-dropdown');
+        const button = document.querySelector('.guest-select-button');
+        if (dropdown && !dropdown.contains(e.target) && !button?.contains(e.target)) {
+            showGuestSelect.value = false;
+        }
+    });
 });
 
 const navigateToDetail = (roomId) => {
@@ -61,7 +85,7 @@ const navigateToRoomList = () => {
     router.push('/rooms');
 };
 
-// Hàm xử lý tìm kiếm phòng
+// Cập nhật hàm searchRooms để gửi thông tin khoảng tuổi
 function searchRooms() {
     if (!searchForm.value.checkIn || !searchForm.value.checkOut) {
         return;
@@ -73,7 +97,9 @@ function searchRooms() {
             checkIn: formatDate(searchForm.value.checkIn),
             checkOut: formatDate(searchForm.value.checkOut),
             adults: searchForm.value.adults,
-            children: searchForm.value.children
+            children: searchForm.value.children,
+            childrenAgeFrom: searchForm.value.childrenAgeRange.from,
+            childrenAgeTo: searchForm.value.childrenAgeRange.to
         }
     });
 }
@@ -117,38 +143,148 @@ function handleBookNow(event) {
             </div>
         </section>
 
-        <!-- Tìm kiếm nhanh -->
-        <section class="py-8 bg-white shadow-md">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="bg-white rounded-lg p-6">
-                    <h2 class="text-2xl font-bold mb-4 text-gray-800">Tìm phòng phù hợp</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                            <label class="block text-gray-700 mb-2">Ngày nhận phòng</label>
-                            <Calendar v-model="searchForm.checkIn" placeholder="Chọn ngày" class="w-full" showIcon :minDate="new Date()" />
+        <!-- Form tìm kiếm -->
+        <section class="bg-white shadow-lg py-6 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">Tìm phòng phù hợp</h2>
+                <div class="bg-white rounded-lg">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                        <!-- Ngày nhận phòng -->
+                        <div class="md:col-span-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ngày nhận phòng</label>
+                            <Calendar 
+                                v-model="searchForm.checkIn" 
+                                placeholder="Chọn ngày" 
+                                class="w-full border rounded-lg" 
+                                :minDate="new Date()"
+                                showIcon
+                            />
                         </div>
-                        <div>
-                            <label class="block text-gray-700 mb-2">Ngày trả phòng</label>
-                            <Calendar v-model="searchForm.checkOut" placeholder="Chọn ngày" class="w-full" showIcon :minDate="searchForm.checkIn || new Date()" />
+
+                        <!-- Ngày trả phòng -->
+                        <div class="md:col-span-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ngày trả phòng</label>
+                            <Calendar 
+                                v-model="searchForm.checkOut" 
+                                placeholder="Chọn ngày" 
+                                class="w-full border rounded-lg" 
+                                :minDate="searchForm.checkIn || new Date()"
+                                showIcon
+                            />
                         </div>
-                        <div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-2">Người lớn</label>
-                                    <Dropdown v-model="searchForm.adults" class="w-full" :options="[1, 2, 3, 4, 5]" placeholder="Số lượng" />
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-2">Trẻ em</label>
-                                    <Dropdown v-model="searchForm.children" class="w-full" :options="[0, 1, 2, 3, 4]" placeholder="Số lượng" />
+
+                        <!-- Số lượng khách và tuổi -->
+                        <div class="md:col-span-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Khách và trẻ em</label>
+                            <div class="relative">
+                                <button 
+                                    @click="showGuestSelect = !showGuestSelect"
+                                    class="w-full bg-white border rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-blue-500 focus:outline-none focus:border-blue-500"
+                                >
+                                    <span class="text-gray-700">
+                                        {{ searchForm.adults }} người lớn{{ searchForm.children ? `, ${searchForm.children} trẻ em` : '' }}
+                                    </span>
+                                    <i class="pi pi-chevron-down text-gray-400"></i>
+                                </button>
+
+                                <!-- Dropdown chọn số lượng -->
+                                <div v-if="showGuestSelect" class="absolute top-full left-0 w-full mt-2 bg-white border rounded-lg shadow-lg p-4 z-50">
+                                    <!-- Người lớn -->
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div>
+                                            <div class="font-medium">Người lớn</div>
+                                            <div class="text-sm text-gray-500">Từ 13 tuổi trở lên</div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <button 
+                                                class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                :class="{'opacity-50 cursor-not-allowed': searchForm.adults <= 1}"
+                                                @click="searchForm.adults = Math.max(1, searchForm.adults - 1)"
+                                                :disabled="searchForm.adults <= 1"
+                                            >
+                                                <i class="pi pi-minus text-sm"></i>
+                                            </button>
+                                            <span class="w-6 text-center">{{ searchForm.adults }}</span>
+                                            <button 
+                                                class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                :class="{'opacity-50 cursor-not-allowed': searchForm.adults >= 5}"
+                                                @click="searchForm.adults = Math.min(5, searchForm.adults + 1)"
+                                                :disabled="searchForm.adults >= 5"
+                                            >
+                                                <i class="pi pi-plus text-sm"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Trẻ em -->
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div>
+                                            <div class="font-medium">Trẻ em</div>
+                                            <div class="text-sm text-gray-500">Độ tuổi 0-12</div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <button 
+                                                class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                :class="{'opacity-50 cursor-not-allowed': searchForm.children <= 0}"
+                                                @click="searchForm.children = Math.max(0, searchForm.children - 1)"
+                                                :disabled="searchForm.children <= 0"
+                                            >
+                                                <i class="pi pi-minus text-sm"></i>
+                                            </button>
+                                            <span class="w-6 text-center">{{ searchForm.children }}</span>
+                                            <button 
+                                                class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                :class="{'opacity-50 cursor-not-allowed': searchForm.children >= 4}"
+                                                @click="searchForm.children = Math.min(4, searchForm.children + 1)"
+                                                :disabled="searchForm.children >= 4"
+                                            >
+                                                <i class="pi pi-plus text-sm"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Độ tuổi trẻ em -->
+                                    <div v-if="searchForm.children > 0">
+                                        <div class="text-sm font-medium text-gray-700 mb-2">Độ tuổi trẻ em</div>
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <Dropdown
+                                                v-model="searchForm.childrenAgeRange.from"
+                                                :options="ageOptions"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                placeholder="Từ"
+                                                class="w-full"
+                                            />
+                                            <Dropdown
+                                                v-model="searchForm.childrenAgeRange.to"
+                                                :options="ageOptions.filter(age => age.value >= searchForm.childrenAgeRange.from)"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                placeholder="Đến"
+                                                class="w-full"
+                                            />
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-2">
+                                            Để tìm chỗ nghỉ phù hợp với cả nhóm của bạn cùng mức giá chính xác
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        @click="showGuestSelect = false"
+                                        class="w-full mt-4 bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition-colors"
+                                    >
+                                        Xong
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                        <div class="flex items-end">
+
+                        <!-- Nút tìm kiếm -->
+                        <div class="md:col-span-2">
                             <Button
                                 label="Tìm kiếm"
                                 icon="pi pi-search"
-                                class="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium border-amber-600 hover:border-amber-700"
-                                aria-label="Tìm kiếm phòng"
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium border-blue-600 hover:border-blue-700 p-3"
                                 @click="searchRooms"
                             />
                         </div>
@@ -181,6 +317,22 @@ function handleBookNow(event) {
                             <div class="flex justify-between items-start mb-4">
                                 <h3 class="text-xl font-bold text-gray-800">{{ room.name }}</h3>
                                 <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold"> {{ new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(room.pricePerNight) }}/đêm </span>
+                            </div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="flex items-center">
+                                    <i v-for="i in 5" :key="i"
+                                       :class="[
+                                           'pi text-lg',
+                                           i <= (room.averageRating || 0)
+                                               ? 'pi-star-fill text-yellow-400'
+                                               : 'pi-star text-gray-300'
+                                       ]">
+                                    </i>
+                                </div>
+                                <span class="text-sm text-gray-600">
+                                    {{ room.averageRating ? `${room.averageRating.toFixed(1)} sao` : 'Chưa có đánh giá' }}
+                                    {{ room.totalReviews ? `(${room.totalReviews} đánh giá)` : '' }}
+                                </span>
                             </div>
                             <p class="text-gray-600 mb-4 line-clamp-2">{{ room.description }}</p>
                             <div class="flex flex-wrap gap-2 mb-4">
