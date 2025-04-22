@@ -39,7 +39,14 @@ const sendResetLink = async () => {
             }
         });
     } catch (error) {
-        errorMessage.value = 'Có lỗi xảy ra. Vui lòng thử lại sau.';
+        let errorMessage = 'Có lỗi xảy ra. Vui lòng thử lại sau.';
+
+        // Kiểm tra nếu là lỗi trùng token
+        if (error.message && error.message.includes('Duplicate entry')) {
+            errorMessage = 'Yêu cầu đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email của bạn.';
+        }
+
+        errorMessage.value = errorMessage;
     } finally {
         isSubmitting.value = false;
     }

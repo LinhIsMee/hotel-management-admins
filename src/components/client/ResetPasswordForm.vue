@@ -56,9 +56,14 @@ const resetPassword = async () => {
         toast.add({
             severity: 'error',
             summary: 'Đặt lại mật khẩu thất bại',
-            detail: error.message || 'Đã xảy ra lỗi trong quá trình đặt lại mật khẩu',
+            detail: 'Đường dẫn đặt lại mật khẩu đã hết hạn hoặc không hợp lệ. Vui lòng thử lại.',
             life: 3000
         });
+
+        // Chuyển về trang quên mật khẩu sau 2 giây
+        setTimeout(() => {
+            router.push('/auth/forgot-password');
+        }, 2000);
     } finally {
         loading.value = false;
     }

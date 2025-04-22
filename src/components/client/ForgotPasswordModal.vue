@@ -56,10 +56,17 @@ const sendRequest = async () => {
         emit('update:modelValue', false);
         emit('forgot-password-success');
     } catch (error) {
+        let errorMessage = 'Không thể xử lý yêu cầu của bạn. Vui lòng thử lại sau.';
+
+        // Kiểm tra nếu là lỗi trùng token
+        if (error.message && error.message.includes('Duplicate entry')) {
+            errorMessage = 'Yêu cầu đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra email của bạn.';
+        }
+
         toast.add({
             severity: 'error',
             summary: 'Yêu cầu thất bại',
-            detail: error.message || 'Không thể xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
+            detail: errorMessage,
             life: 3000
         });
     } finally {
