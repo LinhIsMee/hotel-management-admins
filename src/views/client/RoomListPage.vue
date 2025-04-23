@@ -3,12 +3,16 @@ import { useRoomManagement } from '@/composables/useRoomManagement';
 import { useHead } from '@vueuse/head';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useToast } from 'primevue/usetoast';
 
 // Import PrimeVue components
 import InputNumber from 'primevue/inputnumber';
 import Slider from 'primevue/slider';
 import MultiSelect from 'primevue/multiselect';
 import DatePicker from 'primevue/datepicker';
+import Toast from 'primevue/toast';
+import Select from 'primevue/select';
+import Dropdown from 'primevue/dropdown';
 
 const router = useRouter();
 const route = useRoute();
@@ -22,6 +26,8 @@ const {
     calculateTotalPrice
 } = useRoomManagement();
 
+const toast = useToast();
+
 // API endpoint
 const API_BASE_URL = 'http://127.0.0.1:9000/api/v1';
 
@@ -32,25 +38,19 @@ const filters = ref({
   maxPrice: 5000000,
   checkIn: null,
   checkOut: null,
-  adults: null,
-  children: null,
+  adults: 2,
+  children: 0,
+  childrenAgeRange: {
+    from: 1,
+    to: 3
+  },
   occupancy: [],
   roomType: [],
   amenities: []
 });
 
-// Danh sách các tiện nghi
-const amenitiesList = ref([
-  'WiFi miễn phí',
-  'Điều hòa',
-  'TV màn hình phẳng',
-  'Minibar',
-  'Két an toàn',
-  'Bồn tắm',
-  'Ban công',
-  'View biển',
-  'Bếp nhỏ'
-]);
+// Danh sách các tiện nghi (sẽ được cập nhật từ API)
+const amenitiesList = ref([]);
 
 // Danh sách loại phòng
 const roomTypes = ref([]);
@@ -63,22 +63,16 @@ const occupancyOptions = ref([
   { label: '4+ người', value: 4 }
 ]);
 
-// Các options cho dropdown người lớn và trẻ em
-const adultOptions = [
-  { label: '1 người', value: 1 },
-  { label: '2 người', value: 2 },
-  { label: '3 người', value: 3 },
-  { label: '4 người', value: 4 },
-  { label: '5 người', value: 5 }
-];
+// Tạo mảng các độ tuổi từ 1-17
+const ageOptions = computed(() => {
+  return Array.from({ length: 17 }, (_, i) => ({
+    label: `${i + 1} tuổi`,
+    value: i + 1
+  }));
+});
 
-const childrenOptions = [
-  { label: 'Không có', value: 0 },
-  { label: '1 trẻ em', value: 1 },
-  { label: '2 trẻ em', value: 2 },
-  { label: '3 trẻ em', value: 3 },
-  { label: '4 trẻ em', value: 4 }
-];
+// Hiển thị dropdown chọn khách
+const showGuestSelect = ref(false);
 
 // Lấy ngày hiện tại (đầu ngày)
 const today = computed(() => {
@@ -146,6 +140,28 @@ const getUpcomingBookings = (room) => {
     .slice(0, 3); // Chỉ lấy 3 booking gần nhất
 };
 
+// Hàm lấy đánh giá cho một phòng
+async function fetchRoomRatings(roomId) {
+    try {
+        const response = await fetch(`http://127.0.0.1:9000/api/ratings/room/${roomId}`);
+        if (!response.ok) throw new Error('Không thể tải đánh giá');
+        return await response.json();
+    } catch (error) {
+        console.error(`Lỗi khi lấy đánh giá cho phòng ${roomId}:`, error);
+        return [];
+    }
+}
+
+// Hàm chuyển đổi điểm số thành text
+function getRatingText(rating) {
+    if (!rating) return 'Chưa đánh giá';
+    if (rating >= 4.5) return 'Xuất sắc';
+    if (rating >= 4.0) return 'Rất tốt';
+    if (rating >= 3.5) return 'Tốt';
+    if (rating >= 3.0) return 'Hài lòng';
+    return 'Bình thường';
+}
+
 // Tải dữ liệu phòng dựa trên bộ lọc
 const loadRoomData = async () => {
   try {
@@ -163,19 +179,38 @@ const loadRoomData = async () => {
       loadedRooms = await fetchAllRooms();
     }
 
-    // Tính giá theo thời gian nếu có chọn ngày
-    loadedRooms.forEach(room => {
-      room.finalPrice = filters.value.checkIn && filters.value.checkOut
+    // Lấy đánh giá và tính giá cho mỗi phòng
+    const roomsWithRatings = await Promise.all(loadedRooms.map(async (room) => {
+      // Lấy đánh giá
+      const ratings = await fetchRoomRatings(room.id);
+      const averageRating = ratings.length > 0
+        ? ratings.reduce((acc, curr) => acc + curr.stars, 0) / ratings.length
+        : 0;
+
+      // Tính giá theo thời gian nếu có chọn ngày
+      const finalPrice = filters.value.checkIn && filters.value.checkOut
         ? calculateTotalPrice(room, filters.value.checkIn, filters.value.checkOut)
         : room.pricePerNight;
 
-      // Thêm thông tin về booking sắp tới
-      room.upcomingBookings = getUpcomingBookings(room);
-    });
+      return {
+        ...room,
+        ratings: ratings,
+        averageRating: averageRating,
+        totalReviews: ratings.length,
+        finalPrice: finalPrice,
+        upcomingBookings: getUpcomingBookings(room)
+      };
+    }));
 
-    rooms.value = loadedRooms;
+    rooms.value = roomsWithRatings;
   } catch (error) {
     console.error('Lỗi khi tải dữ liệu phòng:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Không thể tải danh sách phòng',
+      detail: 'Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.',
+      life: 5000
+    });
     rooms.value = [];
   } finally {
     loading.value = false;
@@ -189,6 +224,103 @@ const loadRoomTypes = async () => {
     roomTypes.value = types.map(type => type.name);
   } catch (error) {
     console.error('Lỗi khi tải danh sách loại phòng:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Không thể tải danh sách loại phòng',
+      detail: 'Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.',
+      life: 5000
+    });
+  }
+};
+
+// Lọc phòng theo các tiêu chí
+const filteredRooms = computed(() => {
+  return rooms.value.filter(room => {
+    // Debug log để xem dữ liệu phòng
+    console.log('Đang kiểm tra phòng:', {
+      roomNumber: room.roomNumber,
+      amenities: room.amenities || []
+    });
+
+    // Lọc theo giá
+    if (room.pricePerNight < filters.value.priceRange[0] || room.pricePerNight > filters.value.priceRange[1]) {
+      return false;
+    }
+
+    // Lọc theo loại phòng
+    if (filters.value.roomType.length > 0 && !filters.value.roomType.includes(room.roomTypeName)) {
+      return false;
+    }
+
+    // Lọc theo số người
+    if (filters.value.occupancy.length > 0 && !filters.value.occupancy.some(occ => room.maxOccupancy >= occ)) {
+      return false;
+    }
+
+    // Lọc theo tiện nghi - Hiển thị phòng có ít nhất 1 tiện nghi được chọn
+    if (filters.value.amenities.length > 0 && room.amenities) {
+      // Chuyển tất cả về chữ thường để so sánh
+      const roomAmenities = room.amenities.map(a => a.toLowerCase());
+      const selectedAmenities = filters.value.amenities.map(a => a.toLowerCase());
+
+      // Kiểm tra xem phòng có ít nhất 1 tiện nghi được chọn không
+      const hasAnySelectedAmenity = selectedAmenities.some(selectedAmenity =>
+        roomAmenities.some(roomAmenity =>
+          roomAmenity.includes(selectedAmenity) || selectedAmenity.includes(roomAmenity)
+        )
+      );
+
+      // Debug log
+      console.log(`Phòng ${room.roomNumber}:`, {
+        'Tiện nghi phòng có': roomAmenities,
+        'Tiện nghi đã chọn': selectedAmenities,
+        'Có ít nhất 1 tiện nghi': hasAnySelectedAmenity
+      });
+
+      return hasAnySelectedAmenity;
+    }
+
+    return true;
+  });
+});
+
+// Thêm watch để debug khi người dùng thay đổi lựa chọn tiện nghi
+watch(() => filters.value.amenities, (newAmenities) => {
+  console.log('Danh sách tiện nghi đã chọn:', newAmenities);
+}, { deep: true });
+
+// Cập nhật hàm fetchAmenities để chuẩn hóa tên tiện nghi
+const fetchAmenities = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/rooms`);
+    if (!response.ok) throw new Error('Không thể tải dữ liệu phòng');
+    const rooms = await response.json();
+
+    // Lấy tất cả tiện nghi và chuẩn hóa tên
+    const allAmenities = new Set();
+    rooms.forEach(room => {
+      if (room.amenities && Array.isArray(room.amenities)) {
+        room.amenities.forEach(amenity => {
+          // Chuẩn hóa tên tiện nghi
+          const normalizedAmenity = amenity.trim();
+          if (normalizedAmenity) {
+            allAmenities.add(normalizedAmenity);
+          }
+        });
+      }
+    });
+
+    // Sắp xếp theo alphabet
+    amenitiesList.value = Array.from(allAmenities).sort();
+    console.log('Danh sách tiện nghi đã tải:', amenitiesList.value);
+  } catch (error) {
+    console.error('Lỗi khi tải danh sách tiện nghi:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Không thể tải danh sách tiện nghi',
+      detail: 'Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại sau.',
+      life: 5000
+    });
   }
 };
 
@@ -210,11 +342,23 @@ onMounted(async () => {
     filters.value.children = parseInt(route.query.children);
   }
 
+  // Tải danh sách tiện nghi từ API
+  await fetchAmenities();
+
   // Tải dữ liệu loại phòng
   await loadRoomTypes();
 
   // Tải dữ liệu phòng
   await loadRoomData();
+
+  // Click outside để đóng dropdown
+  document.addEventListener('click', (e) => {
+    const dropdown = document.querySelector('.guest-select-dropdown');
+    const button = document.querySelector('.guest-select-button');
+    if (dropdown && !dropdown.contains(e.target) && !button?.contains(e.target)) {
+      showGuestSelect.value = false;
+    }
+  });
 });
 
 // Đồng bộ giá trị min, max với priceRange
@@ -257,36 +401,6 @@ const updateSearch = () => {
   loadRoomData();
 };
 
-// Lọc phòng theo các tiêu chí
-const filteredRooms = computed(() => {
-  return rooms.value.filter(room => {
-    // Lọc theo giá
-    if (room.pricePerNight < filters.value.priceRange[0] || room.pricePerNight > filters.value.priceRange[1]) {
-      return false;
-    }
-
-    // Lọc theo loại phòng
-    if (filters.value.roomType.length > 0 && !filters.value.roomType.includes(room.roomTypeName)) {
-      return false;
-    }
-
-    // Lọc theo số người
-    if (filters.value.occupancy.length > 0 && !filters.value.occupancy.some(occ => room.maxOccupancy >= occ)) {
-      return false;
-    }
-
-    // Lọc theo tiện nghi
-    if (filters.value.amenities.length > 0) {
-      // Kiểm tra xem phòng có chứa tất cả các tiện nghi được chọn không
-      return filters.value.amenities.every(amenity =>
-        room.amenities && room.amenities.includes(amenity)
-      );
-    }
-
-    return true;
-  });
-});
-
 const navigateToDetail = (roomId) => {
   router.push({
     path: `/room/${roomId}`,
@@ -306,8 +420,12 @@ const resetFilters = () => {
     maxPrice: 5000000,
     checkIn: null,
     checkOut: null,
-    adults: null,
-    children: null,
+    adults: 2,
+    children: 0,
+    childrenAgeRange: {
+      from: 1,
+      to: 3
+    },
     occupancy: [],
     roomType: [],
     amenities: []
@@ -323,6 +441,7 @@ useHead({
 </script>
 
 <template>
+  <Toast position="top-right" />
   <div class="room-list-page bg-gray-50 min-h-screen py-8">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <h1 class="text-3xl font-bold text-gray-800 mb-8">Danh sách phòng</h1>
@@ -355,14 +474,86 @@ useHead({
             />
           </div>
           <div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="block text-gray-700 font-medium mb-2">Người lớn</label>
-                <Select v-model="filters.adults" :options="adultOptions" optionLabel="label" optionValue="value" placeholder="Chọn" class="w-full" />
-              </div>
-              <div>
-                <label class="block text-gray-700 font-medium mb-2">Trẻ em</label>
-                <Select v-model="filters.children" :options="childrenOptions" optionLabel="label" optionValue="value" placeholder="Chọn" class="w-full" />
+            <label class="block text-gray-700 font-medium mb-2">Khách và trẻ em</label>
+            <div class="relative">
+              <button @click="showGuestSelect = !showGuestSelect"
+                class="guest-select-button w-full bg-white border rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-blue-500 focus:outline-none focus:border-blue-500">
+                <span class="text-gray-700">
+                  {{ filters.adults }} người lớn{{ filters.children ? `, ${filters.children} trẻ em` : '' }}
+                </span>
+                <i class="pi pi-chevron-down text-gray-400"></i>
+              </button>
+
+              <!-- Dropdown chọn số lượng -->
+              <div v-if="showGuestSelect"
+                class="guest-select-dropdown absolute top-full left-0 w-[300px] mt-2 bg-white border rounded-lg shadow-lg p-4 z-50">
+                <!-- Người lớn -->
+                <div class="flex items-center justify-between mb-4">
+                  <div>
+                    <div class="font-medium">Người lớn</div>
+                    <div class="text-sm text-gray-500">Từ 13 tuổi trở lên</div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                      :class="{ 'opacity-50 cursor-not-allowed': filters.adults <= 1 }"
+                      @click="filters.adults = Math.max(1, filters.adults - 1)"
+                      :disabled="filters.adults <= 1">
+                      <i class="pi pi-minus text-sm"></i>
+                    </button>
+                    <span class="w-6 text-center">{{ filters.adults }}</span>
+                    <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                      :class="{ 'opacity-50 cursor-not-allowed': filters.adults >= 5 }"
+                      @click="filters.adults = Math.min(5, filters.adults + 1)"
+                      :disabled="filters.adults >= 5">
+                      <i class="pi pi-plus text-sm"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Trẻ em -->
+                <div class="flex items-center justify-between mb-4">
+                  <div>
+                    <div class="font-medium">Trẻ em</div>
+                    <div class="text-sm text-gray-500">Độ tuổi 0-12</div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                      :class="{ 'opacity-50 cursor-not-allowed': filters.children <= 0 }"
+                      @click="filters.children = Math.max(0, filters.children - 1)"
+                      :disabled="filters.children <= 0">
+                      <i class="pi pi-minus text-sm"></i>
+                    </button>
+                    <span class="w-6 text-center">{{ filters.children }}</span>
+                    <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                      :class="{ 'opacity-50 cursor-not-allowed': filters.children >= 4 }"
+                      @click="filters.children = Math.min(4, filters.children + 1)"
+                      :disabled="filters.children >= 4">
+                      <i class="pi pi-plus text-sm"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Độ tuổi trẻ em -->
+                <div v-if="filters.children > 0">
+                  <div class="text-sm font-medium text-gray-700 mb-2">Độ tuổi trẻ em</div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <Dropdown v-model="filters.childrenAgeRange.from" :options="ageOptions"
+                      optionLabel="label" optionValue="value" placeholder="Từ"
+                      class="w-full" />
+                    <Dropdown v-model="filters.childrenAgeRange.to"
+                      :options="ageOptions.filter(age => age.value >= filters.childrenAgeRange.from)"
+                      optionLabel="label" optionValue="value" placeholder="Đến"
+                      class="w-full" />
+                  </div>
+                  <div class="text-xs text-gray-500 mt-2">
+                    Để tìm chỗ nghỉ phù hợp với cả nhóm của bạn
+                  </div>
+                </div>
+
+                <button @click="showGuestSelect = false; updateSearch()"
+                  class="w-full mt-4 bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition-colors">
+                  Xong
+                </button>
               </div>
             </div>
           </div>
@@ -459,10 +650,24 @@ useHead({
                 </div>
                 <div class="md:w-2/3 p-6">
                   <div class="flex flex-col md:flex-row justify-between items-start mb-4">
-                    <h3 class="text-xl font-bold text-gray-800 mb-2 md:mb-0">{{ room.roomTypeName }} - {{ room.roomNumber }}</h3>
-                    <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold">
-                      {{ formatCurrency(room.pricePerNight) }}/đêm
-                    </span>
+                    <div class="flex-grow">
+                      <h3 class="text-xl font-bold text-gray-800 mb-1">{{ room.roomTypeName }} - {{ room.roomNumber }}</h3>
+
+                    </div>
+                    <!-- Rating box bên phải -->
+                    <div class="flex flex-col items-end gap-1">
+                      <div class="flex items-center gap-2">
+                        <span class="font-medium">
+                          {{ getRatingText(room.averageRating) }}
+                        </span>
+                        <span class="bg-blue-600 text-white px-2 py-0.5 rounded text-sm">
+                          {{ room.averageRating ? room.averageRating.toFixed(1) : '0' }}
+                        </span>
+                      </div>
+                      <div class="text-xs text-gray-500">
+                        {{ room.totalReviews ? `${room.totalReviews} đánh giá` : 'Chưa có đánh giá' }}
+                      </div>
+                    </div>
                   </div>
 
                   <p class="text-gray-600 mb-4">{{ room.specialFeatures || room.notes || `${room.roomTypeName} với đầy đủ tiện nghi hiện đại` }}</p>
@@ -493,7 +698,6 @@ useHead({
                   </div>
 
                   <div class="flex items-center gap-2 mt-4">
-                    <!-- Chỉ giữ lại phần hiển thị nếu phòng đã được đặt trong khoảng thời gian đã chọn -->
                     <span v-if="filters.checkIn && filters.checkOut && isRoomBookedInRange(room, filters.checkIn, filters.checkOut)"
                           class="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">
                       Đã được đặt trong thời gian này
@@ -554,5 +758,56 @@ useHead({
 
 :deep(.p-slider:not(.p-disabled) .p-slider-handle:focus) {
   box-shadow: 0 0 0 0.2rem rgba(217, 119, 6, 0.2); /* amber-600 with opacity */
+}
+
+:deep(.pi-star-fill),
+:deep(.pi-star) {
+  font-size: 1rem;
+  margin-right: 2px;
+}
+
+:deep(.pi-star-fill) {
+  color: #FBBF24;
+}
+
+:deep(.pi-star) {
+  color: #D1D5DB;
+}
+
+@media (max-width: 768px) {
+  .rating-box {
+    margin-top: 0.5rem;
+  }
+}
+
+:deep(.p-toast) {
+  opacity: 0.95;
+}
+
+:deep(.p-toast-message) {
+  border-radius: 8px;
+}
+
+:deep(.p-toast-message-error) {
+  background-color: #FEE2E2;
+  border: solid #FCA5A5;
+  border-width: 0 0 0 6px;
+  color: #991B1B;
+}
+
+:deep(.p-toast-message-error .p-toast-message-icon) {
+  color: #991B1B;
+}
+
+:deep(.p-toast-message-content) {
+  padding: 1rem;
+}
+
+:deep(.p-toast-summary) {
+  font-weight: 600;
+}
+
+:deep(.p-toast-detail) {
+  margin-top: 0.5rem;
 }
 </style>
