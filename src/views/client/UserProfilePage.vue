@@ -55,7 +55,7 @@ const fetchBookings = async () => {
             throw new Error('Chưa đăng nhập');
         }
 
-        const response = await fetch('http://localhost:9000/api/v1/user/bookings/my-bookings', {
+        const response = await fetch('http://localhost:9000/api/v1/bookings/my-bookings', {
             headers: {
                 'Authorization': `Bearer ${user.accessToken}`
             }

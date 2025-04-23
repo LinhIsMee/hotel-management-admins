@@ -9,7 +9,7 @@ export default {
      * @returns {Promise} Promise chứa danh sách phòng
      */
     getAllRooms() {
-        return ApiService.get('/api/v1/admin/rooms');
+        return ApiService.get('/api/v1/rooms');
     },
 
     /**

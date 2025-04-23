@@ -58,7 +58,7 @@ const fetchCurrentUserBookings = async () => {
             return;
         }
 
-        const response = await fetch(`${API_BASE_URL}/api/v1/user/bookings/my-bookings`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/bookings/my-bookings`, {
             method: 'GET',
             headers
         });

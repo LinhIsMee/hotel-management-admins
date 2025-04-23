@@ -143,7 +143,7 @@ const getUpcomingBookings = (room) => {
 // Hàm lấy đánh giá cho một phòng
 async function fetchRoomRatings(roomId) {
     try {
-        const response = await fetch(`http://127.0.0.1:9000/api/ratings/room/${roomId}`);
+        const response = await fetch(`http://127.0.0.1:9000/api/v1/reviews/room/${roomId}`);
         if (!response.ok) throw new Error('Không thể tải đánh giá');
         return await response.json();
     } catch (error) {
@@ -292,7 +292,7 @@ watch(() => filters.value.amenities, (newAmenities) => {
 // Cập nhật hàm fetchAmenities để chuẩn hóa tên tiện nghi
 const fetchAmenities = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/rooms`);
+    const response = await fetch(`${API_BASE_URL}/rooms`);
     if (!response.ok) throw new Error('Không thể tải dữ liệu phòng');
     const rooms = await response.json();
 
@@ -676,7 +676,7 @@ useHead({
                     <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
                       <i class="pi pi-users mr-1"></i> {{ room.maxOccupancy }} người
                     </span>
-                    <span v-for="(amenity, index) in room.amenities.slice(0, 3)" :key="index"
+                    <span v-for="(amenity, index) in (room.amenities?.slice(0, 3) || [])" :key="index"
                           class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
                       {{ amenity }}
                     </span>

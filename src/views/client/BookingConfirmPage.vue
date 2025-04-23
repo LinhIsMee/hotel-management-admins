@@ -200,6 +200,26 @@ const confirmBooking = async () => {
     submitting.value = true;
 
     try {
+        // Tính lại tổng tiền bao gồm cả dịch vụ
+        const roomTotal = (roomData.value?.pricePerNight || 0) * calculateNights();
+        let servicesTotal = 0;
+
+        // Tính tổng tiền dịch vụ
+        if (bookingInfo.value.services && bookingInfo.value.services.length > 0) {
+            servicesTotal = bookingInfo.value.services.reduce((total, serviceId) => {
+                const service = availableServices.value.find(s => s.id === parseInt(serviceId));
+                return total + (service ? service.price : 0);
+            }, 0);
+        }
+
+        // Tổng tiền trước giảm giá
+        let finalTotal = roomTotal + servicesTotal;
+
+        // Áp dụng giảm giá nếu có
+        if (bookingInfo.value.discount) {
+            finalTotal = finalTotal * 0.9; // Giảm 10%
+        }
+
         // Chuẩn bị dữ liệu dịch vụ bổ sung
         const services = bookingInfo.value.services.map(serviceId => {
             const numericId = parseInt(serviceId);
@@ -228,7 +248,8 @@ const confirmBooking = async () => {
             children: contactInfo.value.children || 0,
             services: services,
             specialRequests: contactInfo.value.specialRequests || '',
-            totalPrice: bookingInfo.value.totalPrice
+            totalPrice: finalTotal, // Sử dụng tổng tiền đã tính toán lại
+            paymentMethod: paymentMethod.value
         };
 
         // Gọi API đặt phòng mới

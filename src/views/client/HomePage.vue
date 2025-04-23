@@ -51,7 +51,7 @@ useHead({
 // Hàm lấy đánh giá cho một phòng
 async function fetchRoomRatings(roomId) {
     try {
-        const response = await axios.get(`http://127.0.0.1:9000/api/ratings/room/${roomId}`);
+        const response = await axios.get(`http://127.0.0.1:9000/api/v1/reviews/room/${roomId}`);
         return response.data;
     } catch (error) {
         console.error(`Lỗi khi lấy đánh giá cho phòng ${roomId}:`, error);

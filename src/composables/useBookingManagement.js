@@ -216,7 +216,7 @@ export function useBookingManagement() {
             } else {
                 // Nếu là user thường, gọi API user
                 try {
-                    const userResponse = await fetch(`${API_BASE_URL}/api/v1/user/bookings/my-bookings`, {
+                    const userResponse = await fetch(`${API_BASE_URL}/api/v1/bookings/my-bookings`, {
                         headers
                     });
 
@@ -1169,7 +1169,7 @@ export function useBookingManagement() {
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/user/bookings/my-bookings`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/my-bookings`, {
                 headers
             });
 

@@ -137,7 +137,7 @@ const fetchData = async () => {
         // Tải loại phòng và phòng cùng lúc
         await Promise.all([
             fetchRoomTypes(),
-            fetch(`${API_BASE_URL}/api/v1/admin/rooms`, {
+            fetch(`${API_BASE_URL}/api/v1/rooms`, {
                 headers: headers
             }).then(async (response) => {
                 if (!response.ok) {
@@ -199,11 +199,11 @@ const saveRoom = async () => {
 
         if (room.value.id) {
             // Cập nhật phòng hiện có
-            url = `${API_BASE_URL}/api/v1/admin/rooms/${room.value.id}`;
+            url = `${API_BASE_URL}/api/v1/rooms/${room.value.id}`;
             method = 'PUT';
         } else {
             // Tạo phòng mới
-            url = `${API_BASE_URL}/api/v1/admin/rooms`;
+            url = `${API_BASE_URL}/api/v1/rooms`;
             method = 'POST';
         }
 
@@ -261,7 +261,7 @@ const editRoom = async (editRoom) => {
         const headers = getAuthHeaders();
         if (!headers) return;
 
-        const response = await fetch(`${API_BASE_URL}/api/v1/admin/rooms/${editRoom.id}`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${editRoom.id}`, {
             headers: headers
         });
 
@@ -294,7 +294,7 @@ const deleteRoom = async () => {
         const headers = getAuthHeaders();
         if (!headers) return;
 
-        const apiUrl = `${API_BASE_URL}/api/v1/admin/rooms/${room.value.id}`;
+        const apiUrl = `${API_BASE_URL}/api/v1/rooms/${room.value.id}`;
         console.log('Gọi API:', apiUrl);
 
         const response = await fetch(apiUrl, {
@@ -338,7 +338,7 @@ const deleteSelectedRooms = async () => {
         if (!headers) return;
 
         const deletePromises = selectedRooms.value.map((roomToDelete) =>
-            fetch(`${API_BASE_URL}/api/v1/admin/rooms/${roomToDelete.id}`, {
+            fetch(`${API_BASE_URL}/api/v1/rooms/${roomToDelete.id}`, {
                 method: 'DELETE',
                 headers: headers
             }).then((response) => {

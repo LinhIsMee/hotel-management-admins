@@ -144,7 +144,7 @@ const loadRelatedRooms = async () => {
 // Tải đánh giá từ API
 const fetchRoomRatings = async (roomId) => {
     try {
-        const response = await fetch(`http://127.0.0.1:9000/api/ratings/room/${roomId}`);
+        const response = await fetch(`http://127.0.0.1:9000/api/v1/reviews/room/${roomId}`);
         if (!response.ok) throw new Error('Không thể tải đánh giá');
         const data = await response.json();
         return data;
