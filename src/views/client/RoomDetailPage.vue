@@ -1,19 +1,18 @@
 <script setup>
-import nha_nghi_1 from '@/assets/images/nha-nghi-1.webp';
-import nha_nghi_2 from '@/assets/images/nha-nghi-2.webp';
-import nha_nghi_3 from '@/assets/images/nha-nghi-3.webp';
 import { useRoomManagement } from '@/composables/useRoomManagement';
 import { useHead } from '@vueuse/head';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import RoomReviews from '@/components/RoomReviews.vue';
 import Rating from 'primevue/rating';
-import Skeleton from 'primevue/skeleton';
 import DatePicker from 'primevue/datepicker';
 import ProgressSpinner from 'primevue/progressspinner';
 import Checkbox from 'primevue/checkbox';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
+import Dialog from 'primevue/dialog';
+import Textarea from 'primevue/textarea';
+import Dropdown from 'primevue/dropdown';
+import { useToast } from 'primevue';
 
 const route = useRoute();
 const router = useRouter();
@@ -22,19 +21,23 @@ const room = ref(null);
 const loading = ref(true);
 const reviews = ref([]);
 const relatedRooms = ref([]);
+const toast = useToast();
 
 // Room Management Composable
 const {
   fetchRoomById,
   fetchRoomsByType,
-  fetchAvailableRooms,
   formatCurrency,
   formatDate,
   calculateTotalPrice
 } = useRoomManagement();
 
-// Mảng chứa đường dẫn ảnh có sẵn (backup nếu API không trả về ảnh)
-const availableImages = [nha_nghi_1, nha_nghi_2, nha_nghi_3];
+// Mảng chứa đường dẫn ảnh mặc định
+const defaultImages = [
+  '/images/rooms/default-1.jpg',
+  '/images/rooms/default-2.jpg',
+  '/images/rooms/default-3.jpg'
+];
 
 // Form đặt phòng
 const booking = ref({
@@ -47,21 +50,9 @@ const booking = ref({
     services: []
 });
 
-// Form đánh giá
-const reviewForm = ref({
-    rating: 0,
-    comment: '',
-    name: '',
-    email: ''
-});
-
-const isSubmitting = ref(false);
-const showReviewForm = ref(false);
-
-// Thêm vào các thuộc tính sau
+// Thêm vào các thuộc tính cho gallery
 const roomImages = ref([]);
 const selectedImage = ref(null);
-const selectedImageIndex = ref(0);
 const galleryVisible = ref(false);
 const currentGalleryIndex = ref(0);
 
@@ -111,11 +102,6 @@ const totalPrice = computed(() => {
 });
 
 // Các phương thức xử lý thư viện ảnh
-const selectImage = (index) => {
-  selectedImageIndex.value = index;
-  selectedImage.value = roomImages.value[index];
-};
-
 const openGallery = (index) => {
   currentGalleryIndex.value = index;
   galleryVisible.value = true;
@@ -131,35 +117,6 @@ const nextImage = () => {
   currentGalleryIndex.value = (currentGalleryIndex.value + 1) % roomImages.value.length;
 };
 
-// Tạo đánh giá giả để minh họa
-const generateFakeReviews = () => {
-    const reviewData = [
-        {
-            id: 1,
-            name: 'Nguyễn Văn A',
-            rating: 5,
-            date: '2023-10-15',
-            comment: 'Phòng rất sạch sẽ và thoải mái. Nhân viên thân thiện, dịch vụ tuyệt vời!'
-        },
-        {
-            id: 2,
-            name: 'Trần Thị B',
-            rating: 4,
-            date: '2023-09-28',
-            comment: 'Phòng đẹp, view tuyệt vời. Chỉ tiếc là hơi ồn vào buổi sáng.'
-        },
-        {
-            id: 3,
-            name: 'Lê Văn C',
-            rating: 5,
-            date: '2023-11-05',
-            comment: 'Một trong những khách sạn tốt nhất tôi từng ở. Đáng đồng tiền bát gạo.'
-        }
-    ];
-
-    reviews.value = reviewData;
-};
-
 // Tải phòng liên quan (cùng loại nhưng khác phòng)
 const loadRelatedRooms = async () => {
     if (!room.value || !room.value.roomTypeId) return;
@@ -173,7 +130,7 @@ const loadRelatedRooms = async () => {
             .map((room, index) => {
                 // Thêm ảnh nếu cần
                 if (!room.images || room.images.length === 0) {
-                    room.imageUrl = availableImages[(index + 1) % 3];
+                    room.imageUrl = defaultImages[(index + 1) % 3];
                 } else {
                     room.imageUrl = room.images[0];
                 }
@@ -184,7 +141,31 @@ const loadRelatedRooms = async () => {
     }
 };
 
-onMounted(async () => {
+// Tải đánh giá từ API
+const fetchRoomRatings = async (roomId) => {
+    try {
+        const response = await fetch(`http://127.0.0.1:9000/api/ratings/room/${roomId}`);
+        if (!response.ok) throw new Error('Không thể tải đánh giá');
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Lỗi khi tải đánh giá:', error);
+        return [];
+    }
+};
+
+// Xử lý chuyển hướng sang phòng khác
+const navigateToRoom = (roomId) => {
+    // Lưu lại các query params hiện tại
+    const currentQuery = { ...route.query };
+    router.push({
+        path: `/room/${roomId}`,
+        query: currentQuery // Giữ lại các thông tin tìm kiếm (ngày, số khách...)
+    });
+};
+
+// Tải dữ liệu phòng
+const loadRoomData = async () => {
     try {
         loading.value = true;
 
@@ -209,24 +190,50 @@ onMounted(async () => {
             if (roomData.images && roomData.images.length > 0) {
                 roomImages.value = roomData.images;
             } else {
-                roomImages.value = availableImages;
+                roomImages.value = defaultImages;
             }
             selectedImage.value = roomImages.value[0];
 
             // Tải phòng liên quan
             await loadRelatedRooms();
 
-            // Tạo đánh giá giả
-            generateFakeReviews();
+            // Tải đánh giá
+            const ratingsData = await fetchRoomRatings(roomId.value);
+            reviews.value = ratingsData.map(rating => ({
+                id: rating.id,
+                name: rating.userName,
+                rating: rating.stars,
+                date: new Date(rating.createdAt).toLocaleDateString('vi-VN'),
+                comment: rating.comment
+            }));
+
         } else {
             // Không tìm thấy phòng, chuyển về trang danh sách
             router.push('/rooms');
         }
     } catch (error) {
         console.error('Lỗi khi tải thông tin phòng:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Không thể tải thông tin phòng. Vui lòng thử lại sau.',
+            life: 3000
+        });
     } finally {
         loading.value = false;
     }
+};
+
+// Theo dõi thay đổi của roomId
+watch(roomId, async (newId, oldId) => {
+    if (newId !== oldId) {
+        window.scrollTo(0, 0); // Cuộn lên đầu trang
+        await loadRoomData();
+    }
+});
+
+onMounted(async () => {
+    await loadRoomData();
 });
 
 // Thêm computed properties để kiểm tra ngày
@@ -349,40 +356,121 @@ const handleBooking = () => {
     });
 };
 
-// Xử lý gửi đánh giá
-const submitReview = () => {
-    if (!reviewForm.value.name || !reviewForm.value.comment || reviewForm.value.rating === 0) {
-        alert('Vui lòng điền đầy đủ thông tin đánh giá');
-        return;
+// Chuyển đổi trạng thái phòng sang tiếng Việt
+const getStatusText = (status) => {
+    switch (status) {
+        case 'AVAILABLE':
+            return 'Còn trống';
+        case 'OCCUPIED':
+            return 'Đang sử dụng';
+        case 'BOOKED':
+            return 'Đã đặt';
+        default:
+            return 'Không xác định';
     }
+};
 
-    isSubmitting.value = true;
+// Form đánh giá
+const reviewForm = ref({
+    rating: 0,
+    comment: '',
+});
 
-    // Giả lập gửi đánh giá
-    setTimeout(() => {
-        const newReview = {
-            id: reviews.value.length + 1,
-            name: reviewForm.value.name,
-            rating: reviewForm.value.rating,
-            date: new Date().toISOString().split('T')[0],
-            comment: reviewForm.value.comment
-        };
+const isSubmittingReview = ref(false);
+const showReviewForm = ref(false);
 
-        reviews.value.unshift(newReview);
+// Tạo đánh giá mới
+const submitReview = async () => {
+    try {
+        // Lấy token từ localStorage
+        const userDataStr = localStorage.getItem('user_token');
+        if (!userDataStr) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Vui lòng đăng nhập để đánh giá!',
+                life: 3000
+            });
+            return;
+        }
 
-        // Reset form
+        const userData = JSON.parse(userDataStr);
+        if (!userData.accessToken) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!',
+                life: 3000
+            });
+            return;
+        }
+
+        if (!reviewForm.value.rating || !reviewForm.value.comment) {
+            toast.add({
+                severity: 'warn',
+                summary: 'Thiếu thông tin',
+                detail: 'Vui lòng nhập đầy đủ đánh giá và bình luận',
+                life: 3000
+            });
+            return;
+        }
+
+        isSubmittingReview.value = true;
+
+        const response = await fetch('http://127.0.0.1:9000/api/ratings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userData.accessToken}`
+            },
+            body: JSON.stringify({
+                stars: reviewForm.value.rating,
+                comment: reviewForm.value.comment,
+                roomId: roomId.value
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Không thể gửi đánh giá');
+        }
+
+        // Tải lại đánh giá mới
+        const ratingsData = await fetchRoomRatings(roomId.value);
+        reviews.value = ratingsData.map(rating => ({
+            id: rating.id,
+            name: rating.userName,
+            rating: rating.stars,
+            date: new Date(rating.createdAt).toLocaleDateString('vi-VN'),
+            comment: rating.comment
+        }));
+
+        // Reset form và đóng modal
         reviewForm.value = {
             rating: 0,
-            comment: '',
-            name: '',
-            email: ''
+            comment: ''
         };
-
         showReviewForm.value = false;
-        isSubmitting.value = false;
 
-        alert('Cảm ơn bạn đã gửi đánh giá!');
-    }, 1000);
+        // Hiển thị thông báo thành công
+        toast.add({
+            severity: 'success',
+            summary: 'Thành công',
+            detail: 'Cảm ơn bạn đã gửi đánh giá!',
+            life: 3000
+        });
+
+    } catch (error) {
+        console.error('Lỗi khi gửi đánh giá:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: error.message || 'Có lỗi xảy ra, vui lòng thử lại sau',
+            life: 3000
+        });
+    } finally {
+        isSubmittingReview.value = false;
+    }
 };
 
 useHead({
@@ -408,28 +496,99 @@ useHead({
             <!-- Thông tin phòng -->
             <div class="bg-white shadow-lg rounded-lg overflow-hidden mb-8">
                 <!-- Thư viện ảnh phòng -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                     <!-- Ảnh chính -->
-                    <div class="md:col-span-2">
-                        <img :src="selectedImage || room.imageUrl" :alt="room.name" class="w-full h-80 object-cover rounded-lg cursor-pointer" @click="openGallery(selectedImageIndex || 0)" />
+                    <div class="md:col-span-2 md:row-span-2">
+                        <img :src="selectedImage || room.imageUrl" :alt="room.name"
+                            class="w-full h-full object-cover rounded-lg cursor-pointer"
+                            @click="openGallery(selectedImageIndex || 0)" />
                     </div>
 
-                    <!-- Ảnh thu nhỏ -->
-                    <div v-for="(image, index) in roomImages" :key="index" class="cursor-pointer" @click="selectImage(index)">
-                        <img :src="image" :alt="`${room.name} - Ảnh ${index + 1}`" class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition" :class="{'border-2 border-amber-500': selectedImageIndex === index}" />
+                    <!-- 2 ảnh phụ -->
+                    <div v-for="(image, index) in roomImages.slice(1, 3)" :key="index"
+                        class="cursor-pointer relative h-[200px]">
+                        <img :src="image" :alt="`${room.name} - Ảnh ${index + 1}`"
+                            class="w-full h-full object-cover rounded-lg hover:opacity-90 transition"
+                            @click="openGallery(index + 1)" />
+
+                        <!-- Overlay cho ảnh cuối nếu có nhiều hơn 3 ảnh -->
+                        <div v-if="index === 1 && roomImages.length > 3"
+                            class="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg cursor-pointer"
+                            @click="openGallery(index + 1)">
+                            <span class="text-white text-xl font-semibold">
+                                +{{ roomImages.length - 3 }} ảnh
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Gallery Modal -->
-                <Dialog v-model:visible="galleryVisible" modal :style="{width: '90vw'}" header="Thư viện ảnh" :dismissableMask="true">
-                    <div class="relative">
-                        <div class="gallery-container">
-                            <img v-if="roomImages.length > 0" :src="roomImages[currentGalleryIndex]" :alt="`${room.name} - Ảnh ${currentGalleryIndex + 1}`" class="w-full max-h-[80vh] object-contain" />
+                <Dialog v-model:visible="galleryVisible"
+                    modal
+                    :style="{width: '90vw', height: '90vh'}"
+                    :dismissableMask="true"
+                    :showHeader="false"
+                    class="gallery-dialog"
+                >
+                    <div class="relative h-full flex flex-col">
+                        <!-- Thanh công cụ phía trên -->
+                        <div class="absolute top-0 left-0 right-0 z-10 flex justify-between items-center p-4 bg-gradient-to-b from-black/50 to-transparent">
+                            <div class="text-white flex items-center gap-2">
+                                <span class="text-lg">{{ currentGalleryIndex + 1 }}/{{ roomImages.length }}</span>
+                                <span class="text-sm">{{ room.name }}</span>
+                            </div>
+                            <button @click="galleryVisible = false"
+                                class="text-white hover:text-gray-300 transition-colors">
+                                <i class="pi pi-times text-2xl"></i>
+                            </button>
                         </div>
-                        <Button icon="pi pi-chevron-left" class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white" @click="prevImage" />
-                        <Button icon="pi pi-chevron-right" class="absolute right-0 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white" @click="nextImage" />
-                        <div class="text-center mt-4">
-                            {{ currentGalleryIndex + 1 }} / {{ roomImages.length }}
+
+                        <!-- Container chính cho ảnh -->
+                        <div class="flex-1 flex items-center justify-center relative">
+                            <!-- Nút previous -->
+                            <button @click="prevImage"
+                                class="absolute left-4 p-3 rounded-full bg-black/30 hover:bg-black/50 transition-colors text-white z-10">
+                                <i class="pi pi-chevron-left text-2xl"></i>
+                            </button>
+
+                            <!-- Ảnh chính -->
+                            <div class="w-full h-full flex items-center justify-center">
+                                <img
+                                    v-if="roomImages.length > 0"
+                                    :src="roomImages[currentGalleryIndex]"
+                                    :alt="`${room.name} - Ảnh ${currentGalleryIndex + 1}`"
+                                    class="max-h-[calc(90vh-180px)] max-w-full object-contain"
+                                />
+                            </div>
+
+                            <!-- Nút next -->
+                            <button @click="nextImage"
+                                class="absolute right-4 p-3 rounded-full bg-black/30 hover:bg-black/50 transition-colors text-white z-10">
+                                <i class="pi pi-chevron-right text-2xl"></i>
+                            </button>
+                        </div>
+
+                        <!-- Thumbnails phía dưới -->
+                        <div class="h-[100px] bg-black/90 mt-auto">
+                            <div class="h-full flex items-center gap-2 px-4 overflow-x-auto">
+                                <div v-for="(image, index) in roomImages"
+                                    :key="index"
+                                    @click="currentGalleryIndex = index"
+                                    class="h-[80px] min-w-[120px] cursor-pointer relative group"
+                                >
+                                    <img
+                                        :src="image"
+                                        :alt="`${room.name} - Thumbnail ${index + 1}`"
+                                        class="h-full w-full object-cover"
+                                        :class="{'opacity-50': currentGalleryIndex !== index}"
+                                    />
+                                    <div v-if="currentGalleryIndex === index"
+                                        class="absolute inset-0 border-2 border-amber-500">
+                                    </div>
+                                    <div class="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </Dialog>
@@ -437,59 +596,61 @@ useHead({
                 <div class="p-6">
                     <div class="flex justify-between items-start mb-4">
                         <div>
-                            <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ room.name }}</h1>
-                            <div class="flex items-center mb-2">
-                                <div class="flex items-center mr-4">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                                {{ room.roomTypeName }} - {{ room.roomNumber }}
+                            </h1>
+                            <div class="flex items-center gap-4 mb-2">
+                                <div class="flex items-center">
                                     <i class="pi pi-users mr-2 text-gray-600"></i>
                                     <span>{{ room.maxOccupancy }} người</span>
                                 </div>
-                                <div class="flex items-center mr-4">
-                                    <i class="pi pi-home mr-2 text-gray-600"></i>
-                                    <span>{{ room.size || 0 }} m²</span>
-                                </div>
-                                <!-- Hiển thị đánh giá sao -->
                                 <div class="flex items-center">
-                                    <Rating v-model="room.rating" readonly :cancel="false" />
-                                    <span class="ml-2 text-gray-600">({{ room.reviewCount || 0 }} đánh giá)</span>
+                                    <i class="pi pi-building mr-2 text-gray-600"></i>
+                                    <span>Tầng {{ room.floor }}</span>
                                 </div>
+                                <div class="flex items-center">
+                                    <i class="pi pi-tag mr-2 text-gray-600"></i>
+                                    <span :class="{
+                                        'text-green-600': room.status === 'AVAILABLE',
+                                        'text-red-600': room.status === 'OCCUPIED',
+                                        'text-yellow-600': room.status === 'BOOKED'
+                                    }">
+                                        {{ getStatusText(room.status) }}
+                                    </span>
+                                </div>
+                            </div>
+                            <!-- Hiển thị đánh giá -->
+                            <div class="flex items-center">
+                                <Rating v-if="room.averageRating"
+                                    v-model="room.averageRating"
+                                    readonly
+                                    :cancel="false" />
+                                <span v-if="room.totalReviews > 0" class="ml-2 text-gray-600">
+                                    ({{ room.totalReviews }} đánh giá)
+                                </span>
+                                <span v-else class="text-gray-500">Chưa có đánh giá</span>
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="text-3xl font-bold text-amber-600">{{ formatCurrency(room.finalPrice || room.pricePerNight) }}</div>
+                            <div class="text-3xl font-bold text-amber-600">
+                                {{ formatCurrency(room.pricePerNight) }}
+                            </div>
                             <div class="text-sm text-gray-600">/ đêm</div>
                         </div>
                     </div>
 
                     <div class="mb-6">
                         <h2 class="text-xl font-semibold text-gray-800 mb-2">Mô tả</h2>
-                        <p class="text-gray-700">{{ room.description }}</p>
+                        <p class="text-gray-700">{{ room.specialFeatures || room.notes }}</p>
                     </div>
 
                     <!-- Tiện nghi phòng -->
                     <div class="mb-6">
                         <h2 class="text-xl font-semibold text-gray-800 mb-2">Tiện nghi phòng</h2>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div v-for="(amenity, index) in room.amenities || []" :key="index" class="flex items-center">
+                            <div v-for="(amenity, index) in room.amenities" :key="index" class="flex items-center">
                                 <i class="pi pi-check-circle mr-2 text-green-500"></i>
                                 <span>{{ amenity }}</span>
-                            </div>
-                            <!-- Thêm bãi đậu xe -->
-                            <div class="flex items-center">
-                                <i class="pi pi-check-circle mr-2 text-green-500"></i>
-                                <span>Bãi đậu xe</span>
-                            </div>
-                            <!-- Thêm các tiện ích khác -->
-                            <div class="flex items-center">
-                                <i class="pi pi-check-circle mr-2 text-green-500"></i>
-                                <span>Dịch vụ phòng 24/7</span>
-                            </div>
-                            <div class="flex items-center">
-                                <i class="pi pi-check-circle mr-2 text-green-500"></i>
-                                <span>Wifi tốc độ cao</span>
-                            </div>
-                            <div class="flex items-center">
-                                <i class="pi pi-check-circle mr-2 text-green-500"></i>
-                                <span>Bể bơi</span>
                             </div>
                         </div>
                     </div>
@@ -497,6 +658,29 @@ useHead({
                     <!-- Form đặt phòng -->
                     <div class="bg-white p-6 rounded-lg shadow-md sticky top-4">
                         <h2 class="text-xl font-bold mb-4 text-gray-800">Đặt phòng</h2>
+
+                        <!-- Thêm cảnh báo nếu phòng đã được đặt -->
+                        <div v-if="room.isBookedNextFiveDays"
+                            class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div class="flex items-center text-yellow-700">
+                                <i class="pi pi-exclamation-triangle mr-2"></i>
+                                <span>Phòng này đã được đặt trong 5 ngày tới</span>
+                            </div>
+                        </div>
+
+                        <!-- Hiển thị các khoảng thời gian đã đặt -->
+                        <div v-if="room.bookingPeriods && room.bookingPeriods.length > 0"
+                            class="mb-4 p-4 bg-gray-50 rounded-lg">
+                            <h3 class="font-medium text-gray-700 mb-2">Lịch đặt phòng sắp tới:</h3>
+                            <div class="space-y-2">
+                                <div v-for="(period, index) in room.bookingPeriods"
+                                    :key="index"
+                                    class="flex items-center text-sm text-gray-600">
+                                    <i class="pi pi-calendar mr-2"></i>
+                                    <span>{{ formatDate(period.checkInDate) }} - {{ formatDate(period.checkOutDate) }}</span>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
@@ -627,15 +811,62 @@ useHead({
 
             <!-- Phòng liên quan -->
             <div v-if="relatedRooms.length > 0" class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">Phòng liên quan</h2>
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">Phòng cùng loại</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div v-for="relatedRoom in relatedRooms" :key="relatedRoom.id" class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300">
-                        <img :src="relatedRoom.imageUrl" :alt="relatedRoom.name" class="w-full h-40 object-cover" />
+                    <div v-for="relatedRoom in relatedRooms" :key="relatedRoom.id"
+                        class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300">
+                        <!-- Ảnh phòng -->
+                        <div class="relative h-48">
+                            <img :src="relatedRoom.images[0]"
+                                :alt="'Phòng ' + relatedRoom.roomNumber"
+                                class="w-full h-full object-cover" />
+                            <!-- Badge trạng thái -->
+                            <div class="absolute top-2 right-2 px-2 py-1 rounded text-sm font-medium"
+                                :class="{
+                                    'bg-green-100 text-green-800': relatedRoom.status === 'AVAILABLE',
+                                    'bg-red-100 text-red-800': relatedRoom.status === 'OCCUPIED',
+                                    'bg-yellow-100 text-yellow-800': relatedRoom.status === 'BOOKED'
+                                }">
+                                {{ getStatusText(relatedRoom.status) }}
+                            </div>
+                        </div>
+
                         <div class="p-4">
-                            <h3 class="font-semibold text-gray-800 mb-2">{{ relatedRoom.name }}</h3>
-                            <div class="flex justify-between items-center">
-                                <span class="text-amber-600 font-bold">{{ formatCurrency(relatedRoom.pricePerNight) }}/đêm</span>
-                                <Button @click="navigateToDetail(relatedRoom.id)" label="Xem" class="p-button-sm" />
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h3 class="font-semibold text-gray-800">Phòng {{ relatedRoom.roomNumber }}</h3>
+                                    <p class="text-sm text-gray-600">Tầng {{ relatedRoom.floor }}</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-bold text-amber-600">
+                                        {{ formatCurrency(relatedRoom.pricePerNight) }}
+                                    </div>
+                                    <div class="text-xs text-gray-500">/đêm</div>
+                                </div>
+                            </div>
+
+                            <!-- Mô tả ngắn -->
+                            <p v-if="relatedRoom.notes" class="text-sm text-gray-600 mb-4 line-clamp-2">
+                                {{ relatedRoom.notes }}
+                            </p>
+
+                            <!-- Đánh giá -->
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <Rating v-if="relatedRoom.averageRating"
+                                        :modelValue="relatedRoom.averageRating"
+                                        readonly
+                                        :cancel="false"
+                                        class="text-sm" />
+                                    <span v-if="relatedRoom.totalReviews" class="ml-1 text-sm text-gray-600">
+                                        ({{ relatedRoom.totalReviews }})
+                                    </span>
+                                    <span v-else class="text-sm text-gray-500">Chưa có đánh giá</span>
+                                </div>
+                                <Button
+                                    @click="navigateToRoom(relatedRoom.id)"
+                                    label="Xem chi tiết"
+                                    class="p-button-sm" />
                             </div>
                         </div>
                     </div>
@@ -643,7 +874,71 @@ useHead({
             </div>
 
             <!-- Phần đánh giá -->
-            <RoomReviews :roomId="roomId" :initialReviews="reviews" class="mb-8" />
+            <div class="bg-white p-6 rounded-lg shadow-md my-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Đánh giá từ khách hàng</h2>
+                    <Button
+                        label="Viết đánh giá"
+                        icon="pi pi-pencil"
+                        @click="showReviewForm = true"
+                        class=" text-white" />
+                </div>
+
+                <!-- Danh sách đánh giá -->
+                <div v-if="reviews.length > 0" class="space-y-6">
+                    <div v-for="review in reviews" :key="review.id" class="border-b border-gray-200 pb-6 last:border-0">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h3 class="font-medium text-gray-800">{{ review.name }}</h3>
+                                <div class="flex items-center gap-2">
+                                    <Rating :modelValue="review.rating" readonly :cancel="false" />
+                                    <span class="text-sm text-gray-500">{{ review.date }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-gray-600">{{ review.comment }}</p>
+                    </div>
+                </div>
+                <div v-else class="text-center py-8 text-gray-500">
+                    Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá!
+                </div>
+            </div>
+
+            <!-- Dialog đánh giá -->
+            <Dialog
+                v-model:visible="showReviewForm"
+                modal
+                header="Đánh giá phòng"
+                :style="{ width: '90%', maxWidth: '500px' }"
+            >
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">Đánh giá của bạn</label>
+                        <Rating v-model="reviewForm.rating" :cancel="false" />
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-medium mb-2">Bình luận</label>
+                        <Textarea
+                            v-model="reviewForm.comment"
+                            rows="4"
+                            placeholder="Chia sẻ trải nghiệm của bạn..."
+                            class="w-full"
+                        />
+                    </div>
+                </div>
+                <template #footer>
+                    <div class="flex justify-end gap-2">
+                        <Button
+                            label="Hủy"
+                            class="p-button-text"
+                            @click="showReviewForm = false" />
+                        <Button
+                            label="Gửi đánh giá"
+                            :loading="isSubmittingReview"
+                            @click="submitReview" />
+                    </div>
+                </template>
+            </Dialog>
         </div>
 
         <!-- Loading state -->
@@ -685,5 +980,81 @@ useHead({
 
 :deep(.p-galleria-thumbnail-container) {
   background: #f3f4f6; /* gray-100 */
+}
+
+/* Thêm style cho phần hiển thị ảnh */
+.md\:row-span-2 {
+  height: 400px;
+}
+
+.room-images-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  max-height: 400px;
+}
+
+.main-image {
+  grid-row: span 2;
+}
+
+.image-overlay {
+  transition: all 0.3s ease;
+}
+
+.image-overlay:hover {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+/* Thêm styles cho gallery */
+.gallery-dialog {
+    @apply bg-black;
+}
+
+:deep(.gallery-dialog .p-dialog-content) {
+    @apply p-0 bg-black h-full;
+}
+
+:deep(.gallery-dialog) .p-dialog-mask {
+    @apply bg-black/90;
+}
+
+/* Tùy chỉnh thanh cuộn cho thumbnails */
+.overflow-x-auto {
+    scrollbar-width: thin;
+    scrollbar-color: #666 #333;
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+    height: 6px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: #333;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background-color: #666;
+    border-radius: 3px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background-color: #888;
+}
+
+/* Animation cho chuyển ảnh */
+.gallery-dialog img {
+    transition: opacity 0.3s ease;
+}
+
+/* Hiệu ứng hover cho nút */
+.gallery-dialog button {
+    opacity: 0.8;
+    transition: all 0.2s ease;
+}
+
+.gallery-dialog button:hover {
+    opacity: 1;
+    transform: scale(1.1);
 }
 </style>
