@@ -511,13 +511,7 @@ export function useBookingManagement() {
             const headers = getAuthHeaders();
             if (!headers) return null;
 
-            // Sử dụng endpoint admin nếu đang ở trang admin
-            const isAdmin = localStorage.getItem('admin_role') === 'ADMIN';
-            const endpoint = isAdmin
-                ? `${API_BASE_URL}/api/v1/admin/bookings/cancel/${id}`
-                : `${API_BASE_URL}/api/v1/bookings/cancel/${id}`;
-
-            const response = await fetch(endpoint, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/cancel/${id}`, {
                 method: 'POST',
                 headers
             });

@@ -184,7 +184,7 @@ const sendMessage = async () => {
              class="w-full h-full object-cover" />
         <div class="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex items-center">
           <div class="px-8 md:px-12 text-white max-w-xl">
-            <h2 class="text-3xl md:text-4xl font-bold mb-4">Chúng tôi luôn sẵn sàng lắng nghe</h2>
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 text-orange-200">Chúng tôi luôn sẵn sàng lắng nghe</h2>
             <p class="text-lg md:text-xl mb-6">Hãy liên hệ với chúng tôi để được giải đáp mọi thắc mắc và nhận tư vấn tốt nhất</p>
           </div>
         </div>

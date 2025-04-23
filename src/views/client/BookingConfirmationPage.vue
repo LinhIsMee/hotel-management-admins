@@ -314,16 +314,29 @@ const cancelBooking = async () => {
     loading.value = true;
 
     try {
+        // Lấy token từ localStorage
+        const userDataStr = localStorage.getItem('user_token');
+        if (!userDataStr) {
+            throw new Error('Vui lòng đăng nhập để hủy đặt phòng');
+        }
+
+        const userData = JSON.parse(userDataStr);
+        if (!userData.accessToken) {
+            throw new Error('Phiên đăng nhập đã hết hạn');
+        }
+
         // Gọi API để hủy đặt phòng
-        const response = await fetch(`/api/v1/bookings/${booking.value.id}/cancel`, {
+        const response = await fetch(`http://127.0.0.1:9000/api/v1/bookings/cancel/${booking.value.id}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userData.accessToken}`
             }
         });
 
         if (!response.ok) {
-            throw new Error('Không thể hủy đặt phòng');
+            const error = await response.json();
+            throw new Error(error.message || 'Không thể hủy đặt phòng');
         }
 
         const result = await response.json();
