@@ -104,7 +104,7 @@ const fetchData = async () => {
             return;
         }
 
-        const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/room-types`, {
             headers: headers
         });
 
@@ -156,11 +156,11 @@ const saveRoomType = async () => {
             // Kiểm tra xem đang tạo mới hay cập nhật
             if (roomType.value.id) {
                 // Cập nhật loại phòng
-                url = `${API_BASE_URL}/api/v1/admin/room-types/${roomType.value.id}`;
+                url = `${API_BASE_URL}/api/v1/room-types/${roomType.value.id}`;
                 method = 'PUT';
             } else {
                 // Tạo mới loại phòng
-                url = `${API_BASE_URL}/api/v1/admin/room-types`;
+                url = `${API_BASE_URL}/api/v1/room-types`;
                 method = 'POST';
             }
 
@@ -213,7 +213,7 @@ const deleteRoomType = async () => {
         const headers = getAuthHeaders();
         if (!headers) return;
 
-        const response = await fetch(`${API_BASE_URL}/api/v1/admin/room-types/${roomType.value.id}`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/room-types/${roomType.value.id}`, {
             method: 'DELETE',
             headers: headers
         });
@@ -246,7 +246,7 @@ const deleteSelectedRoomTypes = async () => {
         if (!headers) return;
 
         const deletePromises = selectedRoomTypes.value.map((roomTypeToDelete) =>
-            fetch(`${API_BASE_URL}/api/v1/admin/room-types/${roomTypeToDelete.id}`, {
+            fetch(`${API_BASE_URL}/api/v1/room-types/${roomTypeToDelete.id}`, {
                 method: 'DELETE',
                 headers: headers
             }).then((response) => {

@@ -115,7 +115,7 @@ const fetchData = async () => {
             return;
         }
 
-        const response = await fetch(`${API_BASE_URL}/api/services`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/services`, {
             headers: headers
         });
 
@@ -175,11 +175,11 @@ const saveService = async () => {
 
             if (service.value.id) {
                 // Cập nhật dịch vụ hiện có
-                url = `${API_BASE_URL}/api/services/${service.value.id}`;
+                url = `${API_BASE_URL}/api/v1/services/${service.value.id}`;
                 method = 'PUT';
             } else {
                 // Tạo dịch vụ mới
-                url = `${API_BASE_URL}/api/services`;
+                url = `${API_BASE_URL}/api/v1/services`;
                 method = 'POST';
             }
 
@@ -224,7 +224,7 @@ const editService = async (editService) => {
         const headers = getAuthHeaders();
         if (!headers) return;
 
-        const response = await fetch(`${API_BASE_URL}/api/services/${editService.id}`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/services/${editService.id}`, {
             headers: headers
         });
 
@@ -251,7 +251,7 @@ const deleteService = async () => {
         const headers = getAuthHeaders();
         if (!headers) return;
 
-        const response = await fetch(`${API_BASE_URL}/api/services/${service.value.id}`, {
+        const response = await fetch(`${API_BASE_URL}/api/v1/services/${service.value.id}`, {
             method: 'DELETE',
             headers: headers
         });
@@ -286,7 +286,7 @@ const deleteSelectedServices = async () => {
         if (!headers) return;
 
         const deletePromises = selectedServices.value.map((serviceToDelete) =>
-            fetch(`${API_BASE_URL}/api/services/${serviceToDelete.id}`, {
+            fetch(`${API_BASE_URL}/api/v1/services/${serviceToDelete.id}`, {
                 method: 'DELETE',
                 headers: headers
             }).then((response) => {

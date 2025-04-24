@@ -47,18 +47,16 @@ const {
     confirmBooking,
     checkInBooking,
     checkOutBooking,
-    deleteBookingById,
     updateStats
 } = useBookingManagement();
 
 // Thêm hàm để xử lý xuất dữ liệu
-const { isExporting, exportToCSV } = useExportData();
+const { exportToCSV } = useExportData();
 
 // Đảm bảo có khai báo toast
 const toast = useToast();
 
 // Khai báo biến
-const availableRooms = ref([]);
 const bookingDialog = ref(false);
 const bookingDetailsDialog = ref(false);
 const deleteBookingDialog = ref(false);
@@ -73,19 +71,13 @@ const submitted = ref(false);
 const dateRange = ref({ start: null, end: null });
 const selectedStatus = ref(null);
 const userId = ref(null);
+const loadingEditDialog = ref(false);
 
 // Tạo một đối tượng hiển thị các cột dựa vào quyền
 const displayColumns = computed(() => ({
     selection: can.delete.value, // Hiển thị cột chọn nếu có quyền xóa
     actions: can.edit.value || can.confirm.value || can.cancel.value // Hiển thị cột hành động nếu có quyền chỉnh sửa, xác nhận hoặc hủy
 }));
-
-// Thêm các biến cần thiết cho dialog
-const roomTypes = ref([
-    { id: 1, name: 'Phòng đơn' },
-    { id: 2, name: 'Phòng đôi' },
-    { id: 3, name: 'Phòng VIP' }
-]);
 
 // Gọi API khi component được mount
 onMounted(async () => {
@@ -143,6 +135,8 @@ const saveBooking = async () => {
 
     if (booking.value.fullName?.trim()) {
         try {
+            loadingEditDialog.value = true;
+            
             // Đảm bảo các trường bắt buộc đều có theo mẫu JSON
             if (!booking.value.userId) {
                 try {
@@ -186,8 +180,8 @@ const saveBooking = async () => {
             if (booking.value.id) {
                 // Cập nhật đơn đặt hiện có
                 result = await updateBooking(booking.value.id, bookingData);
-        } else {
-            // Tạo đơn đặt mới
+            } else {
+                // Tạo đơn đặt mới
                 result = await createBooking(bookingData);
             }
 
@@ -200,8 +194,10 @@ const saveBooking = async () => {
                 });
                 // Làm mới dữ liệu
                 await fetchAllBookings();
-        bookingDialog.value = false;
-        booking.value = {};
+                // Cập nhật thống kê
+                updateStats();
+                bookingDialog.value = false;
+                booking.value = {};
             }
         } catch (error) {
             console.error('Lỗi khi lưu đặt phòng:', error);
@@ -211,6 +207,8 @@ const saveBooking = async () => {
                 detail: 'Có lỗi xảy ra khi lưu đặt phòng. Vui lòng thử lại sau.',
                 life: 3000
             });
+        } finally {
+            loadingEditDialog.value = false;
         }
     } else {
         toast.add({
@@ -225,6 +223,8 @@ const saveBooking = async () => {
 // Chỉnh sửa đơn đặt
 const editBooking = async (editBooking) => {
     try {
+        loadingEditDialog.value = true;
+        
         // Tải thông tin chi tiết về đơn đặt từ API
         const fullDetails = await fetchBookingById(editBooking.id);
 
@@ -260,6 +260,8 @@ const editBooking = async (editBooking) => {
             detail: 'Có lỗi xảy ra khi tải thông tin đơn đặt.',
             life: 3000
         });
+    } finally {
+        loadingEditDialog.value = false;
     }
 };
 
@@ -271,10 +273,36 @@ const viewBookingDetails = async (data) => {
 
         const fullDetails = await fetchBookingById(data.id);
         if (fullDetails) {
+            // Xử lý trường hợp mảng rooms trống
+            if (!fullDetails.rooms || fullDetails.rooms.length === 0) {
+                // Tạo thông tin mặc định nếu không có chi tiết phòng
+                console.log('Đơn đặt phòng không có thông tin phòng chi tiết, bổ sung thông tin mặc định');
+                fullDetails.rooms = [{
+                    roomNumber: 'Không xác định',
+                    roomType: 'Không xác định',
+                    price: fullDetails.totalPrice || 0,
+                    checkInDate: fullDetails.checkInDate,
+                    checkOutDate: fullDetails.checkOutDate
+                }];
+            }
+
             selectedBooking.value = fullDetails;
+        } else {
+            toast.add({
+                severity: 'warn',
+                summary: 'Thông báo',
+                detail: 'Không thể tải đầy đủ thông tin đơn đặt phòng',
+                life: 3000
+            });
         }
     } catch (error) {
         console.error('Lỗi khi tải chi tiết đơn đặt:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Không thể tải đầy đủ thông tin đơn đặt phòng',
+            life: 3000
+        });
     }
 };
 
@@ -289,7 +317,7 @@ const confirmDeleteBooking = (editBooking) => {
 // Xóa đơn đặt
 const deleteBooking = async () => {
     try {
-        const response = await fetch(`http://localhost:9000/api/v1/admin/bookings/${booking.value.id}`, {
+        const response = await fetch(`http://localhost:9000/api/v1/bookings/${booking.value.id}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
@@ -352,7 +380,7 @@ const deleteSelectedBookings = async () => {
 const confirmDeleteSelected = async () => {
     try {
         const deletePromises = selectedBookings.value.map(booking =>
-            fetch(`http://localhost:9000/api/v1/admin/bookings/${booking.id}`, {
+            fetch(`http://localhost:9000/api/v1/bookings/${booking.id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
@@ -387,24 +415,13 @@ const confirmDeleteSelected = async () => {
     }
 };
 
-// Tìm index theo ID
-const findIndexById = (id) => {
-    let index = -1;
-    for (let i = 0; i < bookings.value.length; i++) {
-        if (bookings.value[i].id === id) {
-            index = i;
-            break;
-        }
-    }
-    return index;
-};
-
 // Hàm xác nhận booking
 const handleConfirmBooking = async (data) => {
     if (can.confirm.value) {
         try {
             await confirmBooking(data.id);
             fetchAllBookings(); // Refresh data
+            updateStats(); // Cập nhật thống kê
         } catch (error) {
             console.error('Lỗi khi xác nhận booking:', error);
         }
@@ -417,6 +434,7 @@ const handleCancelBooking = async (data) => {
         try {
             await cancelBooking(data.id);
             fetchAllBookings(); // Refresh data
+            updateStats(); // Cập nhật thống kê
         } catch (error) {
             console.error('Lỗi khi hủy booking:', error);
         }
@@ -436,15 +454,6 @@ const filterByDateRange = () => {
 const filterByStatus = () => {
     if (selectedStatus.value) {
         fetchBookingsByStatus(selectedStatus.value);
-    } else {
-        fetchAllBookings();
-    }
-};
-
-// Hàm lọc theo người dùng
-const filterByUser = () => {
-    if (userId.value) {
-        fetchUserBookings(userId.value);
     } else {
         fetchAllBookings();
     }
@@ -500,6 +509,7 @@ const handleCheckInBooking = async (data) => {
                 life: 3000
             });
             fetchAllBookings(); // Refresh data
+            updateStats(); // Cập nhật thống kê
         } catch (error) {
             console.error('Lỗi khi check-in booking:', error);
             toast.add({
@@ -524,6 +534,7 @@ const handleCheckOutBooking = async (data) => {
                 life: 3000
             });
             fetchAllBookings(); // Refresh data
+            updateStats(); // Cập nhật thống kê
         } catch (error) {
             console.error('Lỗi khi check-out booking:', error);
             toast.add({

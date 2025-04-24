@@ -253,7 +253,7 @@ const confirmBooking = async () => {
         };
 
         // Gọi API đặt phòng mới
-        const response = await fetch('http://localhost:5173/api/v1/payments/create-booking-payment', {
+        const response = await fetch('http://localhost:9000/api/v1/payments/create-booking-payment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -279,9 +279,12 @@ const confirmBooking = async () => {
 
         const result = await response.json();
 
+        // Kiểm tra và hiển thị thông tin đặt phòng trả về
+        console.log('Kết quả đặt phòng:', result);
+
         // Chuyển hướng đến trang thanh toán VNPay
-        if (result.paymentUrl) {
-            window.location.href = result.paymentUrl;
+        if (result.payment && result.payment.paymentUrl) {
+            window.location.href = result.payment.paymentUrl;
         } else {
             throw new Error('Không nhận được URL thanh toán');
         }
@@ -418,11 +421,49 @@ const cancelBookingProcess = () => {
                                            class="w-full border border-gray-300 rounded-md p-2"
                                            placeholder="Nhập số CCCD hoặc Passport" />
                                 </div>
-                                <div class="form-group">
-                                    <label class="block text-gray-700 mb-1">Số trẻ em</label>
-                                    <input v-model="contactInfo.children" type="number" min="0"
-                                           class="w-full border border-gray-300 rounded-md p-2"
-                                           placeholder="Nhập số trẻ em" />
+                                <div class="form-group col-span-2 md:col-span-2">
+                                    <label class="block text-gray-700 mb-2">Số người</label>
+                                    <div class="flex flex-col md:flex-row gap-4">
+                                        <div class="bg-gray-50 rounded-md p-3 flex-1">
+                                            <div class="flex justify-between items-center">
+                                                <div>
+                                                    <span class="font-medium">Người lớn</span>
+                                                    <p class="text-xs text-gray-500">Trên 12 tuổi</p>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <button type="button" @click="bookingInfo.guests > 1 ? bookingInfo.guests-- : null"
+                                                            class="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-100">
+                                                        <i class="pi pi-minus text-gray-600 text-xs"></i>
+                                                    </button>
+                                                    <span class="mx-3 font-medium w-5 text-center">{{ bookingInfo.guests }}</span>
+                                                    <button type="button" @click="bookingInfo.guests < 10 ? bookingInfo.guests++ : null"
+                                                            class="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-100">
+                                                        <i class="pi pi-plus text-gray-600 text-xs"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-gray-50 rounded-md p-3 flex-1">
+                                            <div class="flex justify-between items-center">
+                                                <div>
+                                                    <span class="font-medium">Trẻ em</span>
+                                                    <p class="text-xs text-gray-500">Dưới 12 tuổi</p>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <button type="button" @click="contactInfo.children > 0 ? contactInfo.children-- : null"
+                                                            class="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-100">
+                                                        <i class="pi pi-minus text-gray-600 text-xs"></i>
+                                                    </button>
+                                                    <span class="mx-3 font-medium w-5 text-center">{{ contactInfo.children }}</span>
+                                                    <button type="button" @click="contactInfo.children < 5 ? contactInfo.children++ : null"
+                                                            class="w-8 h-8 rounded-full bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-100">
+                                                        <i class="pi pi-plus text-gray-600 text-xs"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="form-group mt-4">

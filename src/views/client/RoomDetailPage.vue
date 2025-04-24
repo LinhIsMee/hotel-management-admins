@@ -1,7 +1,7 @@
 <script setup>
 import { useRoomManagement } from '@/composables/useRoomManagement';
 import { useHead } from '@vueuse/head';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Rating from 'primevue/rating';
 import DatePicker from 'primevue/datepicker';
@@ -11,7 +11,6 @@ import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
-import Dropdown from 'primevue/dropdown';
 import { useToast } from 'primevue';
 
 const route = useRoute();
@@ -43,7 +42,8 @@ const defaultImages = [
 const booking = ref({
     checkInDate: null,
     checkOutDate: null,
-    guests: 1,
+    adults: 2,
+    children: 0,
     specialRequests: '',
     payViaVnpay: false,
     discountCode: '',
@@ -90,8 +90,11 @@ const totalPrice = computed(() => {
     // Tính tiền phòng
     const roomPrice = calculateTotalPrice(room.value, booking.value.checkInDate, booking.value.checkOutDate);
 
+    // Tính giảm giá cho trẻ em (giảm 50% giá người lớn cho mỗi trẻ em)
+    const childrenDiscount = room.value.pricePerNight * 0.5 * booking.value.children;
+
     // Cộng với tiền dịch vụ
-    const total = roomPrice + serviceTotal.value;
+    const total = roomPrice + serviceTotal.value - childrenDiscount;
 
     // Áp dụng giảm giá nếu có
     if (discountStatus.value.applied && discountStatus.value.discount > 0) {
@@ -177,7 +180,7 @@ const loadRoomData = async () => {
             booking.value.checkOutDate = new Date(route.query.checkOut);
         }
         if (route.query.adults) {
-            booking.value.guests = parseInt(route.query.adults);
+            booking.value.adults = parseInt(route.query.adults);
         }
 
         // Tải thông tin chi tiết phòng từ API
@@ -234,6 +237,7 @@ watch(roomId, async (newId, oldId) => {
 
 onMounted(async () => {
     await loadRoomData();
+    document.addEventListener('click', closeGuestsPopup);
 });
 
 // Thêm computed properties để kiểm tra ngày
@@ -314,8 +318,8 @@ const prepareBookingData = () => {
         roomType: room.value.roomTypeName,
         checkInDate: formatDate(booking.value.checkInDate),
         checkOutDate: formatDate(booking.value.checkOutDate),
-        adults: booking.value.guests,
-        children: 0, // Có thể bổ sung sau
+        adults: booking.value.adults,
+        children: booking.value.children,
         specialRequests: booking.value.specialRequests,
         totalPrice: totalPrice.value,
         discountCode: discountStatus.value.applied ? booking.value.discountCode : null,
@@ -348,7 +352,7 @@ const handleBooking = () => {
             roomId: roomId.value,
             checkIn: formatDate(booking.value.checkInDate),
             checkOut: formatDate(booking.value.checkOutDate),
-            guests: booking.value.guests,
+            guests: booking.value.adults + booking.value.children,
             services: booking.value.services.join(','),
             discount: booking.value.discountCode,
             payment: booking.value.payViaVnpay ? 'vnpay' : 'cash'
@@ -473,6 +477,22 @@ const submitReview = async () => {
     }
 };
 
+// Thêm ref để quản lý trạng thái hiển thị của popup chọn số người
+const showGuestsPopup = ref(false);
+
+// Thêm tính năng đóng popup khi click ra ngoài
+const closeGuestsPopup = (event) => {
+    if (event.target.closest('.guests-popup') === null &&
+        event.target.closest('.guests-selector') === null) {
+        showGuestsPopup.value = false;
+    }
+};
+
+// Xóa event listener khi component bị hủy
+onBeforeUnmount(() => {
+    document.removeEventListener('click', closeGuestsPopup);
+});
+
 useHead({
     title: computed(() => room.value ? `${room.value.roomTypeName} - Chi tiết phòng` : 'Chi tiết phòng'),
   meta: [
@@ -483,6 +503,18 @@ useHead({
                 'Chi tiết phòng khách sạn')
     }
   ]
+});
+
+// Tính số ngày lưu trú
+const days = computed(() => {
+    if (!booking.value.checkInDate || !booking.value.checkOutDate) return 0;
+
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const checkIn = new Date(booking.value.checkInDate);
+    const checkOut = new Date(booking.value.checkOutDate);
+
+    // Làm tròn để tránh lỗi do giờ hè/đông
+    return Math.round((checkOut - checkIn) / msPerDay);
 });
 </script>
 
@@ -608,7 +640,7 @@ useHead({
                                     <i class="pi pi-building mr-2 text-gray-600"></i>
                                     <span>Tầng {{ room.floor }}</span>
                                 </div>
-                                <div class="flex items-center">
+                                <!-- <div class="flex items-center">
                                     <i class="pi pi-tag mr-2 text-gray-600"></i>
                                     <span :class="{
                                         'text-green-600': room.status === 'AVAILABLE',
@@ -617,7 +649,7 @@ useHead({
                                     }">
                                         {{ getStatusText(room.status) }}
                                     </span>
-                                </div>
+                                </div> -->
                             </div>
                             <!-- Hiển thị đánh giá -->
                             <div class="flex items-center">
@@ -709,9 +741,72 @@ useHead({
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="block text-gray-700 mb-1">Số người</label>
-                            <Dropdown v-model="booking.guests" :options="[1, 2, 3, 4]" class="w-full" />
+                        <!-- Thay thế dropdown số người bằng bộ chọn người lớn và trẻ em mới -->
+                        <div class="mb-4 relative">
+                            <label class="block text-gray-700 mb-1">Khách và trẻ em</label>
+                            <div
+                                class="guests-selector p-inputtext w-full flex justify-between items-center cursor-pointer"
+                                @click="showGuestsPopup = !showGuestsPopup">
+                                <span>{{ booking.adults }} người lớn, {{ booking.children }} trẻ em</span>
+                                <i class="pi pi-chevron-down"></i>
+                            </div>
+
+                            <!-- Popup chọn số lượng -->
+                            <div v-if="showGuestsPopup"
+                                class="guests-popup absolute z-10 mt-1 bg-white rounded-md shadow-lg p-4 w-full md:w-auto md:min-w-[300px] border border-gray-200">
+                                <div class="mb-4">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <div class="font-medium">Người lớn</div>
+                                            <div class="text-sm text-gray-500">Từ 13 tuổi trở lên</div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <button
+                                                @click="booking.adults = Math.max(1, booking.adults - 1)"
+                                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:bg-gray-100"
+                                                :disabled="booking.adults <= 1">
+                                                <i class="pi pi-minus text-sm"></i>
+                                            </button>
+                                            <span class="w-5 text-center">{{ booking.adults }}</span>
+                                            <button
+                                                @click="booking.adults = Math.min(room?.maxOccupancy || 4, booking.adults + 1)"
+                                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:bg-gray-100"
+                                                :disabled="booking.adults >= (room?.maxOccupancy || 4)">
+                                                <i class="pi pi-plus text-sm"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-4">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <div class="font-medium">Trẻ em</div>
+                                            <div class="text-sm text-gray-500">Độ tuổi 0-12</div>
+                                        </div>
+                                        <div class="flex items-center gap-3">
+                                            <button
+                                                @click="booking.children = Math.max(0, booking.children - 1)"
+                                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:bg-gray-100"
+                                                :disabled="booking.children <= 0">
+                                                <i class="pi pi-minus text-sm"></i>
+                                            </button>
+                                            <span class="w-5 text-center">{{ booking.children }}</span>
+                                            <button
+                                                @click="booking.children = Math.min(4, booking.children + 1)"
+                                                class="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-500 hover:bg-gray-100"
+                                                :disabled="booking.children >= 4">
+                                                <i class="pi pi-plus text-sm"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-end">
+                                    <Button
+                                        label="Xong"
+                                        class="p-button w-full md:w-auto"
+                                        @click="showGuestsPopup = false" />
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-4">
@@ -765,6 +860,7 @@ useHead({
                             </small>
                         </div>
 
+                        <!-- Hiển thị thông tin giá và giảm giá -->
                         <div v-if="days > 0" class="bg-gray-50 p-4 rounded-lg mb-6">
                             <div class="flex justify-between mb-3">
                                 <span class="text-gray-700">Giá phòng:</span>
@@ -773,6 +869,14 @@ useHead({
                             <div class="flex justify-between mb-3">
                                 <span class="text-gray-700">Số đêm:</span>
                                 <span class="font-semibold">{{ days }} đêm</span>
+                            </div>
+                            <div class="flex justify-between mb-3">
+                                <span class="text-gray-700">Số người:</span>
+                                <span class="font-semibold">{{ booking.adults }} người lớn, {{ booking.children }} trẻ em</span>
+                            </div>
+                            <div v-if="booking.children > 0" class="flex justify-between mb-3 text-green-600">
+                                <span>Giảm giá cho trẻ em:</span>
+                                <span class="font-semibold">-{{ formatCurrency(room.pricePerNight * 0.5 * booking.children) }}</span>
                             </div>
                             <div v-if="booking.services && booking.services.length > 0" class="flex justify-between mb-3">
                                 <span class="text-gray-700">Dịch vụ bổ sung:</span>
@@ -1056,5 +1160,21 @@ useHead({
 .gallery-dialog button:hover {
     opacity: 1;
     transform: scale(1.1);
+}
+
+/* Style cho popup chọn khách */
+.guests-selector {
+    min-height: 43px;
+}
+
+.guests-popup {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+/* Buttons trong guests popup */
+.guests-popup button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 </style>

@@ -26,7 +26,7 @@ export function useReviewManagement() {
     const stats = ref(null);
 
     // Định nghĩa địa chỉ cơ sở của API backend
-    const API_BASE_URL = 'http://localhost:9000';
+    const API_BASE_URL = 'http://127.0.0.1:9000';
 
     // Trạng thái đánh giá
     const statuses = ref([
@@ -141,7 +141,7 @@ export function useReviewManagement() {
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/reviews/`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/reviews`, {
                 headers: headers
             });
 
@@ -152,17 +152,32 @@ export function useReviewManagement() {
             const result = await response.json();
             console.log('Dữ liệu nhận được từ API:', result);
 
-            // API trả về mảng trực tiếp
-            if (Array.isArray(result)) {
+            // Cấu trúc API mới
+            if (result.content && Array.isArray(result.content)) {
+                // Lấy dữ liệu từ trường content
+                reviews.value = result.content;
+                totalElements.value = result.totalElements || result.content.length;
+
+                console.log('Đã tải được', reviews.value.length, 'đánh giá');
+            }
+            // Trường hợp API trả về mảng trực tiếp
+            else if (Array.isArray(result)) {
                 reviews.value = result;
                 totalElements.value = result.length;
-            } else if (result.data) {
-                // Giữ trường hợp này phòng khi API thay đổi
+            }
+            // Trường hợp API cũ
+            else if (result.data) {
                 reviews.value = Array.isArray(result.data.content) ? result.data.content : [];
                 totalElements.value = reviews.value.length;
-            } else {
+            }
+            else {
                 reviews.value = [];
                 totalElements.value = 0;
+            }
+
+            // Nếu có đánh giá, tạo stats từ đánh giá đó nếu API không trả về stats
+            if (reviews.value.length > 0 && !stats.value) {
+                calculateStats();
             }
 
             // Tải thống kê đánh giá
@@ -179,6 +194,57 @@ export function useReviewManagement() {
         } finally {
             loading.value = false;
         }
+    };
+
+    // Hàm tính toán thống kê từ danh sách đánh giá
+    const calculateStats = () => {
+        if (!reviews.value.length) return;
+
+        const totalReviews = reviews.value.length;
+        let totalRating = 0;
+        let repliedCount = 0;
+        let pendingCount = 0;
+        let hiddenCount = 0;
+
+        let oneStarCount = 0;
+        let twoStarCount = 0;
+        let threeStarCount = 0;
+        let fourStarCount = 0;
+        let fiveStarCount = 0;
+
+        reviews.value.forEach(review => {
+            totalRating += review.rating || 0;
+
+            if (review.status === 'REPLIED') repliedCount++;
+            else if (review.status === 'PENDING') pendingCount++;
+            else if (review.status === 'HIDDEN') hiddenCount++;
+
+            if (review.rating === 1) oneStarCount++;
+            else if (review.rating === 2) twoStarCount++;
+            else if (review.rating === 3) threeStarCount++;
+            else if (review.rating === 4) fourStarCount++;
+            else if (review.rating === 5) fiveStarCount++;
+        });
+
+        stats.value = {
+            totalReviews,
+            averageRating: totalReviews ? totalRating / totalReviews : 0,
+            repliedReviews: repliedCount,
+            pendingReviews: pendingCount,
+            hiddenReviews: hiddenCount,
+
+            oneStarCount,
+            twoStarCount,
+            threeStarCount,
+            fourStarCount,
+            fiveStarCount,
+
+            oneStarPercent: totalReviews ? (oneStarCount / totalReviews) * 100 : 0,
+            twoStarPercent: totalReviews ? (twoStarCount / totalReviews) * 100 : 0,
+            threeStarPercent: totalReviews ? (threeStarCount / totalReviews) * 100 : 0,
+            fourStarPercent: totalReviews ? (fourStarCount / totalReviews) * 100 : 0,
+            fiveStarPercent: totalReviews ? (fiveStarCount / totalReviews) * 100 : 0
+        };
     };
 
     const openNew = () => {
@@ -545,6 +611,7 @@ export function useReviewManagement() {
         getStatusName,
         getSeverity,
         getReviewSeverity,
-        uploadImage
+        uploadImage,
+        calculateStats
     };
 }

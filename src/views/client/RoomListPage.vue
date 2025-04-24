@@ -11,7 +11,6 @@ import Slider from 'primevue/slider';
 import MultiSelect from 'primevue/multiselect';
 import DatePicker from 'primevue/datepicker';
 import Toast from 'primevue/toast';
-import Select from 'primevue/select';
 import Dropdown from 'primevue/dropdown';
 
 const router = useRouter();
@@ -112,40 +111,14 @@ const fetchAvailableRoomsByDate = async (checkIn, checkOut) => {
   }
 };
 
-// Kiểm tra xem phòng có được đặt trong khoảng thời gian không
-const isRoomBookedInRange = (room, startDate, endDate) => {
-  if (!room.bookingPeriods || !startDate || !endDate) return false;
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  return room.bookingPeriods.some(period => {
-    const bookingStart = new Date(period.checkInDate);
-    const bookingEnd = new Date(period.checkOutDate);
-    return (
-      (bookingStart <= end && bookingEnd >= start) ||
-      (start <= bookingEnd && end >= bookingStart)
-    );
-  });
-};
-
-// Lấy thông tin đặt phòng sắp tới
-const getUpcomingBookings = (room) => {
-  if (!room.bookingPeriods) return [];
-
-  const today = new Date();
-  return room.bookingPeriods
-    .filter(period => new Date(period.checkOutDate) >= today)
-    .sort((a, b) => new Date(a.checkInDate) - new Date(b.checkInDate))
-    .slice(0, 3); // Chỉ lấy 3 booking gần nhất
-};
-
 // Hàm lấy đánh giá cho một phòng
 async function fetchRoomRatings(roomId) {
     try {
         const response = await fetch(`http://127.0.0.1:9000/api/v1/reviews/room/${roomId}`);
         if (!response.ok) throw new Error('Không thể tải đánh giá');
-        return await response.json();
+        const data = await response.json();
+        // Trả về mảng reviews từ trường content của response
+        return data.content || [];
     } catch (error) {
         console.error(`Lỗi khi lấy đánh giá cho phòng ${roomId}:`, error);
         return [];
@@ -184,7 +157,7 @@ const loadRoomData = async () => {
       // Lấy đánh giá
       const ratings = await fetchRoomRatings(room.id);
       const averageRating = ratings.length > 0
-        ? ratings.reduce((acc, curr) => acc + curr.stars, 0) / ratings.length
+        ? ratings.reduce((acc, curr) => acc + curr.rating, 0) / ratings.length
         : 0;
 
       // Tính giá theo thời gian nếu có chọn ngày
@@ -198,7 +171,6 @@ const loadRoomData = async () => {
         averageRating: averageRating,
         totalReviews: ratings.length,
         finalPrice: finalPrice,
-        upcomingBookings: getUpcomingBookings(room)
       };
     }));
 
@@ -682,25 +654,6 @@ useHead({
                     </span>
                     <span v-if="room.amenities && room.amenities.length > 3" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
                       +{{ room.amenities.length - 3 }}
-                    </span>
-                  </div>
-
-                  <!-- Thông tin đặt phòng -->
-                  <div v-if="room.upcomingBookings && room.upcomingBookings.length > 0" class="mt-4">
-                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Lịch đặt phòng sắp tới:</h4>
-                    <div class="space-y-2">
-                      <div v-for="(booking, index) in room.upcomingBookings" :key="index"
-                           class="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                        <i class="pi pi-calendar mr-2"></i>
-                        {{ formatDate(booking.checkInDate) }} - {{ formatDate(booking.checkOutDate) }}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="flex items-center gap-2 mt-4">
-                    <span v-if="filters.checkIn && filters.checkOut && isRoomBookedInRange(room, filters.checkIn, filters.checkOut)"
-                          class="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">
-                      Đã được đặt trong thời gian này
                     </span>
                   </div>
 

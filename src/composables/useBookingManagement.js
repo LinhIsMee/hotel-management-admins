@@ -181,7 +181,7 @@ export function useBookingManagement() {
             if (isAdmin) {
                 // Nếu là admin, chỉ gọi API admin
                 try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/`, {
+                    const response = await fetch(`${API_BASE_URL}/api/v1/bookings/all/no-page`, {
                         headers
                     });
 
@@ -298,7 +298,7 @@ export function useBookingManagement() {
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/status/${status}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/status/${status}`, {
                 headers
             });
 
@@ -340,7 +340,7 @@ export function useBookingManagement() {
             const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
             const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/date-range?startDate=${start}&endDate=${end}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/date-range?startDate=${start}&endDate=${end}`, {
                 headers
             });
 
@@ -373,7 +373,7 @@ export function useBookingManagement() {
             const headers = getAuthHeaders();
             if (!headers) return null;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/${id}`, {
                 headers
             });
 
@@ -403,10 +403,8 @@ export function useBookingManagement() {
             const headers = getAuthHeaders(true);
             if (!headers) return null;
 
-            // Phân biệt giữa API admin và API user
-            const endpoint = bookingData.isAdminCreated
-                ? `${API_BASE_URL}/api/v1/admin/bookings/create`
-                : `${API_BASE_URL}/api/v1/bookings/create`;
+            // Sử dụng API endpoint dành cho admin
+            const endpoint = `${API_BASE_URL}/api/v1/bookings/admin-create`;
 
             console.log(`Tạo booking mới qua endpoint: ${endpoint}`);
             console.log('Dữ liệu gửi đi:', bookingData);
@@ -459,8 +457,8 @@ export function useBookingManagement() {
 
             // Phân biệt giữa API admin và API user
             const endpoint = bookingData.isAdminUpdate
-                ? `${API_BASE_URL}/api/v1/admin/bookings/update/${id}`
-                : `${API_BASE_URL}/api/v1/admin/bookings/update/${id}`;
+                ? `${API_BASE_URL}/api/v1/bookings/update/${id}`
+                : `${API_BASE_URL}/api/v1/bookings/update/${id}`;
 
             console.log(`Cập nhật booking qua endpoint: ${endpoint}`);
             console.log('Dữ liệu gửi đi:', bookingData);
@@ -559,7 +557,7 @@ export function useBookingManagement() {
             // Sử dụng endpoint admin nếu đang ở trang admin
             const isAdmin = localStorage.getItem('admin_role') === 'ADMIN';
             const endpoint = isAdmin
-                ? `${API_BASE_URL}/api/v1/admin/bookings/confirm/${id}`
+                ? `${API_BASE_URL}/api/v1/bookings/confirm/${id}`
                 : `${API_BASE_URL}/api/v1/bookings/confirm/${id}`;
 
             const response = await fetch(endpoint, {
@@ -607,7 +605,7 @@ export function useBookingManagement() {
             const headers = getAuthHeaders();
             if (!headers) return null;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/check-in/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/check-in/${id}`, {
                 method: 'POST',
                 headers
             });
@@ -652,7 +650,7 @@ export function useBookingManagement() {
             const headers = getAuthHeaders();
             if (!headers) return null;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/check-out/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/check-out/${id}`, {
                 method: 'POST',
                 headers
             });
@@ -697,7 +695,7 @@ export function useBookingManagement() {
             const headers = getAuthHeaders();
             if (!headers) return null;
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/${id}`, {
                 method: 'DELETE',
                 headers
             });
@@ -1098,7 +1096,7 @@ export function useBookingManagement() {
             const headers = getAuthHeaders();
             if (!headers) return [];
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/admin/bookings/recent`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/recent`, {
                 headers
             });
 
@@ -1398,6 +1396,105 @@ export function useBookingManagement() {
         return false;
     };
 
+    // Lấy danh sách tất cả phòng
+    const fetchAllRooms = async () => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return [];
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/rooms`, {
+                headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi tải danh sách phòng: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tải danh sách phòng',
+                life: 3000
+            });
+            return [];
+        }
+    };
+
+    // Lấy danh sách dịch vụ có sẵn
+    const fetchAvailableServices = async () => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return [];
+
+            // Danh sách mẫu trong trường hợp API chưa được triển khai
+            const dummyServices = [
+                { id: 1, name: 'Dịch vụ giặt là', price: 200000, description: 'Giặt và ủi quần áo trong ngày' },
+                { id: 2, name: 'Đưa đón sân bay', price: 350000, description: 'Dịch vụ đưa đón sân bay' },
+                { id: 3, name: 'Bữa sáng tại phòng', price: 150000, description: 'Bữa sáng phục vụ tại phòng' },
+                { id: 4, name: 'Spa', price: 500000, description: 'Dịch vụ massage và chăm sóc da' },
+                { id: 5, name: 'Thuê xe', price: 800000, description: 'Thuê xe tự lái hoặc có tài xế' }
+            ];
+
+            // Thử gọi API
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/services`, {
+                    headers
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (Array.isArray(result) && result.length > 0) {
+                        return result;
+                    }
+                }
+            } catch (apiError) {
+                console.warn('API dịch vụ chưa sẵn sàng:', apiError);
+            }
+
+            // Trả về dữ liệu mẫu nếu API không có sẵn
+            return dummyServices;
+        } catch (error) {
+            console.error('Lỗi khi tải danh sách dịch vụ:', error);
+            return [];
+        }
+    };
+
+    // Lấy thông tin về mã giảm giá
+    const fetchDiscount = async (code) => {
+        try {
+            const headers = getAuthHeaders();
+            if (!headers) return null;
+
+            // Thử gọi API
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/discounts/${code}`, {
+                    headers
+                });
+
+                if (response.ok) {
+                    return await response.json();
+                }
+            } catch (apiError) {
+                console.warn('API mã giảm giá chưa sẵn sàng:', apiError);
+            }
+
+            // Trả về dữ liệu mẫu
+            return {
+                id: 5,
+                code: code,
+                discountPercent: 10,
+                description: 'Giảm giá 10%'
+            };
+        } catch (error) {
+            console.error('Lỗi khi kiểm tra mã giảm giá:', error);
+            return null;
+        }
+    };
+
     return {
         bookings,
         loading,
@@ -1449,6 +1546,9 @@ export function useBookingManagement() {
         getPaymentMethodLabel,
         getStatusSeverity,
         getPaymentStatusSeverity,
-        getAvailableRooms
+        getAvailableRooms,
+        fetchAllRooms,
+        fetchAvailableServices,
+        fetchDiscount
     };
 }
