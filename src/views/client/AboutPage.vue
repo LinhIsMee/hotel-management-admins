@@ -64,7 +64,7 @@ useHead({
             </p>
           </div>
           <div class="md:w-1/3">
-            <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80" alt="Luxury Hotel" class="w-full h-auto rounded-lg" />
+            <img :src="nha_nghi_1" alt="Luxury Hotel" class="w-full h-auto rounded-lg" />
           </div>
         </div>
       </div>
@@ -75,7 +75,7 @@ useHead({
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <!-- Ảnh bên ngoài khách sạn -->
           <div>
-            <img src="https://images.unsplash.com/photo-1566665797739-1674de7a421a?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80" alt="Luxury Hotel - Bên ngoài" class="w-full h-48 object-cover rounded-lg" />
+            <img :src="nha_nghi_2" alt="Luxury Hotel - Bên ngoài" class="w-full h-48 object-cover rounded-lg" />
             <p class="text-center text-gray-600 mt-2">Bên ngoài khách sạn</p>
           </div>
 
@@ -111,7 +111,7 @@ useHead({
 
           <!-- Bãi đậu xe -->
           <div>
-            <img src="https://images.unsplash.com/photo-1609258612713-a5a57aa2f8b8?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80" alt="Luxury Hotel - Bãi đậu xe" class="w-full h-48 object-cover rounded-lg" />
+            <img src="https://images.unsplash.com/photo-1470224114660-3f6686c562eb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80" alt="Luxury Hotel - Bãi đậu xe" class="w-full h-48 object-cover rounded-lg" />
             <p class="text-center text-gray-600 mt-2">Bãi đậu xe</p>
           </div>
 
