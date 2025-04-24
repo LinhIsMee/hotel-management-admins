@@ -337,11 +337,11 @@ function getRatingText(rating) {
                             </div>
                             <p class="text-gray-600 mb-4 line-clamp-2">{{ room.description }}</p>
                             <div class="flex flex-wrap gap-2 mb-4">
-                                <span v-for="(amenity, index) in room.amenities.slice(0, 4)" :key="index"
+                                <span v-for="(amenity, index) in (room.amenities?.slice(0, 4) || [])" :key="index"
                                     class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs">
                                     {{ amenity }}
                                 </span>
-                                <span v-if="room.amenities.length > 4"
+                                <span v-if="room.amenities && room.amenities.length > 4"
                                     class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs"> +{{
                                     room.amenities.length - 4 }} </span>
                             </div>
