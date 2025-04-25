@@ -157,9 +157,9 @@ const loadRelatedRooms = async () => {
 };
 
 // Tải đánh giá từ API
-const fetchRoomRatings = async (roomId) => {
+const fetchRoomRatings = async (roomNumber) => {
     try {
-        const response = await fetch(`http://127.0.0.1:9000/api/v1/reviews/room/${roomId}`);
+        const response = await fetch(`http://127.0.0.1:9000/api/v1/reviews/room/number/${roomNumber}`);
         if (!response.ok) throw new Error('Không thể tải đánh giá');
         const data = await response.json();
         return data;
@@ -445,11 +445,12 @@ const submitReview = async () => {
 
         isSubmittingReview.value = true;
 
-        // Lấy bookingId từ booking gần nhất của người dùng
-        const latestBooking = userBookings.value.find(booking =>
-            booking.roomId === roomId.value ||
-            booking.rooms.some(room => room.id === roomId.value)
-        );
+        // Tìm booking gần nhất của phòng này
+        const latestBooking = userBookings.value.filter(booking => {
+            const hasValidStatus = ['COMPLETED', 'CHECKED_OUT'].includes(booking.status);
+            const hasRoom = booking.rooms && booking.rooms.some(room => room.roomId === roomId.value);
+            return hasValidStatus && hasRoom;
+        }).sort((a, b) => new Date(b.checkOutDate) - new Date(a.checkOutDate))[0];
 
         if (!latestBooking) {
             toast.add({
@@ -462,7 +463,14 @@ const submitReview = async () => {
             return;
         }
 
-        const response = await fetch('http://127.0.0.1:9000/api/v1/reviews/', {
+        // Chuyển đổi bookingId từ "B123" thành 123
+        const bookingId = latestBooking.bookingId
+            ? parseInt(latestBooking.bookingId.replace('B', ''))
+            : latestBooking.id;
+
+        console.log('Gửi đánh giá với bookingId:', bookingId);
+
+        const response = await fetch('http://localhost:9000/api/v1/reviews/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -470,7 +478,7 @@ const submitReview = async () => {
             },
             body: JSON.stringify({
                 userId: userData.id,
-                bookingId: latestBooking.id,
+                bookingId: bookingId,
                 rating: reviewForm.value.rating,
                 cleanliness: reviewForm.value.cleanliness,
                 service: reviewForm.value.service,
@@ -489,13 +497,24 @@ const submitReview = async () => {
         }
 
         // Tải lại đánh giá mới
-        const ratingsData = await fetchRoomRatings(roomId.value);
+        const ratingsData = await fetchRoomRatings(room.value.roomNumber);
         reviews.value = ratingsData.map(rating => ({
             id: rating.id,
-            name: rating.isAnonymous ? 'Khách hàng ẩn danh' : rating.userName,
+            name: rating.isAnonymous ? 'Khách hàng ẩn danh' : rating.guestName,
             rating: rating.rating,
             date: new Date(rating.createdAt).toLocaleDateString('vi-VN'),
-            comment: rating.comment
+            comment: rating.comment,
+            cleanliness: rating.cleanliness,
+            service: rating.service,
+            comfort: rating.comfort,
+            location: rating.location,
+            facilities: rating.facilities,
+            valueForMoney: rating.valueForMoney,
+            replyComment: rating.replyComment,
+            replyBy: rating.replyBy,
+            replyDate: rating.replyDate,
+            status: rating.status,
+            isAnonymous: rating.isAnonymous
         }));
 
         // Reset form và đóng modal
@@ -556,12 +575,24 @@ const checkUserBookings = async () => {
         const bookingsData = await response.json();
         userBookings.value = Array.isArray(bookingsData) ? bookingsData : [];
 
+        console.log('Danh sách đặt phòng của người dùng:', userBookings.value);
+        console.log('ID phòng hiện tại:', roomId.value);
+
         // Kiểm tra xem có đơn đặt phòng nào có phòng hiện tại không
-        hasBookedRoom.value = userBookings.value.some(booking =>
-            (booking.roomId === roomId.value ||
-            (booking.rooms && booking.rooms.some(room => room.id === roomId.value)))
-            && ['COMPLETED', 'CHECK_OUT'].includes(booking.status)
-        );
+        hasBookedRoom.value = userBookings.value.some(booking => {
+            // Kiểm tra xem đặt phòng này đã hoàn thành hoặc đã trả phòng chưa
+            const hasValidStatus = ['COMPLETED', 'CHECKED_OUT'].includes(booking.status);
+
+            // Kiểm tra nếu phòng này có trong booking
+            const hasRoom = booking.rooms && booking.rooms.some(room => {
+                console.log('So sánh roomId:', room.roomId, roomId.value);
+                return room.roomId === roomId.value;
+            });
+
+            return hasValidStatus && hasRoom;
+        });
+
+        console.log('Có thể đánh giá phòng:', hasBookedRoom.value);
 
     } catch (error) {
         console.error('Lỗi khi kiểm tra đặt phòng của người dùng:', error);
@@ -614,13 +645,24 @@ const loadRoomData = async () => {
             await loadRelatedRooms();
 
             // Tải đánh giá
-            const ratingsData = await fetchRoomRatings(roomId.value);
+            const ratingsData = await fetchRoomRatings(roomData.roomNumber);
             reviews.value = ratingsData.map(rating => ({
                 id: rating.id,
-                name: rating.userName,
-                rating: rating.stars,
+                name: rating.isAnonymous ? 'Khách hàng ẩn danh' : rating.guestName,
+                rating: rating.rating,
                 date: new Date(rating.createdAt).toLocaleDateString('vi-VN'),
-                comment: rating.comment
+                comment: rating.comment,
+                cleanliness: rating.cleanliness,
+                service: rating.service,
+                comfort: rating.comfort,
+                location: rating.location,
+                facilities: rating.facilities,
+                valueForMoney: rating.valueForMoney,
+                replyComment: rating.replyComment,
+                replyBy: rating.replyBy,
+                replyDate: rating.replyDate,
+                status: rating.status,
+                isAnonymous: rating.isAnonymous
             }));
 
             // Đảm bảo lịch đặt phòng đã được tải
@@ -1253,11 +1295,48 @@ const minCheckOutDate = computed(() => {
                                 </div>
                             </div>
                         </div>
-                        <p class="text-gray-600">{{ review.comment }}</p>
+                        <p class="text-gray-600 mb-3">{{ review.comment }}</p>
+
+                        <!-- Hiển thị chi tiết đánh giá -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 mb-3">
+                            <div class="flex items-center text-sm text-gray-500">
+                                <span class="font-medium mr-1">Vệ sinh:</span>
+                                <Rating :modelValue="review.cleanliness" readonly :cancel="false" :stars="5" class="scale-75 origin-left" />
+                            </div>
+                            <div class="flex items-center text-sm text-gray-500">
+                                <span class="font-medium mr-1">Dịch vụ:</span>
+                                <Rating :modelValue="review.service" readonly :cancel="false" :stars="5" class="scale-75 origin-left" />
+                            </div>
+                            <div class="flex items-center text-sm text-gray-500">
+                                <span class="font-medium mr-1">Thoải mái:</span>
+                                <Rating :modelValue="review.comfort" readonly :cancel="false" :stars="5" class="scale-75 origin-left" />
+                            </div>
+                            <div class="flex items-center text-sm text-gray-500">
+                                <span class="font-medium mr-1">Vị trí:</span>
+                                <Rating :modelValue="review.location" readonly :cancel="false" :stars="5" class="scale-75 origin-left" />
+                            </div>
+                            <div class="flex items-center text-sm text-gray-500">
+                                <span class="font-medium mr-1">Tiện nghi:</span>
+                                <Rating :modelValue="review.facilities" readonly :cancel="false" :stars="5" class="scale-75 origin-left" />
+                            </div>
+                            <div class="flex items-center text-sm text-gray-500">
+                                <span class="font-medium mr-1">Đáng giá:</span>
+                                <Rating :modelValue="review.valueForMoney" readonly :cancel="false" :stars="5" class="scale-75 origin-left" />
+                            </div>
+                        </div>
+
+                        <!-- Hiển thị phản hồi từ khách sạn nếu có -->
+                        <div v-if="review.replyComment" class="mt-3 pl-4 border-l-4 border-amber-200 bg-amber-50 p-3 rounded">
+                            <div class="flex justify-between">
+                                <h4 class="font-medium text-gray-700">Phản hồi từ {{ review.replyBy || 'Khách sạn' }}</h4>
+                                <span class="text-xs text-gray-500">{{ review.replyDate }}</span>
+                            </div>
+                            <p class="text-gray-600 mt-1">{{ review.replyComment }}</p>
+                        </div>
                     </div>
                 </div>
                 <div v-else class="text-center py-8 text-gray-500">
-                    Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá!
+                    Chưa có đánh giá !
                 </div>
             </div>
 
