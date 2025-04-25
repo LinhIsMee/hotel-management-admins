@@ -334,7 +334,7 @@ class AuthService {
      */
     async registerClient(userData) {
         try {
-            const response = await fetch(`${API_URL}/save`, {
+            const response = await fetch(`${API_URL}/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -346,7 +346,7 @@ class AuthService {
                     fullName: userData.fullName,
                     phoneNumber: userData.phoneNumber || null,
                     gender: userData.gender || 'Male',
-                    dateOfBirth: userData.dateOfBirth || '1990-01-01',
+                    dateOfBirth: userData.dateOfBirth ? (typeof userData.dateOfBirth === 'string' ? userData.dateOfBirth : userData.dateOfBirth.toISOString().split('T')[0]) : '1990-01-01',
                     address: userData.address || null,
                     nationalId: userData.nationalId || null
                 })
@@ -413,9 +413,18 @@ class AuthService {
 
             if (!response.ok) {
                 console.error('Reset password failed with status:', response.status);
-                const errorText = await response.text();
-                console.error('Error response:', errorText);
-                throw new Error(errorText || 'Password reset failed');
+
+                // Cố gắng parse lỗi dạng JSON
+                try {
+                    const errorData = await response.json();
+                    console.error('Error response (JSON):', errorData);
+                    throw new Error(errorData.message || 'Đặt lại mật khẩu thất bại');
+                } catch (jsonError) {
+                    // Nếu không phải JSON, lấy text thông thường
+                    const errorText = await response.text();
+                    console.error('Error response (Text):', errorText);
+                    throw new Error(errorText || 'Đặt lại mật khẩu thất bại');
+                }
             }
 
             return await response.json();

@@ -228,8 +228,12 @@ const login = () => {
                     id="dateOfBirth"
                     v-model="registerData.dateOfBirth"
                     dateFormat="yy-mm-dd"
+                    :showTime="false"
+                    :manualInput="false"
                     placeholder="YYYY-MM-DD"
                     class="w-full"
+                    :defaultDate="new Date('2000-01-01')"
+                    @date-select="registerData.dateOfBirth = $event.toISOString().split('T')[0]"
                 />
             </div>
         </div>

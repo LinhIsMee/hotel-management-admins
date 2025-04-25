@@ -180,8 +180,11 @@ const showLoginModal = () => {
                         id="dateOfBirth"
                         v-model="form.dateOfBirth"
                         dateFormat="yy-mm-dd"
+                        :showTime="false"
+                        :manualInput="false"
                         class="w-full"
                         placeholder="YYYY-MM-DD"
+                        @date-select="form.dateOfBirth = $event.toISOString().split('T')[0]"
                     />
                 </div>
 

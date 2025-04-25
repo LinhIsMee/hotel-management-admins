@@ -163,6 +163,12 @@ const routes = [
                     title: 'Đặt phòng của tôi - Luxury Hotel',
                     requiresAuth: true
                 }
+            },
+            {
+                path: 'reset-password',
+                name: 'ResetPassword',
+                component: () => import('@/views/pages/auth/ResetPassword.vue'),
+                meta: { title: 'Đặt lại mật khẩu - Luxury Hotel' }
             }
         ]
     },
