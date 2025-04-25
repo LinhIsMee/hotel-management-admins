@@ -210,7 +210,7 @@ class AuthService {
 
             // Cố gắng lấy thêm thông tin chi tiết của người dùng nếu API hỗ trợ
             try {
-                const profileResponse = await fetch(`${API_URL}/user/profile`, {
+                const profileResponse = await fetch(`${API_URL}/user/profile/${userInfo.id}`, {
                     method: 'GET',
                     headers: {
                         Authorization: `Bearer ${data.accessToken}`,
@@ -281,7 +281,7 @@ class AuthService {
         try {
             console.log('Fetching user profile with token:', userInfo.accessToken);
 
-            const response = await fetch(`${API_URL}/user/profile`, {
+            const response = await fetch(`${API_URL}/user/profile/${userInfo.id}`, {
                 method: 'GET', // API lấy profile thường dùng GET
                 headers: {
                     Authorization: `Bearer ${userInfo.accessToken}`,
