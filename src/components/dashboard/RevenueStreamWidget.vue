@@ -26,9 +26,23 @@ const fetchRevenueData = async () => {
 function setChartData() {
     const documentStyle = getComputedStyle(document.documentElement);
 
-    // Lấy ngày và doanh thu từ API
-    const labels = Object.keys(revenueData.value);
-    const values = Object.values(revenueData.value);
+    // Chuyển dữ liệu thành mảng các đối tượng và sắp xếp theo ngày
+    const dataArray = Object.entries(revenueData.value).map(([dateStr, revenue]) => {
+        // Phân tích chuỗi ngày (định dạng DD/MM/YYYY)
+        const [day, month, year] = dateStr.split('/').map(Number);
+        return {
+            dateStr,
+            date: new Date(year, month - 1, day), // JS tháng bắt đầu từ 0
+            revenue
+        };
+    });
+
+    // Sắp xếp theo ngày tăng dần (quá khứ đến tương lai)
+    dataArray.sort((a, b) => a.date - b.date);
+
+    // Tạo labels và values từ mảng đã sắp xếp
+    const labels = dataArray.map(item => item.dateStr);
+    const values = dataArray.map(item => item.revenue);
 
     return {
         labels,
