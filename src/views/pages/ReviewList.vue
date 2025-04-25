@@ -48,7 +48,8 @@ const {
     getStatusName,
     getSeverity,
     getReviewSeverity,
-    uploadImage
+    fetchUserInfo,
+    fetchBookingInfo
 } = useReviewManagement();
 
 onMounted(() => {
@@ -232,29 +233,37 @@ onMounted(() => {
                     <div class="p-4 rounded-lg">
                         <div class="mb-4">
                             <label for="guestName" class="font-bold mb-2 block">Tên khách hàng</label>
-                            <InputText id="guestName" v-model.trim="review.guestName" required class="w-full" :class="{ 'p-invalid': submitted && !review.guestName }" />
+                            <InputText id="guestName" v-model.trim="review.guestName" required class="w-full" :class="{ 'p-invalid': submitted && !review.guestName }" disabled />
                             <small class="p-error" v-if="submitted && !review.guestName">Tên khách hàng là bắt buộc.</small>
                         </div>
 
                         <div class="mb-4">
-                            <label for="displayName" class="font-bold mb-2 block">Tên hiển thị (khi ẩn danh)</label>
-                            <InputText id="displayName" v-model.trim="review.displayName" class="w-full" />
+                            <label for="userId" class="font-bold mb-2 block">ID Người dùng</label>
+                            <div class="flex">
+                                <InputText id="userId" v-model.trim="review.userId" class="w-full" :class="{ 'p-invalid': submitted && !review.userId }" />
+                                <Button icon="pi pi-search" class="ml-2" @click="fetchUserInfo" />
+                            </div>
+                            <small class="p-error" v-if="submitted && !review.userId">ID Người dùng là bắt buộc.</small>
                         </div>
 
                         <div class="mb-4">
                             <label for="bookingId" class="font-bold mb-2 block">Mã đặt phòng</label>
-                            <InputText id="bookingId" v-model.trim="review.bookingId" class="w-full" />
+                            <div class="flex">
+                                <InputText id="bookingId" v-model.trim="review.bookingId" class="w-full" :class="{ 'p-invalid': submitted && !review.bookingId }" />
+                                <Button icon="pi pi-search" class="ml-2" @click="fetchBookingInfo" />
+                            </div>
+                            <small class="p-error" v-if="submitted && !review.bookingId">Mã đặt phòng là bắt buộc.</small>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div class="mb-4">
                                 <label for="roomNumber" class="font-bold mb-2 block">Số phòng</label>
-                                <InputText id="roomNumber" v-model.trim="review.roomNumber" class="w-full" />
+                                <InputText id="roomNumber" v-model.trim="review.roomNumber" class="w-full" disabled />
                             </div>
 
                             <div class="mb-4">
                                 <label for="roomType" class="font-bold mb-2 block">Loại phòng</label>
-                                <InputText id="roomType" v-model.trim="review.roomType" class="w-full" />
+                                <InputText id="roomType" v-model.trim="review.roomType" class="w-full" disabled />
                             </div>
                         </div>
 
@@ -346,19 +355,6 @@ onMounted(() => {
                                 <div>
                                     <label class="font-bold mb-2 block">Ngày phản hồi</label>
                                     <div>{{ formatDate(review.replyDate) }}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label for="images" class="font-bold mb-2 block">Hình ảnh đính kèm</label>
-                            <div class="flex flex-wrap gap-2">
-                                <div v-for="(image, index) in review.images" :key="index" class="relative">
-                                    <img :src="image" alt="Hình ảnh đánh giá" class="w-32 h-32 object-cover rounded-lg" />
-                                    <Button icon="pi pi-times" class="absolute top-1 right-1 p-1 h-auto" severity="danger" text @click="review.images.splice(index, 1)" />
-                                </div>
-                                <div class="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer" @click="uploadImage">
-                                    <i class="pi pi-plus text-gray-500 text-xl"></i>
                                 </div>
                             </div>
                         </div>

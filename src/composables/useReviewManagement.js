@@ -181,20 +181,9 @@ export function useReviewManagement() {
         }
     };
 
+    // Mở form thêm mới
     const openNew = () => {
-        review.value = {
-            rating: 3,
-            cleanliness: 5,
-            service: 5,
-            comfort: 5,
-            location: 4,
-            facilities: 5,
-            valueForMoney: 4,
-            status: 'PENDING',
-            isAnonymous: false,
-            isFeatured: false,
-            images: []
-        };
+        review.value = initNewReview();
         submitted.value = false;
         reviewDialog.value = true;
     };
@@ -205,116 +194,174 @@ export function useReviewManagement() {
         review.value = {};
     };
 
-    const saveReview = async () => {
-        submitted.value = true;
-        console.log('Đang lưu đánh giá:', review.value);
-
-        if (review.value.guestName?.trim() && review.value.comment?.trim() && review.value.rating) {
-            try {
-                const headers = getAuthHeaders(true);
-                if (!headers) return;
-
-                let url;
-                let method;
-
-                if (review.value.id) {
-                    // Cập nhật đánh giá hiện có
-                    url = `${API_BASE_URL}/api/v1/reviews/update/${review.value.id}`;
-                    method = 'PUT';
-                    console.log('Cập nhật đánh giá ID:', review.value.id, 'tại URL:', url);
-
-                    // Quan trọng: Đảm bảo có đầy đủ thông tin đánh giá theo tài liệu API
-                    // Cần giữ nguyên ID và đảm bảo có đầy đủ các trường
-                    const requiredFields = [
-                        'id',
-                        'bookingId',
-                        'guestName',
-                        'displayName',
-                        'roomNumber',
-                        'roomType',
-                        'rating',
-                        'cleanliness',
-                        'service',
-                        'comfort',
-                        'location',
-                        'facilities',
-                        'valueForMoney',
-                        'comment',
-                        'images',
-                        'replyComment',
-                        'replyBy',
-                        'replyDate',
-                        'isFeatured',
-                        'isAnonymous',
-                        'status',
-                        'createdAt',
-                        'updatedAt'
-                    ];
-
-                    // Kiểm tra và đảm bảo tất cả các trường đều tồn tại
-                    for (const field of requiredFields) {
-                        if (review.value[field] === undefined) {
-                            console.warn(`Thiếu trường ${field} trong dữ liệu cập nhật. Đang thiết lập giá trị mặc định.`);
-
-                            // Thiết lập giá trị mặc định nếu thiếu
-                            if (field === 'images') review.value[field] = [];
-                            else if (field === 'isFeatured' || field === 'isAnonymous') review.value[field] = false;
-                            else if (field === 'status') review.value[field] = 'PENDING';
-                            else if (field === 'rating' || field === 'cleanliness' || field === 'service' || field === 'comfort' || field === 'location' || field === 'facilities' || field === 'valueForMoney') review.value[field] = 5;
-                            else if (field !== 'id' && field !== 'createdAt' && field !== 'updatedAt' && field !== 'replyComment' && field !== 'replyBy' && field !== 'replyDate') {
-                                review.value[field] = '';
-                            }
-                        }
-                    }
-                } else {
-                    // Tạo đánh giá mới
-                    url = `${API_BASE_URL}/api/v1/reviews/`;
-                    method = 'POST';
-                    console.log('Tạo đánh giá mới tại URL:', url);
-                }
-
-                console.log('Dữ liệu gửi đi:', JSON.stringify(review.value));
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: headers,
-                    body: JSON.stringify(review.value)
+    const fetchUserInfo = async () => {
+        try {
+            if (!review.value.userId) {
+                toast.add({
+                    severity: 'error',
+                    summary: 'Lỗi',
+                    detail: 'Vui lòng nhập ID người dùng',
+                    life: 3000
                 });
-
-                if (!response.ok) {
-                    const errorData = await response.text();
-                    console.error('Server response:', errorData);
-                    throw new Error(`Lỗi khi ${review.value.id ? 'cập nhật' : 'tạo'} đánh giá: ${response.statusText} (${response.status})`);
-                }
-
-                const resultData = await response.json();
-                console.log('Phản hồi từ server sau khi lưu:', resultData);
-
-                if (review.value.id) {
-                    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Cập nhật đánh giá thành công', life: 3000 });
-                } else {
-                    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Thêm đánh giá thành công', life: 3000 });
-                }
-
-                reviewDialog.value = false;
-                review.value = {};
-
-                // Tải lại dữ liệu sau khi lưu
-                fetchAllData();
-            } catch (error) {
-                console.error('Lỗi khi lưu dữ liệu đánh giá:', error);
-                toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+                return;
             }
-        } else {
-            console.log('Thông tin đánh giá không hợp lệ:', {
-                guestName: review.value.guestName,
-                comment: review.value.comment,
-                rating: review.value.rating
-            });
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/users/${review.value.userId}`);
+            if (!response.ok) {
+                throw new Error('Không thể tải thông tin người dùng');
+            }
+
+            const userData = await response.json();
+            review.value.guestName = userData.fullName || userData.email;
+
+        } catch (error) {
+            console.error('Lỗi khi tải thông tin người dùng:', error);
             toast.add({
                 severity: 'error',
-                summary: 'Thông tin không đầy đủ',
-                detail: 'Vui lòng nhập đầy đủ tên khách hàng, nội dung và điểm đánh giá',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tải thông tin người dùng',
+                life: 3000
+            });
+        }
+    };
+
+    const fetchBookingInfo = async () => {
+        try {
+            if (!review.value.bookingId) {
+                toast.add({
+                    severity: 'error',
+                    summary: 'Lỗi',
+                    detail: 'Vui lòng nhập ID đặt phòng',
+                    life: 3000
+                });
+                return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/bookings/${review.value.bookingId}`);
+            if (!response.ok) {
+                throw new Error('Không thể tải thông tin đặt phòng');
+            }
+
+            const bookingData = await response.json();
+            if (bookingData.rooms && bookingData.rooms.length > 0) {
+                const room = bookingData.rooms[0];
+                review.value.roomNumber = room.roomNumber;
+                review.value.roomType = room.roomType;
+            }
+
+        } catch (error) {
+            console.error('Lỗi khi tải thông tin đặt phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể tải thông tin đặt phòng',
+                life: 3000
+            });
+        }
+    };
+
+    const initNewReview = () => {
+        return {
+            id: null,
+            userId: null,
+            bookingId: null,
+            guestName: '',
+            roomNumber: '',
+            roomType: '',
+            rating: 5,
+            cleanliness: 5,
+            service: 4,
+            comfort: 5,
+            location: 4,
+            facilities: 5,
+            valueForMoney: 4,
+            comment: '',
+            isAnonymous: false,
+            status: 'PENDING',
+            createdAt: new Date(),
+            isFeatured: false,
+            replyComment: '',
+            replyDate: null,
+            replyBy: null
+        };
+    };
+
+    const saveReview = async () => {
+        submitted.value = true;
+
+        if (!review.value.userId || !review.value.bookingId || !review.value.comment || !review.value.rating) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Vui lòng điền đầy đủ thông tin bắt buộc',
+                life: 3000
+            });
+            return;
+        }
+
+        try {
+            let method = 'POST';
+            let url = `${API_BASE_URL}/api/v1/reviews/`;
+            let successMessage = 'Đánh giá đã được tạo thành công';
+
+            if (review.value.id) {
+                method = 'PUT';
+                url = `${API_BASE_URL}/api/v1/reviews/${review.value.id}`;
+                successMessage = 'Đánh giá đã được cập nhật thành công';
+            }
+
+            // Chuẩn bị dữ liệu để gửi lên API
+            const reviewData = {
+                userId: review.value.userId,
+                bookingId: review.value.bookingId,
+                rating: review.value.rating,
+                cleanliness: review.value.cleanliness,
+                service: review.value.service,
+                comfort: review.value.comfort,
+                location: review.value.location,
+                facilities: review.value.facilities,
+                valueForMoney: review.value.valueForMoney,
+                comment: review.value.comment,
+                isAnonymous: review.value.isAnonymous
+            };
+
+            // Nếu là cập nhật, bổ sung các trường khác
+            if (review.value.id) {
+                reviewData.status = review.value.status;
+                reviewData.isFeatured = review.value.isFeatured;
+                reviewData.replyComment = review.value.replyComment;
+                reviewData.replyDate = review.value.replyDate;
+                reviewData.replyBy = review.value.replyBy;
+            }
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(reviewData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Không thể lưu đánh giá');
+            }
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: successMessage,
+                life: 3000
+            });
+
+            reviewDialog.value = false;
+            fetchAllData(); // Tải lại dữ liệu
+        } catch (error) {
+            console.error('Lỗi khi lưu đánh giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể lưu đánh giá',
                 life: 3000
             });
         }
@@ -545,6 +592,7 @@ export function useReviewManagement() {
         getStatusName,
         getSeverity,
         getReviewSeverity,
-        uploadImage
+        fetchUserInfo,
+        fetchBookingInfo
     };
 }

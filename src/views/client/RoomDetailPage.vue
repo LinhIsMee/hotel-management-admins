@@ -159,7 +159,7 @@ const loadRelatedRooms = async () => {
 // Tải đánh giá từ API
 const fetchRoomRatings = async (roomId) => {
     try {
-        const response = await fetch(`http://127.0.0.1:9000/api/ratings/room/${roomId}`);
+        const response = await fetch(`http://127.0.0.1:9000/api/v1/reviews/room/${roomId}`);
         if (!response.ok) throw new Error('Không thể tải đánh giá');
         const data = await response.json();
         return data;
@@ -380,12 +380,21 @@ watch(totalGuests, (newValue) => {
 
 // Form đánh giá
 const reviewForm = ref({
-    rating: 0,
+    rating: 5,
+    cleanliness: 5,
+    service: 4,
+    comfort: 5,
+    location: 4,
+    facilities: 5,
+    valueForMoney: 4,
     comment: '',
+    isAnonymous: false
 });
 
 const isSubmittingReview = ref(false);
 const showReviewForm = ref(false);
+const userBookings = ref([]);
+const hasBookedRoom = ref(false);
 
 // Tạo đánh giá mới
 const submitReview = async () => {
@@ -413,6 +422,17 @@ const submitReview = async () => {
             return;
         }
 
+        // Kiểm tra người dùng đã từng đặt phòng này chưa
+        if (!hasBookedRoom.value) {
+            toast.add({
+                severity: 'warn',
+                summary: 'Thông báo',
+                detail: 'Bạn cần đặt phòng và sử dụng dịch vụ trước khi đánh giá',
+                life: 3000
+            });
+            return;
+        }
+
         if (!reviewForm.value.rating || !reviewForm.value.comment) {
             toast.add({
                 severity: 'warn',
@@ -425,16 +445,41 @@ const submitReview = async () => {
 
         isSubmittingReview.value = true;
 
-        const response = await fetch('http://127.0.0.1:9000/api/ratings', {
+        // Lấy bookingId từ booking gần nhất của người dùng
+        const latestBooking = userBookings.value.find(booking =>
+            booking.roomId === roomId.value ||
+            booking.rooms.some(room => room.id === roomId.value)
+        );
+
+        if (!latestBooking) {
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Không tìm thấy thông tin đặt phòng của bạn',
+                life: 3000
+            });
+            isSubmittingReview.value = false;
+            return;
+        }
+
+        const response = await fetch('http://127.0.0.1:9000/api/v1/reviews/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${userData.accessToken}`
             },
             body: JSON.stringify({
-                stars: reviewForm.value.rating,
+                userId: userData.id,
+                bookingId: latestBooking.id,
+                rating: reviewForm.value.rating,
+                cleanliness: reviewForm.value.cleanliness,
+                service: reviewForm.value.service,
+                comfort: reviewForm.value.comfort,
+                location: reviewForm.value.location,
+                facilities: reviewForm.value.facilities,
+                valueForMoney: reviewForm.value.valueForMoney,
                 comment: reviewForm.value.comment,
-                roomId: roomId.value
+                isAnonymous: reviewForm.value.isAnonymous
             })
         });
 
@@ -447,16 +492,23 @@ const submitReview = async () => {
         const ratingsData = await fetchRoomRatings(roomId.value);
         reviews.value = ratingsData.map(rating => ({
             id: rating.id,
-            name: rating.userName,
-            rating: rating.stars,
+            name: rating.isAnonymous ? 'Khách hàng ẩn danh' : rating.userName,
+            rating: rating.rating,
             date: new Date(rating.createdAt).toLocaleDateString('vi-VN'),
             comment: rating.comment
         }));
 
         // Reset form và đóng modal
         reviewForm.value = {
-            rating: 0,
-            comment: ''
+            rating: 5,
+            cleanliness: 5,
+            service: 4,
+            comfort: 5,
+            location: 4,
+            facilities: 5,
+            valueForMoney: 4,
+            comment: '',
+            isAnonymous: false
         };
         showReviewForm.value = false;
 
@@ -478,6 +530,41 @@ const submitReview = async () => {
         });
     } finally {
         isSubmittingReview.value = false;
+    }
+};
+
+// Kiểm tra xem người dùng đã từng đặt phòng này chưa
+const checkUserBookings = async () => {
+    try {
+        const userDataStr = localStorage.getItem('user_token');
+        if (!userDataStr) return;
+
+        const userData = JSON.parse(userDataStr);
+        if (!userData.accessToken) return;
+
+        const response = await fetch('http://localhost:9000/api/v1/user/bookings/my-bookings', {
+            headers: {
+                'Authorization': `Bearer ${userData.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Không thể tải dữ liệu đặt phòng');
+        }
+
+        const bookingsData = await response.json();
+        userBookings.value = Array.isArray(bookingsData) ? bookingsData : [];
+
+        // Kiểm tra xem có đơn đặt phòng nào có phòng hiện tại không
+        hasBookedRoom.value = userBookings.value.some(booking =>
+            (booking.roomId === roomId.value ||
+            (booking.rooms && booking.rooms.some(room => room.id === roomId.value)))
+            && ['COMPLETED', 'CHECK_OUT'].includes(booking.status)
+        );
+
+    } catch (error) {
+        console.error('Lỗi khi kiểm tra đặt phòng của người dùng:', error);
     }
 };
 
@@ -571,6 +658,7 @@ onMounted(async () => {
     // Tải lịch đặt phòng trước, sau đó tải dữ liệu phòng
     await fetchBookedDates(roomId.value);
     await loadRoomData();
+    await checkUserBookings();
 
     // Click outside để đóng dropdown
     document.addEventListener('click', (e) => {
@@ -1146,10 +1234,11 @@ const minCheckOutDate = computed(() => {
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-gray-800">Đánh giá từ khách hàng</h2>
                     <Button
+                        v-if="hasBookedRoom"
                         label="Viết đánh giá"
                         icon="pi pi-pencil"
                         @click="showReviewForm = true"
-                        class=" text-white" />
+                        class="text-white" />
                 </div>
 
                 <!-- Danh sách đánh giá -->
@@ -1177,13 +1266,41 @@ const minCheckOutDate = computed(() => {
                 v-model:visible="showReviewForm"
                 modal
                 header="Đánh giá phòng"
-                :style="{ width: '90%', maxWidth: '500px' }"
+                :style="{ width: '90%', maxWidth: '600px' }"
             >
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-gray-700 font-medium mb-2">Đánh giá của bạn</label>
+                        <label class="block text-gray-700 font-medium mb-2">Đánh giá chung</label>
                         <Rating v-model="reviewForm.rating" :cancel="false" />
                     </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Vệ sinh</label>
+                            <Rating v-model="reviewForm.cleanliness" :cancel="false" />
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Dịch vụ</label>
+                            <Rating v-model="reviewForm.service" :cancel="false" />
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Thoải mái</label>
+                            <Rating v-model="reviewForm.comfort" :cancel="false" />
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Vị trí</label>
+                            <Rating v-model="reviewForm.location" :cancel="false" />
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Tiện nghi</label>
+                            <Rating v-model="reviewForm.facilities" :cancel="false" />
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Đáng giá tiền</label>
+                            <Rating v-model="reviewForm.valueForMoney" :cancel="false" />
+                        </div>
+                    </div>
+
                     <div>
                         <label class="block text-gray-700 font-medium mb-2">Bình luận</label>
                         <Textarea
@@ -1192,6 +1309,28 @@ const minCheckOutDate = computed(() => {
                             placeholder="Chia sẻ trải nghiệm của bạn..."
                             class="w-full"
                         />
+                    </div>
+
+                    <div class="flex items-center mt-3">
+                        <Checkbox
+                            v-model="reviewForm.isAnonymous"
+                            :binary="true"
+                            inputId="anonymous-review"
+                        />
+                        <label for="anonymous-review" class="ml-2 text-gray-700">
+                            Đánh giá ẩn danh
+                        </label>
+                    </div>
+
+                    <div v-if="!hasBookedRoom" class="p-4 bg-yellow-50 border-l-4 border-yellow-500 text-yellow-700">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="pi pi-exclamation-triangle mr-2"></i>
+                            </div>
+                            <div>
+                                <p>Bạn cần đặt và sử dụng phòng này trước khi có thể đánh giá.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <template #footer>
@@ -1203,6 +1342,7 @@ const minCheckOutDate = computed(() => {
                         <Button
                             label="Gửi đánh giá"
                             :loading="isSubmittingReview"
+                            :disabled="!hasBookedRoom"
                             @click="submitReview" />
                     </div>
                 </template>
