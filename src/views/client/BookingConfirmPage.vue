@@ -478,7 +478,7 @@ const cancelBookingProcess = () => {
 
                         <!-- Form thông tin liên hệ -->
                         <div class="mb-6">
-                            <h3 class="font-semibold text-gray-800 mb-3">Thông tin liên hệ</h3>
+                            <h3 class="font-semibold text-gray-800 mb-3">Thông tin liên hệs</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="form-group">
                                     <label class="block text-gray-700 mb-1">Họ tên *</label>
@@ -503,12 +503,12 @@ const cancelBookingProcess = () => {
                                         <option value="CN">Trung Quốc</option>
                                     </select>
                                 </div>
-                                <!-- <div class="form-group">
+                                <div class="form-group">
                                     <label class="block text-gray-700 mb-1">CCCD/Passport *</label>
                                     <input v-model="contactInfo.nationalId" type="text"
                                            class="w-full border border-gray-300 rounded-md p-2"
                                            placeholder="Nhập số CCCD hoặc Passport" />
-                                </div> -->
+                                </div>
                             </div>
                             <div class="form-group mt-4">
                                 <label class="block text-gray-700 mb-1">Yêu cầu đặc biệt</label>
