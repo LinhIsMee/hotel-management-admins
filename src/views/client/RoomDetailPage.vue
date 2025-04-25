@@ -13,6 +13,8 @@ import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
 import Dropdown from 'primevue/dropdown';
 import { useToast } from 'primevue';
+import Accordion from 'primevue/accordion';
+import AccordionTab from 'primevue/accordiontab';
 
 const route = useRoute();
 const router = useRouter();
@@ -356,19 +358,6 @@ const handleBooking = () => {
     });
 };
 
-// Chuyển đổi trạng thái phòng sang tiếng Việt
-const getStatusText = (status) => {
-    switch (status) {
-        case 'AVAILABLE':
-            return 'Còn trống';
-        case 'OCCUPIED':
-            return 'Đang sử dụng';
-        case 'BOOKED':
-            return 'Đã đặt';
-        default:
-            return 'Không xác định';
-    }
-};
 
 // Form đánh giá
 const reviewForm = ref({
@@ -608,7 +597,7 @@ useHead({
                                     <i class="pi pi-building mr-2 text-gray-600"></i>
                                     <span>Tầng {{ room.floor }}</span>
                                 </div>
-                                <div class="flex items-center">
+                                <!-- <div class="flex items-center">
                                     <i class="pi pi-tag mr-2 text-gray-600"></i>
                                     <span :class="{
                                         'text-green-600': room.status === 'AVAILABLE',
@@ -617,7 +606,7 @@ useHead({
                                     }">
                                         {{ getStatusText(room.status) }}
                                     </span>
-                                </div>
+                                </div> -->
                             </div>
                             <!-- Hiển thị đánh giá -->
                             <div class="flex items-center">
@@ -647,12 +636,61 @@ useHead({
                     <!-- Tiện nghi phòng -->
                     <div class="mb-6">
                         <h2 class="text-xl font-semibold text-gray-800 mb-2">Tiện nghi phòng</h2>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div v-for="(amenity, index) in room.amenities" :key="index" class="flex items-center">
-                                <i class="pi pi-check-circle mr-2 text-green-500"></i>
-                                <span>{{ amenity }}</span>
-                            </div>
-                        </div>
+                        <Accordion class="room-accordion">
+                            <AccordionTab header="Tiện nghi cơ bản">
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 p-2">
+                                    <div v-for="(amenity, index) in room.amenities.filter(a => !a.includes('Wi-Fi') && !a.includes('TV'))"
+                                         :key="index"
+                                         class="flex items-center">
+                                        <i class="pi pi-check-circle mr-2 text-green-500"></i>
+                                        <span>{{ amenity }}</span>
+                                    </div>
+                                </div>
+                            </AccordionTab>
+
+                            <AccordionTab header="Internet & Giải trí">
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 p-2">
+                                    <div v-for="(amenity, index) in room.amenities.filter(a => a.includes('Wi-Fi') || a.includes('TV'))"
+                                         :key="index"
+                                         class="flex items-center">
+                                        <i class="pi pi-wifi mr-2 text-blue-500"></i>
+                                        <span>{{ amenity }}</span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <i class="pi pi-desktop mr-2 text-blue-500"></i>
+                                        <span>TV màn hình phẳng</span>
+                                    </div>
+                                </div>
+                            </AccordionTab>
+
+                            <AccordionTab header="Chính sách phòng">
+                                <div class="p-2">
+                                    <div class="flex items-start mb-3">
+                                        <i class="pi pi-clock text-amber-600 mr-2 mt-1"></i>
+                                        <div>
+                                            <p class="font-medium">Nhận phòng & Trả phòng</p>
+                                            <p class="text-gray-600">Nhận phòng từ 14:00, trả phòng trước 12:00</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-start mb-3">
+                                        <i class="pi pi-wallet text-amber-600 mr-2 mt-1"></i>
+                                        <div>
+                                            <p class="font-medium">Hủy phòng & Hoàn tiền</p>
+                                            <p class="text-gray-600">Bạn có thể hủy miễn phí trước 1 ngày so với ngày nhận phòng. Nếu hủy muộn hơn, bạn sẽ bị tính phí 1 đêm đầu tiên.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-start">
+                                        <i class="pi pi-ban text-red-500 mr-2 mt-1"></i>
+                                        <div>
+                                            <p class="font-medium">Quy định đặc biệt</p>
+                                            <p class="text-gray-600">Không hút thuốc, không mang thú cưng, giữ yên lặng từ 22:00-07:00</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </AccordionTab>
+                        </Accordion>
                     </div>
 
                     <!-- Form đặt phòng -->
@@ -821,14 +859,14 @@ useHead({
                                 :alt="'Phòng ' + relatedRoom.roomNumber"
                                 class="w-full h-full object-cover" />
                             <!-- Badge trạng thái -->
-                            <div class="absolute top-2 right-2 px-2 py-1 rounded text-sm font-medium"
+                            <!-- <div class="absolute top-2 right-2 px-2 py-1 rounded text-sm font-medium"
                                 :class="{
                                     'bg-green-100 text-green-800': relatedRoom.status === 'AVAILABLE',
                                     'bg-red-100 text-red-800': relatedRoom.status === 'OCCUPIED',
                                     'bg-yellow-100 text-yellow-800': relatedRoom.status === 'BOOKED'
                                 }">
                                 {{ getStatusText(relatedRoom.status) }}
-                            </div>
+                            </div> -->
                         </div>
 
                         <div class="p-4">
@@ -1056,5 +1094,45 @@ useHead({
 .gallery-dialog button:hover {
     opacity: 1;
     transform: scale(1.1);
+}
+
+/* Custom styling cho Accordion */
+:deep(.room-accordion) {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+:deep(.room-accordion .p-accordion-header-link) {
+    border: none;
+    background: #f9fafb;
+    padding: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+:deep(.room-accordion .p-accordion-header-link:hover) {
+    background: #f3f4f6;
+}
+
+:deep(.room-accordion .p-accordion-header-link:focus) {
+    box-shadow: none;
+    border-color: #d97706;
+}
+
+:deep(.room-accordion .p-accordion-header-text) {
+    color: #374151;
+}
+
+:deep(.room-accordion .p-accordion-tab) {
+    margin-bottom: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+:deep(.room-accordion .p-accordion-content) {
+    background: white;
+    border: none;
+    padding: 0.75rem 1rem;
 }
 </style>

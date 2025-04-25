@@ -351,8 +351,8 @@ const getSeverity = (status) => {
                 </template>
 
                 <template #end>
-                    <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRoomTypes?.length" />
+                    <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" v-tooltip.top="'Thêm loại phòng mới'" />
+                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRoomTypes?.length" v-tooltip.top="'Xóa các loại phòng đã chọn'" />
                 </template>
             </Toolbar>
 
@@ -424,8 +424,8 @@ const getSeverity = (status) => {
 
                 <Column :exportable="false" style="min-width: 8rem">
                     <template #body="{ data }">
-                        <Button icon="pi pi-pencil" outlined class="mr-2" @click="editRoomType(data)" />
-                        <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteRoomType(data)" />
+                        <Button icon="pi pi-pencil" outlined class="mr-2" @click="editRoomType(data)" v-tooltip.top="'Chỉnh sửa loại phòng'" />
+                        <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteRoomType(data)" v-tooltip.top="'Xóa loại phòng'" />
                     </template>
                 </Column>
             </DataTable>
@@ -502,8 +502,8 @@ const getSeverity = (status) => {
             </div>
 
             <template #footer>
-                <Button label="Hủy" icon="pi pi-times" text @click="hideDialog" />
-                <Button label="Lưu" icon="pi pi-check" text @click="saveRoomType" />
+                <Button label="Hủy" icon="pi pi-times" text @click="hideDialog" v-tooltip.bottom="'Hủy thay đổi'" />
+                <Button label="Lưu" icon="pi pi-check" text @click="saveRoomType" v-tooltip.bottom="'Lưu thay đổi'" />
             </template>
         </Dialog>
 

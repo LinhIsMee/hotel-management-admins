@@ -9,6 +9,7 @@ import PrimeVue from 'primevue/config';
 import ConfirmationService from 'primevue/confirmationservice';
 import Styleclass from 'primevue/styleclass';
 import ToastService from 'primevue/toastservice';
+import Tooltip from 'primevue/tooltip';
 
 // Import PrimeVue components
 import Button from 'primevue/button';
@@ -45,6 +46,10 @@ app.use(PrimeVue, {
 app.use(ToastService);
 app.use(ConfirmationService);
 
+// Đăng ký directive
+app.directive('styleclass', Styleclass);
+app.directive('tooltip', Tooltip);
+
 // Register PrimeVue components globally
 app.component('Button', Button);
 app.component('InputText', InputText);
@@ -62,8 +67,5 @@ app.component('Chart', Chart);
 
 const head = createHead();
 app.use(head);
-
-// Đăng ký directive styleclass
-app.directive('styleclass', Styleclass);
 
 app.mount('#app');

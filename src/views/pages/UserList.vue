@@ -529,8 +529,8 @@ const getGenderName = (gender) => {
 
                         <Column exportable="false" style="min-width: 10rem">
                             <template #body="{ data }">
-                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editUser(data)" />
-                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteUser(data)" />
+                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editUser(data)" v-tooltip.top="'Sửa thông tin người dùng'" />
+                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteUser(data)" v-tooltip.top="'Xóa người dùng'" />
                             </template>
                         </Column>
                     </DataTable>

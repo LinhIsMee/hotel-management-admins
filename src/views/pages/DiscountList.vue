@@ -198,9 +198,9 @@ const calculateUsagePercentage = (discount) => {
 
             <template #end>
                 <div class="my-2">
-                    <Button v-if="can.create" label="Thêm mã giảm giá" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                    <Button v-if="can.create" label="Tạo hàng loạt" icon="pi pi-cog" class="mr-2" @click="openGenerateDialog" />
-                    <Button v-if="can.delete" label="Xóa đã chọn" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteDiscount(null, true)" :disabled="!selectedDiscounts || !selectedDiscounts.length" />
+                    <Button v-if="can.create" label="Thêm mã giảm giá" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" v-tooltip.top="'Thêm mã giảm giá mới'" />
+                    <Button v-if="can.create" label="Tạo hàng loạt" icon="pi pi-cog" class="mr-2" @click="openGenerateDialog" v-tooltip.top="'Tạo nhiều mã giảm giá'" />
+                    <Button v-if="can.delete" label="Xóa đã chọn" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteDiscount(null, true)" :disabled="!selectedDiscounts || !selectedDiscounts.length" v-tooltip.top="'Xóa các mã đã chọn'" />
                 </div>
             </template>
         </Toolbar>
@@ -282,8 +282,8 @@ const calculateUsagePercentage = (discount) => {
 
             <Column :exportable="false" style="min-width: 10rem">
                 <template #body="{ data }">
-                    <Button v-if="can.edit" icon="pi pi-pencil" outlined class="mr-2" @click="editDiscount(data)" tooltip="Chỉnh sửa" tooltipOptions="{ position: 'top' }" />
-                    <Button v-if="can.delete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteDiscount(data)" tooltip="Xóa" tooltipOptions="{ position: 'top' }" />
+                    <Button v-if="can.edit" icon="pi pi-pencil" outlined class="mr-2" @click="editDiscount(data)" v-tooltip.top="'Chỉnh sửa mã giảm giá'" />
+                    <Button v-if="can.delete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteDiscount(data)" v-tooltip.top="'Xóa mã giảm giá'" />
                 </template>
             </Column>
         </DataTable>

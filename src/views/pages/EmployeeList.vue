@@ -501,8 +501,8 @@ const getSeverity = (status) => {
 
                         <Column exportable="false" style="min-width: 10rem">
                             <template #body="{ data }">
-                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editEmployee(data)" />
-                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteEmployee(data)" />
+                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editEmployee(data)" v-tooltip.top="'Chỉnh sửa thông tin'" />
+                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteEmployee(data)" v-tooltip.top="'Xóa nhân viên'" />
                             </template>
                         </Column>
                     </DataTable>
@@ -570,8 +570,8 @@ const getSeverity = (status) => {
                 </div>
 
                 <template #footer>
-                    <Button label="Hủy" icon="pi pi-times" text @click="hideDialog" />
-                    <Button label="Lưu" icon="pi pi-check" text @click="saveEmployee" />
+                    <Button label="Hủy" icon="pi pi-times" text @click="hideDialog" v-tooltip.bottom="'Hủy bỏ thay đổi'" />
+                    <Button label="Lưu" icon="pi pi-check" text @click="saveEmployee" v-tooltip.bottom="'Lưu thông tin'" />
                 </template>
             </Dialog>
 
@@ -584,8 +584,8 @@ const getSeverity = (status) => {
                     >
                 </div>
                 <template #footer>
-                    <Button label="Không" icon="pi pi-times" text @click="deleteEmployeeDialog = false" />
-                    <Button label="Có" icon="pi pi-check" text @click="deleteEmployee" />
+                    <Button label="Không" icon="pi pi-times" text @click="deleteEmployeeDialog = false" v-tooltip.bottom="'Hủy xóa'" />
+                    <Button label="Có" icon="pi pi-check" text @click="deleteEmployee" v-tooltip.bottom="'Xác nhận xóa'" />
                 </template>
             </Dialog>
 
@@ -595,8 +595,8 @@ const getSeverity = (status) => {
                     <span v-if="selectedEmployees && selectedEmployees.length > 0">Bạn có chắc chắn muốn xóa {{ selectedEmployees.length }} nhân viên đã chọn?</span>
                 </div>
                 <template #footer>
-                    <Button label="Không" icon="pi pi-times" text @click="deleteEmployeesDialog = false" />
-                    <Button label="Có" icon="pi pi-check" text @click="deleteSelectedEmployees" />
+                    <Button label="Không" icon="pi pi-times" text @click="deleteEmployeesDialog = false" v-tooltip.bottom="'Hủy xóa'" />
+                    <Button label="Có" icon="pi pi-check" text @click="deleteSelectedEmployees" v-tooltip.bottom="'Xác nhận xóa'" />
                 </template>
             </Dialog>
         </div>

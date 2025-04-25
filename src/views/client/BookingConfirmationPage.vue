@@ -5,6 +5,8 @@ import { useRoute, useRouter } from 'vue-router';
 import ProgressSpinner from 'primevue/progressspinner';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
+import Accordion from 'primevue/accordion';
+import AccordionTab from 'primevue/accordiontab';
 
 const route = useRoute();
 const router = useRouter();
@@ -339,7 +341,7 @@ const cancelBooking = async () => {
             throw new Error(error.message || 'Không thể hủy đặt phòng');
         }
 
-        const result = await response.json();
+        await response.json(); // Bỏ qua kết quả trả về
 
         // Cập nhật trạng thái đặt phòng
         booking.value.status = 'CANCELLED';
@@ -523,20 +525,55 @@ const showCancelDialog = ref(false);
                             <!-- Chính sách đặt phòng -->
                             <div class="border-t border-gray-200 pt-4">
                                 <h3 class="font-semibold text-gray-800 mb-3">Chính sách đặt phòng</h3>
-                                <ul class="space-y-2 text-gray-700">
-                                    <li class="flex items-start">
-                                        <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
-                                        <span>Chính sách nhận phòng: Nhận phòng từ {{ bookingPolicies?.checkInTime || '14:00' }} và trả phòng trước {{ bookingPolicies?.checkOutTime || '12:00' }}.</span>
-                                    </li>
-                                    <li class="flex items-start">
-                                        <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
-                                        <span>Chính sách hủy phòng: {{ bookingPolicies?.cancellationPolicy || 'Bạn có thể hủy miễn phí trước 1 ngày so với ngày nhận phòng. Nếu hủy muộn hơn, bạn sẽ bị tính phí 1 đêm đầu tiên.' }}</span>
-                                    </li>
-                                    <li class="flex items-start">
-                                        <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
-                                        <span>{{ bookingPolicies?.idRequirement || 'Khách hàng cần xuất trình giấy tờ tùy thân có ảnh khi nhận phòng.' }}</span>
-                                    </li>
-                                </ul>
+                                <Accordion class="booking-policies">
+                                    <AccordionTab header="Chính sách nhận và trả phòng">
+                                        <div class="p-2 text-gray-700">
+                                            <div class="flex items-center mb-2">
+                                                <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                                                <span>Nhận phòng từ {{ bookingPolicies?.checkInTime || '14:00' }}</span>
+                                            </div>
+                                            <div class="flex items-center">
+                                                <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                                                <span>Trả phòng trước {{ bookingPolicies?.checkOutTime || '12:00' }}</span>
+                                            </div>
+                                        </div>
+                                    </AccordionTab>
+
+                                    <AccordionTab header="Chính sách hủy phòng">
+                                        <div class="p-2 text-gray-700">
+                                            <div class="flex items-start">
+                                                <i class="pi pi-info-circle text-blue-500 mr-2 mt-1"></i>
+                                                <span>{{ bookingPolicies?.cancellationPolicy || 'Bạn có thể hủy miễn phí trước 1 ngày so với ngày nhận phòng. Nếu hủy muộn hơn, bạn sẽ bị tính phí 1 đêm đầu tiên.' }}</span>
+                                            </div>
+                                        </div>
+                                    </AccordionTab>
+
+                                    <AccordionTab header="Yêu cầu giấy tờ">
+                                        <div class="p-2 text-gray-700">
+                                            <div class="flex items-start">
+                                                <i class="pi pi-id-card text-amber-600 mr-2 mt-1"></i>
+                                                <span>{{ bookingPolicies?.idRequirement || 'Khách hàng cần xuất trình giấy tờ tùy thân có ảnh khi nhận phòng.' }}</span>
+                                            </div>
+                                        </div>
+                                    </AccordionTab>
+
+                                    <AccordionTab header="Quy định đặc biệt">
+                                        <div class="p-2 text-gray-700">
+                                            <div class="flex items-start mb-2">
+                                                <i class="pi pi-ban text-red-500 mr-2 mt-1"></i>
+                                                <span>Không hút thuốc trong phòng</span>
+                                            </div>
+                                            <div class="flex items-start mb-2">
+                                                <i class="pi pi-volume-off text-blue-500 mr-2 mt-1"></i>
+                                                <span>Giữ yên lặng từ 22:00 đến 7:00</span>
+                                            </div>
+                                            <div class="flex items-start">
+                                                <i class="pi pi-heart text-pink-500 mr-2 mt-1"></i>
+                                                <span>Vui lòng báo trước nếu mang theo thú cưng</span>
+                                            </div>
+                                        </div>
+                                    </AccordionTab>
+                                </Accordion>
                             </div>
                         </div>
                     </div>
@@ -558,6 +595,10 @@ const showCancelDialog = ref(false);
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Thanh toán:</span>
                                     <span :class="getPaymentStatusClass(booking.paymentStatus)" class="inline-block px-2 py-1 rounded-full text-xs font-semibold">{{ getPaymentStatusLabel(booking.paymentStatus) }}</span>
+                                </div>
+                                <div v-if="booking.paymentMethod" class="flex justify-between">
+                                    <span class="text-gray-600">Phương thức:</span>
+                                    <span class="font-semibold">{{ getPaymentMethodLabel(booking.paymentMethod) }}</span>
                                 </div>
                             </div>
 
@@ -670,5 +711,45 @@ img {
     height: 8px;
     background-color: #f59e0b;
     border-radius: 50%;
+}
+
+/* Custom styling cho Accordion */
+:deep(.booking-policies) {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+:deep(.booking-policies .p-accordion-header-link) {
+    border: none;
+    background: #f9fafb;
+    padding: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+:deep(.booking-policies .p-accordion-header-link:hover) {
+    background: #f3f4f6;
+}
+
+:deep(.booking-policies .p-accordion-header-link:focus) {
+    box-shadow: none;
+    border-color: #d97706;
+}
+
+:deep(.booking-policies .p-accordion-header-text) {
+    color: #374151;
+}
+
+:deep(.booking-policies .p-accordion-tab) {
+    margin-bottom: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+:deep(.booking-policies .p-accordion-content) {
+    background: white;
+    border: none;
+    padding: 0.75rem 1rem;
 }
 </style>

@@ -139,12 +139,12 @@ function getStatusLabel(status) {
         <div class="card">
             <Toolbar class="mb-6">
                 <template #start>
-                    <Button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew" />
-                    <Button label="Delete" icon="pi pi-trash" severity="secondary" @click="confirmDeleteSelected" :disabled="!selectedProducts || !selectedProducts.length" />
+                    <Button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" @click="openNew" v-tooltip.top="'Thêm mới'" />
+                    <Button label="Delete" icon="pi pi-trash" severity="secondary" @click="confirmDeleteSelected" :disabled="!selectedProducts || !selectedProducts.length" v-tooltip.top="'Xóa mục đã chọn'" />
                 </template>
 
                 <template #end>
-                    <Button label="Export" icon="pi pi-upload" severity="secondary" @click="exportCSV($event)" />
+                    <Button label="Export" icon="pi pi-upload" severity="secondary" @click="exportCSV($event)" v-tooltip.top="'Xuất dữ liệu'" />
                 </template>
             </Toolbar>
 
@@ -198,8 +198,8 @@ function getStatusLabel(status) {
                 </Column>
                 <Column :exportable="false" style="min-width: 12rem">
                     <template #body="slotProps">
-                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" />
-                        <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" />
+                        <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editProduct(slotProps.data)" v-tooltip.top="'Chỉnh sửa'" />
+                        <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteProduct(slotProps.data)" v-tooltip.top="'Xóa'" />
                     </template>
                 </Column>
             </DataTable>
@@ -257,8 +257,8 @@ function getStatusLabel(status) {
             </div>
 
             <template #footer>
-                <Button label="Cancel" icon="pi pi-times" text @click="hideDialog" />
-                <Button label="Save" icon="pi pi-check" @click="saveProduct" />
+                <Button label="Cancel" icon="pi pi-times" text @click="hideDialog" v-tooltip.bottom="'Hủy bỏ'" />
+                <Button label="Save" icon="pi pi-check" @click="saveProduct" v-tooltip.bottom="'Lưu'" />
             </template>
         </Dialog>
 
@@ -271,8 +271,8 @@ function getStatusLabel(status) {
                 >
             </div>
             <template #footer>
-                <Button label="No" icon="pi pi-times" text @click="deleteProductDialog = false" />
-                <Button label="Yes" icon="pi pi-check" @click="deleteProduct" />
+                <Button label="No" icon="pi pi-times" text @click="deleteProductDialog = false" v-tooltip.bottom="'Không xóa'" />
+                <Button label="Yes" icon="pi pi-check" @click="deleteProduct" v-tooltip.bottom="'Đồng ý xóa'" />
             </template>
         </Dialog>
 
@@ -282,8 +282,8 @@ function getStatusLabel(status) {
                 <span v-if="product">Are you sure you want to delete the selected products?</span>
             </div>
             <template #footer>
-                <Button label="No" icon="pi pi-times" text @click="deleteProductsDialog = false" />
-                <Button label="Yes" icon="pi pi-check" text @click="deleteSelectedProducts" />
+                <Button label="No" icon="pi pi-times" text @click="deleteProductsDialog = false" v-tooltip.bottom="'Không xóa'" />
+                <Button label="Yes" icon="pi pi-check" text @click="deleteSelectedProducts" v-tooltip.bottom="'Đồng ý xóa'" />
             </template>
         </Dialog>
     </div>

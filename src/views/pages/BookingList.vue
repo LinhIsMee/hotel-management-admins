@@ -297,18 +297,22 @@ const deleteBooking = async () => {
         });
 
         if (!response.ok) {
-            throw new Error('Không thể xóa đơn đặt phòng');
+            const errorText = await response.text();
+            console.error('Server response:', errorText);
+            throw new Error(`Không thể xóa đơn đặt phòng: ${response.statusText} (${response.status})`);
         }
+
+        const result = await response.json();
+        console.log('Kết quả xóa booking:', result);
 
         deleteBookingDialog.value = false;
         booking.value = {};
         await fetchAllBookings(); // Refresh data
-        updateStats(); // Cập nhật thống kê
 
         toast.add({
             severity: 'success',
             summary: 'Thành công',
-            detail: 'Đã xóa đơn đặt phòng',
+            detail: result.message || 'Đã xóa đơn đặt phòng',
             life: 3000
         });
     } catch (error) {
@@ -316,7 +320,7 @@ const deleteBooking = async () => {
         toast.add({
             severity: 'error',
             summary: 'Lỗi',
-            detail: 'Có lỗi xảy ra khi xóa đặt phòng',
+            detail: error.message || 'Có lỗi xảy ra khi xóa đặt phòng',
             life: 3000
         });
     }
@@ -357,9 +361,17 @@ const confirmDeleteSelected = async () => {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
                 }
+            }).then(async response => {
+                // Kiểm tra từng phản hồi
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Lỗi khi xóa đặt phòng ID ${booking.id}: ${response.statusText} (${response.status}) - ${errorText}`);
+                }
+                return response.json();
             })
         );
 
+        // Đợi tất cả các yêu cầu hoàn thành
         await Promise.all(deletePromises);
 
         // Cập nhật lại danh sách
@@ -373,15 +385,12 @@ const confirmDeleteSelected = async () => {
             detail: 'Đã xóa các đơn đặt phòng đã chọn',
             life: 3000
         });
-
-        // Cập nhật thống kê
-        updateStats();
     } catch (error) {
         console.error('Lỗi khi xóa đơn đặt phòng:', error);
         toast.add({
             severity: 'error',
             summary: 'Lỗi',
-            detail: 'Không thể xóa đơn đặt phòng. Vui lòng thử lại sau.',
+            detail: error.message || 'Không thể xóa đơn đặt phòng. Vui lòng thử lại sau.',
             life: 3000
         });
     }

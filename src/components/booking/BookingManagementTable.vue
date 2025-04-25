@@ -234,6 +234,7 @@ const getRoomInfo = (booking) => {
                             text
                             aria-label="Xem chi tiết"
                             @click="$emit('view-details', data)"
+                            v-tooltip.top="'Xem chi tiết đơn đặt phòng'"
                         />
                         <Button
                             v-if="can.edit"
@@ -242,6 +243,7 @@ const getRoomInfo = (booking) => {
                             text
                             aria-label="Sửa"
                             @click="$emit('edit', data)"
+                            v-tooltip.top="'Chỉnh sửa đơn đặt phòng'"
                         />
                         <!-- Nút xác nhận chỉ hiển thị khi trạng thái là PENDING -->
                         <Button
@@ -252,6 +254,7 @@ const getRoomInfo = (booking) => {
                             severity="success"
                             aria-label="Xác nhận"
                             @click="$emit('confirm', data)"
+                            v-tooltip.top="'Xác nhận đơn đặt phòng'"
                         />
                         <!-- Nút hủy chỉ hiển thị khi trạng thái là PENDING hoặc CONFIRMED -->
                         <Button
@@ -262,6 +265,7 @@ const getRoomInfo = (booking) => {
                             severity="danger"
                             aria-label="Hủy"
                             @click="$emit('cancel', data)"
+                            v-tooltip.top="'Hủy đơn đặt phòng'"
                         />
                         <!-- Nút check-in chỉ hiển thị khi trạng thái là CONFIRMED -->
                         <Button
@@ -272,6 +276,7 @@ const getRoomInfo = (booking) => {
                             severity="info"
                             aria-label="Check-in"
                             @click="$emit('check-in', data)"
+                            v-tooltip.top="'Check-in'"
                         />
                         <!-- Nút check-out chỉ hiển thị khi trạng thái là CHECKED_IN -->
                         <Button
@@ -282,6 +287,7 @@ const getRoomInfo = (booking) => {
                             severity="info"
                             aria-label="Check-out"
                             @click="$emit('check-out', data)"
+                            v-tooltip.top="'Check-out'"
                         />
                         <Button
                             v-if="can.delete"
@@ -291,6 +297,7 @@ const getRoomInfo = (booking) => {
                             severity="danger"
                             aria-label="Xóa"
                             @click="$emit('delete', data)"
+                            v-tooltip.top="'Xóa đơn đặt phòng'"
                         />
                     </div>
                 </template>

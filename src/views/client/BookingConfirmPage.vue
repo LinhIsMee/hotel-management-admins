@@ -1,6 +1,6 @@
 <script setup>
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Button from 'primevue/button';
 import ProgressSpinner from 'primevue/progressspinner';
@@ -16,15 +16,22 @@ const loading = ref(true);
 const submitting = ref(false);
 const agreeTerms = ref(false);
 const roomData = ref(null);
+const showGuestSelect = ref(false);
 const bookingInfo = ref({
     roomId: '',
     checkInDate: '',
     checkOutDate: '',
-    guests: 1,
+    adults: 1,
+    children: 0,
     services: [],
     discount: '',
     payment: 'cash',
     totalPrice: 0
+});
+
+// Tổng số khách (người lớn + trẻ em)
+const totalGuests = computed(() => {
+    return bookingInfo.value.adults + bookingInfo.value.children;
 });
 
 // Danh sách dịch vụ bổ sung
@@ -43,7 +50,6 @@ const contactInfo = ref({
     specialRequests: '',
     nationality: 'VN',
     nationalId: '',
-    children: 0
 });
 
 // Thêm state để lưu thông tin user
@@ -77,7 +83,7 @@ onMounted(async () => {
     getUserInfo();
 
     // Lấy thông tin từ query parameters
-    const { roomId, checkIn, checkOut, guests, services, discount, payment } = route.query;
+    const { roomId, checkIn, checkOut, adults, children, services, discount, payment } = route.query;
 
     if (!roomId || !checkIn || !checkOut) {
         toast.add({
@@ -94,7 +100,8 @@ onMounted(async () => {
         roomId,
         checkInDate: checkIn,
         checkOutDate: checkOut,
-        guests: parseInt(guests) || 1,
+        adults: parseInt(adults) || 1,
+        children: parseInt(children) || 0,
         services: services ? services.split(',') : [],
         discount: discount || '',
         payment: payment || 'cash'
@@ -112,6 +119,15 @@ onMounted(async () => {
         roomData.value = await response.json();
         // Tính tổng tiền
         calculateTotalPrice();
+
+        // Click outside để đóng dropdown
+        document.addEventListener('click', (e) => {
+            const dropdown = document.querySelector('.guest-select-dropdown');
+            const button = document.querySelector('.guest-select-button');
+            if (dropdown && !dropdown.contains(e.target) && !button?.contains(e.target)) {
+                showGuestSelect.value = false;
+            }
+        });
     } catch (error) {
         console.error('Lỗi khi tải dữ liệu:', error);
         toast.add({
@@ -125,6 +141,28 @@ onMounted(async () => {
     }
 });
 
+// Cập nhật số lượng khách
+watch(totalGuests, (newValue) => {
+    if (roomData.value && newValue > roomData.value.maxOccupancy) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Cảnh báo',
+            detail: `Phòng này chỉ cho phép tối đa ${roomData.value.maxOccupancy} người`,
+            life: 3000
+        });
+
+        // Điều chỉnh số lượng khách về giới hạn tối đa
+        const excess = newValue - roomData.value.maxOccupancy;
+        if (bookingInfo.value.children >= excess) {
+            bookingInfo.value.children -= excess;
+        } else {
+            bookingInfo.value.children = 0;
+            bookingInfo.value.adults = roomData.value.maxOccupancy;
+        }
+    }
+    calculateTotalPrice();
+});
+
 // Tính tổng tiền
 const calculateTotalPrice = () => {
     if (!roomData.value) return 0;
@@ -134,7 +172,13 @@ const calculateTotalPrice = () => {
     const checkOut = new Date(bookingInfo.value.checkOutDate);
     const days = Math.max(1, Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
 
-    let total = pricePerNight * days;
+    // Giá người lớn
+    const adultPrice = pricePerNight * bookingInfo.value.adults * days;
+
+    // Giá trẻ em (giảm 20%)
+    const childPrice = pricePerNight * bookingInfo.value.children * days * 0.8;
+
+    let total = adultPrice + childPrice;
 
     // Thêm giá dịch vụ
     bookingInfo.value.services.forEach(serviceId => {
@@ -224,8 +268,8 @@ const confirmBooking = async () => {
             phone: contactInfo.value.phone,
             email: contactInfo.value.email,
             nationalId: contactInfo.value.nationalId,
-            adults: bookingInfo.value.guests,
-            children: contactInfo.value.children || 0,
+            adults: bookingInfo.value.adults,
+            children: bookingInfo.value.children,
             services: services,
             specialRequests: contactInfo.value.specialRequests || '',
             totalPrice: bookingInfo.value.totalPrice
@@ -317,9 +361,77 @@ const cancelBookingProcess = () => {
                             <div>
                                 <h3 class="text-lg font-semibold text-gray-800 mb-1">{{ roomData.roomTypeName || 'Phòng khách sạn' }}</h3>
                                 <p class="text-gray-600 mb-2">{{ roomData.roomNumber ? `Phòng ${roomData.roomNumber}` : '' }}</p>
-                                <div class="flex items-center text-gray-600 mb-1">
+                                <div class="flex items-center text-gray-600 mb-1 relative">
                                     <i class="pi pi-users mr-2"></i>
-                                    <span>{{ bookingInfo.guests }} người</span>
+                                    <button @click="showGuestSelect = !showGuestSelect"
+                                        class="guest-select-button text-left flex items-center hover:text-amber-600">
+                                        <span>{{ bookingInfo.adults }} người lớn{{ bookingInfo.children ? `, ${bookingInfo.children} trẻ em` : '' }}</span>
+                                        <i class="pi pi-chevron-down ml-1 text-gray-400"></i>
+                                    </button>
+
+                                    <!-- Dropdown chọn số lượng khách -->
+                                    <div v-if="showGuestSelect"
+                                        class="guest-select-dropdown absolute top-full left-0 w-[300px] mt-2 bg-white border rounded-lg shadow-lg p-4 z-50">
+                                        <!-- Thông tin số người tối đa -->
+                                        <div class="text-sm text-gray-500 mb-4">
+                                            Tối đa {{ roomData.maxOccupancy }} người
+                                        </div>
+
+                                        <!-- Người lớn -->
+                                        <div class="flex items-center justify-between mb-4">
+                                            <div>
+                                                <div class="font-medium">Người lớn</div>
+                                                <div class="text-sm text-gray-500">Từ 13 tuổi trở lên</div>
+                                            </div>
+                                            <div class="flex items-center gap-3">
+                                                <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                    :class="{ 'opacity-50 cursor-not-allowed': bookingInfo.adults <= 1 }"
+                                                    @click="bookingInfo.adults = Math.max(1, bookingInfo.adults - 1)"
+                                                    :disabled="bookingInfo.adults <= 1">
+                                                    <i class="pi pi-minus text-sm"></i>
+                                                </button>
+                                                <span class="w-6 text-center">{{ bookingInfo.adults }}</span>
+                                                <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                    :class="{ 'opacity-50 cursor-not-allowed': totalGuests >= roomData.maxOccupancy }"
+                                                    @click="bookingInfo.adults = Math.min(roomData.maxOccupancy, bookingInfo.adults + 1)"
+                                                    :disabled="totalGuests >= roomData.maxOccupancy">
+                                                    <i class="pi pi-plus text-sm"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Trẻ em -->
+                                        <div class="flex items-center justify-between mb-4">
+                                            <div>
+                                                <div class="font-medium">Trẻ em</div>
+                                                <div class="text-sm text-gray-500">Độ tuổi 0-12</div>
+                                            </div>
+                                            <div class="flex items-center gap-3">
+                                                <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                    :class="{ 'opacity-50 cursor-not-allowed': bookingInfo.children <= 0 }"
+                                                    @click="bookingInfo.children = Math.max(0, bookingInfo.children - 1)"
+                                                    :disabled="bookingInfo.children <= 0">
+                                                    <i class="pi pi-minus text-sm"></i>
+                                                </button>
+                                                <span class="w-6 text-center">{{ bookingInfo.children }}</span>
+                                                <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                    :class="{ 'opacity-50 cursor-not-allowed': totalGuests >= roomData.maxOccupancy }"
+                                                    @click="bookingInfo.children = Math.min(roomData.maxOccupancy - bookingInfo.adults, bookingInfo.children + 1)"
+                                                    :disabled="totalGuests >= roomData.maxOccupancy">
+                                                    <i class="pi pi-plus text-sm"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-xs text-gray-500 mb-4">
+                                            Trẻ em được giảm giá 20% giá phòng
+                                        </div>
+
+                                        <button @click="showGuestSelect = false"
+                                            class="w-full mt-2 bg-amber-600 text-white rounded-lg py-2 hover:bg-amber-700 transition-colors">
+                                            Xong
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="flex items-center text-gray-600">
                                     <i class="pi pi-calendar mr-2"></i>
@@ -391,18 +503,12 @@ const cancelBookingProcess = () => {
                                         <option value="CN">Trung Quốc</option>
                                     </select>
                                 </div>
-                                <div class="form-group">
+                                <!-- <div class="form-group">
                                     <label class="block text-gray-700 mb-1">CCCD/Passport *</label>
                                     <input v-model="contactInfo.nationalId" type="text"
                                            class="w-full border border-gray-300 rounded-md p-2"
                                            placeholder="Nhập số CCCD hoặc Passport" />
-                                </div>
-                                <div class="form-group">
-                                    <label class="block text-gray-700 mb-1">Số trẻ em</label>
-                                    <input v-model="contactInfo.children" type="number" min="0"
-                                           class="w-full border border-gray-300 rounded-md p-2"
-                                           placeholder="Nhập số trẻ em" />
-                                </div>
+                                </div> -->
                             </div>
                             <div class="form-group mt-4">
                                 <label class="block text-gray-700 mb-1">Yêu cầu đặc biệt</label>
@@ -463,8 +569,18 @@ const cancelBookingProcess = () => {
                                 </div>
 
                                 <div class="flex justify-between">
+                                    <span class="text-gray-700">Người lớn:</span>
+                                    <span class="font-semibold">{{ bookingInfo.adults }} người</span>
+                                </div>
+
+                                <div v-if="bookingInfo.children > 0" class="flex justify-between">
+                                    <span class="text-gray-700">Trẻ em (giảm 20%):</span>
+                                    <span class="font-semibold">{{ bookingInfo.children }} người</span>
+                                </div>
+
+                                <div class="flex justify-between pt-2 border-t border-gray-200">
                                     <span class="text-gray-700">Tổng tiền phòng:</span>
-                                    <span class="font-semibold">{{ formatCurrency((roomData?.pricePerNight || 0) * calculateNights()) }}</span>
+                                    <span class="font-semibold">{{ formatCurrency((roomData?.pricePerNight || 0) * calculateNights() * bookingInfo.adults + (roomData?.pricePerNight || 0) * calculateNights() * bookingInfo.children * 0.8) }}</span>
                                 </div>
 
                                 <!-- Dịch vụ bổ sung -->
@@ -513,5 +629,16 @@ const cancelBookingProcess = () => {
 <style scoped>
 .booking-confirm-page {
     min-height: calc(100vh - 300px);
+}
+
+.guest-select-button {
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.guest-select-dropdown {
+    border: 1px solid #e5e7eb;
+    background-color: white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 </style>

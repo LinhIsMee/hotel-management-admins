@@ -216,9 +216,9 @@ onMounted(() => {
 
                         <Column exportable="false" style="min-width: 10rem">
                             <template #body="{ data }">
-                                <Button icon="pi pi-pencil" outlined class="mr-1" @click="editReview(data)" />
-                                <Button icon="pi pi-reply" outlined severity="info" class="mr-1" @click="replyReview(data)" v-if="data.status !== 'REPLIED'" />
-                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteReview(data)" />
+                                <Button icon="pi pi-pencil" outlined class="mr-1" @click="editReview(data)" v-tooltip.top="'Chỉnh sửa đánh giá'" />
+                                <Button icon="pi pi-reply" outlined severity="info" class="mr-1" @click="replyReview(data)" v-if="data.status !== 'REPLIED'" v-tooltip.top="'Phản hồi đánh giá'" />
+                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteReview(data)" v-tooltip.top="'Xóa đánh giá'" />
                             </template>
                         </Column>
                     </DataTable>
@@ -367,9 +367,9 @@ onMounted(() => {
             </div>
 
             <template #footer>
-                <Button label="Hủy" icon="pi pi-times" text @click="hideDialog" />
-                <Button v-if="review.status !== 'REPLIED'" label="Gửi phản hồi" icon="pi pi-reply" severity="info" @click="submitReply" class="mr-2" />
-                <Button label="Lưu" icon="pi pi-check" @click="saveReview" />
+                <Button label="Hủy" icon="pi pi-times" text @click="hideDialog" v-tooltip.bottom="'Đóng và hủy thay đổi'" />
+                <Button v-if="review.status !== 'REPLIED'" label="Gửi phản hồi" icon="pi pi-reply" severity="info" @click="submitReply" class="mr-2" v-tooltip.bottom="'Gửi phản hồi đến khách hàng'" />
+                <Button label="Lưu" icon="pi pi-check" @click="saveReview" v-tooltip.bottom="'Lưu thay đổi'" />
             </template>
         </Dialog>
 
@@ -382,8 +382,8 @@ onMounted(() => {
                 >
             </div>
             <template #footer>
-                <Button label="Không" icon="pi pi-times" text @click="deleteReviewDialog = false" />
-                <Button label="Có" icon="pi pi-check" text @click="deleteReview" />
+                <Button label="Không" icon="pi pi-times" text @click="deleteReviewDialog = false" v-tooltip.bottom="'Hủy thao tác'" />
+                <Button label="Có" icon="pi pi-check" text @click="deleteReview" v-tooltip.bottom="'Xác nhận xóa'" />
             </template>
         </Dialog>
 
@@ -393,8 +393,8 @@ onMounted(() => {
                 <span v-if="selectedReviews && selectedReviews.length > 0">Bạn có chắc chắn muốn xóa {{ selectedReviews.length }} đánh giá đã chọn?</span>
             </div>
             <template #footer>
-                <Button label="Không" icon="pi pi-times" text @click="deleteReviewsDialog = false" />
-                <Button label="Có" icon="pi pi-check" text @click="deleteSelectedReviews" />
+                <Button label="Không" icon="pi pi-times" text @click="deleteReviewsDialog = false" v-tooltip.bottom="'Hủy thao tác'" />
+                <Button label="Có" icon="pi pi-check" text @click="deleteSelectedReviews" v-tooltip.bottom="'Xác nhận xóa'" />
             </template>
         </Dialog>
     </div>

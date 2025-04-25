@@ -433,8 +433,8 @@ const getStatusLabel = (status) => {
                 </span>
             </template>
             <template #end>
-                <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRooms?.length" />
+                <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" v-tooltip.top="'Thêm phòng mới'" />
+                <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRooms?.length" v-tooltip.top="'Xóa các phòng đã chọn'" />
             </template>
         </Toolbar>
 
@@ -499,8 +499,8 @@ const getStatusLabel = (status) => {
                     </Column>
                     <Column style="width: 8rem">
                         <template #body="{ data }">
-                            <Button icon="pi pi-pencil" class="mr-2" @click="editRoom(data)" />
-                            <Button icon="pi pi-trash" severity="danger" @click="confirmDeleteRoom(data)" />
+                            <Button icon="pi pi-pencil" class="mr-2" @click="editRoom(data)" v-tooltip.top="'Chỉnh sửa phòng'" />
+                            <Button icon="pi pi-trash" severity="danger" @click="confirmDeleteRoom(data)" v-tooltip.top="'Xóa phòng'" />
                         </template>
                     </Column>
                 </DataTable>
@@ -548,8 +548,8 @@ const getStatusLabel = (status) => {
                 </div>
             </div>
             <template #footer>
-                <Button label="Hủy" icon="pi pi-times" text @click="hideDialog" />
-                <Button label="Lưu" icon="pi pi-check" @click="saveRoom" />
+                <Button label="Hủy" icon="pi pi-times" text @click="hideDialog" v-tooltip.bottom="'Hủy thay đổi'" />
+                <Button label="Lưu" icon="pi pi-check" @click="saveRoom" v-tooltip.bottom="'Lưu thay đổi'" />
             </template>
         </Dialog>
 
@@ -559,8 +559,8 @@ const getStatusLabel = (status) => {
                 <span>Bạn có chắc muốn xóa phòng {{ room.roomNumber }}?</span>
             </div>
             <template #footer>
-                <Button label="Không" icon="pi pi-times" text @click="deleteRoomDialog = false" />
-                <Button label="Có" icon="pi pi-check" text @click="deleteRoom" />
+                <Button label="Không" icon="pi pi-times" text @click="deleteRoomDialog = false" v-tooltip.bottom="'Hủy thao tác'" />
+                <Button label="Có" icon="pi pi-check" text @click="deleteRoom" v-tooltip.bottom="'Xác nhận xóa phòng'" />
             </template>
         </Dialog>
 
@@ -570,8 +570,8 @@ const getStatusLabel = (status) => {
                 <span>Bạn có chắc muốn xóa {{ selectedRooms?.length }} phòng?</span>
             </div>
             <template #footer>
-                <Button label="Không" icon="pi pi-times" text @click="deleteRoomsDialog = false" />
-                <Button label="Có" icon="pi pi-check" text @click="deleteSelectedRooms" />
+                <Button label="Không" icon="pi pi-times" text @click="deleteRoomsDialog = false" v-tooltip.bottom="'Hủy thao tác'" />
+                <Button label="Có" icon="pi pi-check" text @click="deleteSelectedRooms" v-tooltip.bottom="'Xác nhận xóa các phòng đã chọn'" />
             </template>
         </Dialog>
     </div>

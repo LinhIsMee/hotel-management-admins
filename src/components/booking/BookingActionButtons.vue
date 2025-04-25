@@ -42,8 +42,7 @@ const deleteBooking = (data) => {
       outlined
       class="p-button-sm"
       @click="viewDetails(data)"
-      tooltip="Xem chi tiết"
-      tooltipOptions="{ position: 'top' }"
+      v-tooltip.top="'Xem chi tiết'"
     />
 
     <Button
@@ -52,8 +51,7 @@ const deleteBooking = (data) => {
       outlined
       class="p-button-sm"
       @click="editBooking(data)"
-      tooltip="Chỉnh sửa"
-      tooltipOptions="{ position: 'top' }"
+      v-tooltip.top="'Chỉnh sửa'"
     />
 
     <Button
@@ -63,8 +61,7 @@ const deleteBooking = (data) => {
       severity="success"
       class="p-button-sm"
       @click="confirmBooking(data)"
-      tooltip="Xác nhận đơn"
-      tooltipOptions="{ position: 'top' }"
+      v-tooltip.top="'Xác nhận đơn'"
     />
 
     <Button
@@ -74,8 +71,7 @@ const deleteBooking = (data) => {
       severity="danger"
       class="p-button-sm"
       @click="cancelBooking(data)"
-      tooltip="Hủy đơn"
-      tooltipOptions="{ position: 'top' }"
+      v-tooltip.top="'Hủy đơn'"
     />
 
     <Button
@@ -85,8 +81,7 @@ const deleteBooking = (data) => {
       severity="danger"
       class="p-button-sm"
       @click="deleteBooking(data)"
-      tooltip="Xóa đơn"
-      tooltipOptions="{ position: 'top' }"
+      v-tooltip.top="'Xóa đơn'"
     />
   </div>
 </template>

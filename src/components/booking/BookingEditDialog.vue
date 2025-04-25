@@ -270,8 +270,8 @@ const updateVisible = (val) => {
         </div>
 
         <template #footer>
-            <Button label="Hủy" icon="pi pi-times" class="p-button-text" @click="hideDialog" />
-            <Button label="Lưu" icon="pi pi-check" class="p-button-text" @click="save" />
+            <Button label="Hủy" icon="pi pi-times" class="p-button-text" @click="hideDialog" v-tooltip.bottom="'Hủy thay đổi'" />
+            <Button label="Lưu" icon="pi pi-check" class="p-button-text" @click="save" v-tooltip.bottom="'Lưu thay đổi'" />
         </template>
     </Dialog>
 </template>

@@ -449,8 +449,8 @@ const getSeverity = (available) => {
 
                         <Column exportable="false" style="min-width: 8rem">
                             <template #body="{ data }">
-                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editService(data)" />
-                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteService(data)" />
+                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editService(data)" v-tooltip.top="'Sửa dịch vụ'" />
+                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteService(data)" v-tooltip.top="'Xóa dịch vụ'" />
                             </template>
                         </Column>
                     </DataTable>
