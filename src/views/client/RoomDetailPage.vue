@@ -11,7 +11,6 @@ import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import Textarea from 'primevue/textarea';
-import Dropdown from 'primevue/dropdown';
 import { useToast } from 'primevue';
 import Accordion from 'primevue/accordion';
 import AccordionTab from 'primevue/accordiontab';
@@ -30,8 +29,7 @@ const {
   fetchRoomById,
   fetchRoomsByType,
   formatCurrency,
-  formatDate,
-  calculateTotalPrice
+  formatDate
 } = useRoomManagement();
 
 // Mảng chứa đường dẫn ảnh mặc định
@@ -45,7 +43,8 @@ const defaultImages = [
 const booking = ref({
     checkInDate: null,
     checkOutDate: null,
-    guests: 1,
+    adults: 1,
+    children: 0,
     specialRequests: '',
     payViaVnpay: false,
     discountCode: '',
@@ -85,15 +84,29 @@ const serviceTotal = computed(() => {
     }, 0);
 });
 
+// Tính số đêm
+const days = computed(() => {
+    if (!booking.value.checkInDate || !booking.value.checkOutDate) return 0;
+    const checkIn = new Date(booking.value.checkInDate);
+    const checkOut = new Date(booking.value.checkOutDate);
+    return Math.max(1, Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
+});
+
 // Tính tổng tiền đặt phòng
 const totalPrice = computed(() => {
     if (!room.value || !booking.value.checkInDate || !booking.value.checkOutDate) return 0;
 
-    // Tính tiền phòng
-    const roomPrice = calculateTotalPrice(room.value, booking.value.checkInDate, booking.value.checkOutDate);
+    // Tính giá người lớn
+    const adultPrice = room.value.pricePerNight * booking.value.adults * days.value;
+
+    // Tính giá trẻ em (giảm 20%)
+    const childPrice = room.value.pricePerNight * 0.8 * booking.value.children * days.value;
+
+    // Tổng tiền phòng
+    let roomTotal = adultPrice + childPrice;
 
     // Cộng với tiền dịch vụ
-    const total = roomPrice + serviceTotal.value;
+    const total = roomTotal + serviceTotal.value;
 
     // Áp dụng giảm giá nếu có
     if (discountStatus.value.applied && discountStatus.value.discount > 0) {
@@ -166,101 +179,79 @@ const navigateToRoom = (roomId) => {
     });
 };
 
-// Tải dữ liệu phòng
-const loadRoomData = async () => {
+// Add this new ref for storing booked dates
+const bookedDateRanges = ref([]);
+const disabledDates = ref([]);
+const isLoadingBookedDates = ref(false);
+
+// Tải ngày đã đặt và tạo mảng vô hiệu hóa
+const fetchBookedDates = async (roomId) => {
+    if (!roomId) return;
+
+    isLoadingBookedDates.value = true;
     try {
-        loading.value = true;
-
-        // Lấy thông tin tìm kiếm từ query params
-        if (route.query.checkIn) {
-            booking.value.checkInDate = new Date(route.query.checkIn);
+        const response = await fetch(`http://localhost:9000/api/v1/bookings/room/${roomId}/booked-dates`);
+        if (!response.ok) {
+            throw new Error('Không thể tải dữ liệu lịch đặt phòng');
         }
-        if (route.query.checkOut) {
-            booking.value.checkOutDate = new Date(route.query.checkOut);
-        }
-        if (route.query.adults) {
-            booking.value.guests = parseInt(route.query.adults);
-        }
+        const data = await response.json();
 
-        // Tải thông tin chi tiết phòng từ API
-        const roomData = await fetchRoomById(roomId.value);
+        // Chuyển đổi chuỗi ngày thành đối tượng Date
+        bookedDateRanges.value = data.map(range => ({
+            checkInDate: new Date(range.checkInDate),
+            checkOutDate: new Date(range.checkOutDate)
+        }));
 
-        if (roomData) {
-            room.value = roomData;
+        // Tạo mảng các ngày đã đặt (vô hiệu hóa)
+        updateDisabledDates();
 
-            // Xử lý ảnh
-            if (roomData.images && roomData.images.length > 0) {
-                roomImages.value = roomData.images;
-            } else {
-                roomImages.value = defaultImages;
-            }
-            selectedImage.value = roomImages.value[0];
-
-            // Tải phòng liên quan
-            await loadRelatedRooms();
-
-            // Tải đánh giá
-            const ratingsData = await fetchRoomRatings(roomId.value);
-            reviews.value = ratingsData.map(rating => ({
-                id: rating.id,
-                name: rating.userName,
-                rating: rating.stars,
-                date: new Date(rating.createdAt).toLocaleDateString('vi-VN'),
-                comment: rating.comment
-            }));
-
-        } else {
-            // Không tìm thấy phòng, chuyển về trang danh sách
-            router.push('/rooms');
-        }
+        console.log('Lịch đặt phòng đã tải:', bookedDateRanges.value);
     } catch (error) {
-        console.error('Lỗi khi tải thông tin phòng:', error);
+        console.error('Lỗi khi tải lịch đặt phòng:', error);
         toast.add({
             severity: 'error',
             summary: 'Lỗi',
-            detail: 'Không thể tải thông tin phòng. Vui lòng thử lại sau.',
+            detail: 'Không thể tải lịch đặt phòng, vui lòng thử lại sau',
             life: 3000
         });
     } finally {
-        loading.value = false;
+        isLoadingBookedDates.value = false;
     }
 };
 
-// Theo dõi thay đổi của roomId
-watch(roomId, async (newId, oldId) => {
-    if (newId !== oldId) {
-        window.scrollTo(0, 0); // Cuộn lên đầu trang
-        await loadRoomData();
-    }
-});
+// Cập nhật mảng các ngày vô hiệu hóa
+const updateDisabledDates = () => {
+    const disabled = [];
 
-onMounted(async () => {
-    await loadRoomData();
-});
+    // Thêm các ngày đã đặt
+    bookedDateRanges.value.forEach(range => {
+        const start = new Date(range.checkInDate);
+        const end = new Date(range.checkOutDate);
 
-// Thêm computed properties để kiểm tra ngày
-const today = computed(() => {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    return date;
-});
+        // Điều chỉnh giờ để đảm bảo so sánh chính xác
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
 
-const minCheckOutDate = computed(() => {
-    if (!booking.value.checkInDate) return today.value;
-    const nextDay = new Date(booking.value.checkInDate);
-    nextDay.setDate(nextDay.getDate() + 1);
-    return nextDay;
-});
+        let currentDate = new Date(start);
+        while (currentDate < end) {
+            disabled.push(new Date(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+    });
 
-// Xử lý khi ngày nhận phòng thay đổi
+    disabledDates.value = disabled;
+};
+
+// Hàm xử lý khi ngày nhận phòng thay đổi
 const handleCheckInChange = (value) => {
+    // Nếu ngày trả phòng nhỏ hơn ngày nhận phòng + 1, reset ngày trả phòng
     if (booking.value.checkOutDate && booking.value.checkOutDate <= value) {
         booking.value.checkOutDate = null;
     }
 };
 
-// Kiểm tra mã giảm giá (giả lập)
-const checkDiscountCode = () => {
+// Kiểm tra mã giảm giá (API thực tế)
+const checkDiscountCode = async () => {
     if (!booking.value.discountCode) {
         discountStatus.value.message = 'Vui lòng nhập mã giảm giá';
         return;
@@ -268,30 +259,29 @@ const checkDiscountCode = () => {
 
     discountStatus.value.loading = true;
 
-    // Giả lập kiểm tra mã giảm giá
-        setTimeout(() => {
-        // Xác minh một số mã mẫu
-            const validCodes = {
-            'SUMMER10': 10,
-            'WELCOME15': 15,
-            'SPECIAL20': 20
-        };
+    try {
+        // Gọi API kiểm tra mã giảm giá
+        const response = await fetch(`http://localhost:9000/api/v1/discounts/validate/${booking.value.discountCode}`);
+        const result = await response.json();
 
-        const discount = validCodes[booking.value.discountCode.toUpperCase()];
-
-        if (discount) {
+        if (response.ok && result.valid) {
                 discountStatus.value.valid = true;
                 discountStatus.value.applied = true;
-            discountStatus.value.discount = discount;
-            discountStatus.value.message = `Đã áp dụng mã giảm giá ${discount}%`;
+            discountStatus.value.discount = result.discountValue || 10; // Giá trị mặc định 10% nếu API không trả về
+            discountStatus.value.message = `Đã áp dụng mã giảm giá ${discountStatus.value.discount}%`;
             } else {
                 discountStatus.value.valid = false;
             discountStatus.value.applied = false;
             discountStatus.value.message = 'Mã giảm giá không hợp lệ hoặc đã hết hạn';
             }
-
+    } catch (error) {
+        console.error('Lỗi khi kiểm tra mã giảm giá:', error);
+        discountStatus.value.valid = false;
+        discountStatus.value.applied = false;
+        discountStatus.value.message = 'Có lỗi xảy ra khi kiểm tra mã giảm giá';
+    } finally {
         discountStatus.value.loading = false;
-    }, 1000);
+    }
 };
 
 // Thêm phương thức xóa mã giảm giá
@@ -303,6 +293,14 @@ const clearDiscountCode = () => {
     discountStatus.value.discount = 0;
     discountStatus.value.code = '';
 };
+
+// Tổng số khách (người lớn + trẻ em)
+const totalGuests = computed(() => {
+    return booking.value.adults + booking.value.children;
+});
+
+// Hiển thị dropdown chọn khách
+const showGuestSelect = ref(false);
 
 // Chuẩn bị dữ liệu đặt phòng
 const prepareBookingData = () => {
@@ -316,8 +314,8 @@ const prepareBookingData = () => {
         roomType: room.value.roomTypeName,
         checkInDate: formatDate(booking.value.checkInDate),
         checkOutDate: formatDate(booking.value.checkOutDate),
-        adults: booking.value.guests,
-        children: 0, // Có thể bổ sung sau
+        adults: booking.value.adults,
+        children: booking.value.children,
         specialRequests: booking.value.specialRequests,
         totalPrice: totalPrice.value,
         discountCode: discountStatus.value.applied ? booking.value.discountCode : null,
@@ -350,7 +348,8 @@ const handleBooking = () => {
             roomId: roomId.value,
             checkIn: formatDate(booking.value.checkInDate),
             checkOut: formatDate(booking.value.checkOutDate),
-            guests: booking.value.guests,
+            adults: booking.value.adults,
+            children: booking.value.children,
             services: booking.value.services.join(','),
             discount: booking.value.discountCode,
             payment: booking.value.payViaVnpay ? 'vnpay' : 'cash'
@@ -358,6 +357,26 @@ const handleBooking = () => {
     });
 };
 
+// Kiểm tra và cập nhật số khách khi thay đổi
+watch(totalGuests, (newValue) => {
+    if (room.value && newValue > room.value.maxOccupancy) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Cảnh báo',
+            detail: `Phòng này chỉ cho phép tối đa ${room.value.maxOccupancy} người`,
+            life: 3000
+        });
+
+        // Điều chỉnh số lượng khách về giới hạn tối đa
+        const excess = newValue - room.value.maxOccupancy;
+        if (booking.value.children >= excess) {
+            booking.value.children -= excess;
+        } else {
+            booking.value.children = 0;
+            booking.value.adults = room.value.maxOccupancy;
+        }
+    }
+});
 
 // Form đánh giá
 const reviewForm = ref({
@@ -472,6 +491,109 @@ useHead({
                 'Chi tiết phòng khách sạn')
     }
   ]
+});
+
+// Tải dữ liệu phòng
+const loadRoomData = async () => {
+    try {
+        loading.value = true;
+
+        // Lấy thông tin tìm kiếm từ query params
+        if (route.query.checkIn) {
+            booking.value.checkInDate = new Date(route.query.checkIn);
+        }
+        if (route.query.checkOut) {
+            booking.value.checkOutDate = new Date(route.query.checkOut);
+        }
+        if (route.query.adults) {
+            booking.value.adults = parseInt(route.query.adults);
+        }
+
+        // Tải thông tin chi tiết phòng từ API
+        const roomData = await fetchRoomById(roomId.value);
+
+        if (roomData) {
+            room.value = roomData;
+
+            // Xử lý ảnh
+            if (roomData.images && roomData.images.length > 0) {
+                roomImages.value = roomData.images;
+            } else {
+                roomImages.value = defaultImages;
+            }
+            selectedImage.value = roomImages.value[0];
+
+            // Tải phòng liên quan
+            await loadRelatedRooms();
+
+            // Tải đánh giá
+            const ratingsData = await fetchRoomRatings(roomId.value);
+            reviews.value = ratingsData.map(rating => ({
+                id: rating.id,
+                name: rating.userName,
+                rating: rating.stars,
+                date: new Date(rating.createdAt).toLocaleDateString('vi-VN'),
+                comment: rating.comment
+            }));
+
+            // Đảm bảo lịch đặt phòng đã được tải
+            if (bookedDateRanges.value.length === 0) {
+                await fetchBookedDates(roomId.value);
+            }
+
+        } else {
+            // Không tìm thấy phòng, chuyển về trang danh sách
+            router.push('/rooms');
+        }
+    } catch (error) {
+        console.error('Lỗi khi tải thông tin phòng:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: 'Không thể tải thông tin phòng. Vui lòng thử lại sau.',
+            life: 3000
+        });
+    } finally {
+        loading.value = false;
+    }
+};
+
+// Theo dõi thay đổi của roomId
+watch(roomId, async (newId, oldId) => {
+    if (newId !== oldId) {
+        window.scrollTo(0, 0); // Cuộn lên đầu trang
+        await fetchBookedDates(newId); // Tải lịch đặt phòng trước
+        await loadRoomData(); // Sau đó tải thông tin phòng
+    }
+});
+
+onMounted(async () => {
+    // Tải lịch đặt phòng trước, sau đó tải dữ liệu phòng
+    await fetchBookedDates(roomId.value);
+    await loadRoomData();
+
+    // Click outside để đóng dropdown
+    document.addEventListener('click', (e) => {
+        const dropdown = document.querySelector('.guest-select-dropdown');
+        const button = document.querySelector('.guest-select-button');
+        if (dropdown && !dropdown.contains(e.target) && !button?.contains(e.target)) {
+            showGuestSelect.value = false;
+        }
+    });
+});
+
+// Thêm computed properties để kiểm tra ngày
+const today = computed(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+});
+
+const minCheckOutDate = computed(() => {
+    if (!booking.value.checkInDate) return today.value;
+    const nextDay = new Date(booking.value.checkInDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return nextDay;
 });
 </script>
 
@@ -642,10 +764,10 @@ useHead({
                                     <div v-for="(amenity, index) in room.amenities.filter(a => !a.includes('Wi-Fi') && !a.includes('TV'))"
                                          :key="index"
                                          class="flex items-center">
-                                        <i class="pi pi-check-circle mr-2 text-green-500"></i>
-                                        <span>{{ amenity }}</span>
-                                    </div>
-                                </div>
+                                <i class="pi pi-check-circle mr-2 text-green-500"></i>
+                                <span>{{ amenity }}</span>
+                            </div>
+                        </div>
                             </AccordionTab>
 
                             <AccordionTab header="Internet & Giải trí">
@@ -694,7 +816,7 @@ useHead({
                     </div>
 
                     <!-- Form đặt phòng -->
-                    <div class="bg-white p-6 rounded-lg shadow-md sticky top-4">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
                         <h2 class="text-xl font-bold mb-4 text-gray-800">Đặt phòng</h2>
 
                         <!-- Thêm cảnh báo nếu phòng đã được đặt -->
@@ -720,6 +842,10 @@ useHead({
                             </div>
                         </div>
 
+                        <Accordion class="booking-accordion" :activeIndex="0">
+                            <!-- Thông tin lưu trú -->
+                            <AccordionTab header="Thông tin lưu trú">
+                                <div class="p-2">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-gray-700 font-medium mb-2">Ngày nhận phòng</label>
@@ -730,6 +856,7 @@ useHead({
                                     showIcon
                                     :minDate="today"
                                     @change="handleCheckInChange"
+                                    :disabledDates="disabledDates"
                                     :showClear="true"
                                 />
                             </div>
@@ -742,41 +869,129 @@ useHead({
                                     showIcon
                                     :minDate="minCheckOutDate"
                                     :disabled="!booking.checkInDate"
+                                    :disabledDates="disabledDates"
                                     :showClear="true"
                                 />
                             </div>
                         </div>
 
                         <div class="mb-4">
-                            <label class="block text-gray-700 mb-1">Số người</label>
-                            <Dropdown v-model="booking.guests" :options="[1, 2, 3, 4]" class="w-full" />
+                                        <label class="block text-gray-700 mb-1">Số khách</label>
+                                        <div class="relative">
+                                            <button @click="showGuestSelect = !showGuestSelect"
+                                                class="guest-select-button w-full bg-white border rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-amber-500 focus:outline-none focus:border-amber-500">
+                                                <span class="text-gray-700">
+                                                    {{ booking.adults }} người lớn{{ booking.children ? `, ${booking.children} trẻ em` : '' }}
+                                                </span>
+                                                <i class="pi pi-chevron-down text-gray-400"></i>
+                                            </button>
+
+                                            <!-- Dropdown chọn số lượng -->
+                                            <div v-if="showGuestSelect"
+                                                class="guest-select-dropdown absolute top-full left-0 w-[300px] mt-2 bg-white border rounded-lg shadow-lg p-4 z-50">
+                                                <!-- Thông tin số người tối đa -->
+                                                <div class="text-sm text-gray-500 mb-4">
+                                                    Tối đa {{ room.maxOccupancy }} người
+                                                </div>
+
+                                                <!-- Người lớn -->
+                                                <div class="flex items-center justify-between mb-4">
+                                                    <div>
+                                                        <div class="font-medium">Người lớn</div>
+                                                        <div class="text-sm text-gray-500">Từ 13 tuổi trở lên</div>
+                                                    </div>
+                                                    <div class="flex items-center gap-3">
+                                                        <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                            :class="{ 'opacity-50 cursor-not-allowed': booking.adults <= 1 }"
+                                                            @click="booking.adults = Math.max(1, booking.adults - 1)"
+                                                            :disabled="booking.adults <= 1">
+                                                            <i class="pi pi-minus text-sm"></i>
+                                                        </button>
+                                                        <span class="w-6 text-center">{{ booking.adults }}</span>
+                                                        <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                            :class="{ 'opacity-50 cursor-not-allowed': totalGuests >= room.maxOccupancy }"
+                                                            @click="booking.adults = Math.min(room.maxOccupancy, booking.adults + 1)"
+                                                            :disabled="totalGuests >= room.maxOccupancy">
+                                                            <i class="pi pi-plus text-sm"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Trẻ em -->
+                                                <div class="flex items-center justify-between mb-4">
+                                                    <div>
+                                                        <div class="font-medium">Trẻ em</div>
+                                                        <div class="text-sm text-gray-500">Độ tuổi 0-12</div>
+                                                    </div>
+                                                    <div class="flex items-center gap-3">
+                                                        <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                            :class="{ 'opacity-50 cursor-not-allowed': booking.children <= 0 }"
+                                                            @click="booking.children = Math.max(0, booking.children - 1)"
+                                                            :disabled="booking.children <= 0">
+                                                            <i class="pi pi-minus text-sm"></i>
+                                                        </button>
+                                                        <span class="w-6 text-center">{{ booking.children }}</span>
+                                                        <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
+                                                            :class="{ 'opacity-50 cursor-not-allowed': totalGuests >= room.maxOccupancy }"
+                                                            @click="booking.children = Math.min(room.maxOccupancy - booking.adults, booking.children + 1)"
+                                                            :disabled="totalGuests >= room.maxOccupancy">
+                                                            <i class="pi pi-plus text-sm"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div class="text-xs text-gray-500 mb-4">
+                                                    Trẻ em được giảm giá 20% giá phòng
+                                                </div>
+
+                                                <button @click="showGuestSelect = false"
+                                                    class="w-full mt-2 bg-amber-600 text-white rounded-lg py-2 hover:bg-amber-700 transition-colors">
+                                                    Xong
+                                                </button>
+                                            </div>
+                                        </div>
                         </div>
 
                         <div class="mb-4">
                             <label class="block text-gray-700 mb-1">Yêu cầu đặc biệt</label>
                             <Textarea v-model="booking.specialRequests" rows="3" class="w-full" placeholder="Nhập yêu cầu đặc biệt (nếu có)" />
                         </div>
+                                </div>
+                            </AccordionTab>
 
-                        <!-- Thêm phần dịch vụ bổ sung -->
-                        <div class="mb-4">
-                            <h3 class="font-semibold text-gray-700 mb-2">Dịch vụ bổ sung</h3>
-                            <div class="space-y-2">
-                                <div v-for="service in availableServices" :key="service.id" class="flex items-center">
+                            <!-- Dịch vụ bổ sung -->
+                            <AccordionTab header="Dịch vụ bổ sung">
+                                <div class="p-2">
+                                    <div class="space-y-3">
+                                        <div v-for="service in availableServices" :key="service.id"
+                                             class="flex items-center justify-between p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                                            <div class="flex items-start">
                                     <Checkbox
                                         v-model="booking.services"
                                         :value="service.id"
                                         :binary="false"
                                         :inputId="`service_${service.id}`"
+                                                    class="mt-1 mr-3"
                                     />
-                                    <label :for="`service_${service.id}`" class="ml-2 flex-grow">
+                                                <div>
+                                                    <label :for="`service_${service.id}`" class="font-medium cursor-pointer">
                                         {{ service.name }}
-                                        <span class="text-amber-600 font-medium">{{ formatCurrency(service.price) }}</span>
                                     </label>
+                                                    <p class="text-sm text-gray-500">{{ service.description }}</p>
                                 </div>
                             </div>
+                                            <div class="text-amber-600 font-semibold">
+                                                {{ formatCurrency(service.price) }}
                         </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </AccordionTab>
 
-                        <!-- Thêm phần mã giảm giá -->
+                            <!-- Mã giảm giá và thanh toán -->
+                            <AccordionTab header="Giảm giá & Thanh toán">
+                                <div class="p-2">
+                                    <!-- Mã giảm giá -->
                         <div class="mb-4">
                             <h3 class="font-semibold text-gray-700 mb-2">Mã giảm giá</h3>
                             <div class="flex space-x-2">
@@ -786,16 +1001,15 @@ useHead({
                                     class="flex-grow"
                                     :disabled="discountStatus.applied"
                                 />
-                                <span v-if="discountStatus.loading" class="pi pi-spin pi-spinner text-blue-500"></span>
+                                            <span v-if="discountStatus.loading" class="pi pi-spin pi-spinner text-blue-500 flex items-center"></span>
                                 <Button v-else-if="discountStatus.applied"
                                     icon="pi pi-times"
-                                    class="p-button-danger p-button-text p-button-sm"
+                                                class="p-button-danger p-button-text"
                                     @click="clearDiscountCode"
                                     aria-label="Xóa mã giảm giá" />
                                 <Button v-else
                                     type="button"
                                     label="Áp dụng"
-                                    class="p-button-sm"
                                     @click="checkDiscountCode" />
                             </div>
                             <small v-if="discountStatus.message" :class="discountStatus.valid ? 'text-green-600' : 'text-red-600'">
@@ -803,39 +1017,55 @@ useHead({
                             </small>
                         </div>
 
-                        <div v-if="days > 0" class="bg-gray-50 p-4 rounded-lg mb-6">
-                            <div class="flex justify-between mb-3">
+                                    <!-- Phương thức thanh toán -->
+                                    <div class="mb-4">
+                                        <div class="flex items-center p-3 border border-gray-200 rounded-lg bg-gray-50">
+                                            <Checkbox v-model="booking.payViaVnpay" :binary="true" inputId="pay_vnpay" />
+                                            <label for="pay_vnpay" class="ml-2 flex items-center cursor-pointer">
+                                                <span class="mr-2">Thanh toán qua VNPay</span>
+                                                <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPay" class="h-6" />
+                                            </label>
+                                        </div>
+                                        <small class="text-gray-500 mt-1 block">Bạn sẽ được chuyển đến cổng thanh toán VNPay sau khi nhấn nút tiếp tục</small>
+                                    </div>
+                                </div>
+                            </AccordionTab>
+                        </Accordion>
+
+                        <!-- Chi tiết giá -->
+                        <div v-if="days > 0" class="bg-gray-50 p-4 rounded-lg my-6">
+                            <h3 class="font-semibold text-gray-800 mb-3">Chi tiết giá</h3>
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between">
                                 <span class="text-gray-700">Giá phòng:</span>
                                 <span class="font-semibold">{{ formatCurrency(room.pricePerNight) }}/đêm</span>
                             </div>
-                            <div class="flex justify-between mb-3">
+                                <div class="flex justify-between">
                                 <span class="text-gray-700">Số đêm:</span>
                                 <span class="font-semibold">{{ days }} đêm</span>
                             </div>
-                            <div v-if="booking.services && booking.services.length > 0" class="flex justify-between mb-3">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-700">Người lớn ({{ booking.adults }}):</span>
+                                    <span class="font-semibold">{{ formatCurrency(room.pricePerNight * booking.adults * days) }}</span>
+                                </div>
+                                <div v-if="booking.children > 0" class="flex justify-between">
+                                    <span class="text-gray-700">Trẻ em ({{ booking.children }}, giảm 20%):</span>
+                                    <span class="font-semibold">{{ formatCurrency(room.pricePerNight * 0.8 * booking.children * days) }}</span>
+                                </div>
+                                <div v-if="booking.services && booking.services.length > 0" class="flex justify-between">
                                 <span class="text-gray-700">Dịch vụ bổ sung:</span>
                                 <span class="font-semibold">{{ formatCurrency(serviceTotal) }}</span>
                             </div>
-                            <div v-if="discountStatus.applied" class="flex justify-between mb-3 text-green-600">
-                                <span>Giảm giá ({{ discountStatus.code }}):</span>
-                                <span class="font-semibold">-{{ formatCurrency(discountStatus.discount) }}</span>
+                                <div v-if="discountStatus.applied" class="flex justify-between text-green-600">
+                                    <span>Giảm giá ({{ booking.discountCode }}):</span>
+                                    <span class="font-semibold">-{{ discountStatus.discount }}%</span>
                             </div>
-                            <div class="flex justify-between text-lg font-bold mt-2 pt-2 border-t border-gray-200">
+                            </div>
+
+                            <div class="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
                                 <span>Tổng cộng:</span>
                                 <span class="text-amber-600">{{ formatCurrency(totalPrice) }}</span>
                             </div>
-                        </div>
-
-                        <!-- Thêm phần thanh toán VNPay -->
-                        <div class="mb-4">
-                            <div class="flex items-center">
-                                <Checkbox v-model="booking.payViaVnpay" :binary="true" inputId="pay_vnpay" />
-                                <label for="pay_vnpay" class="ml-2 flex items-center">
-                                    <span class="mr-2">Thanh toán qua VNPay</span>
-                                    <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPay" class="h-6" />
-                                </label>
-                            </div>
-                            <small class="text-gray-500 mt-1 block">Bạn sẽ được chuyển đến cổng thanh toán VNPay sau khi nhấn nút tiếp tục</small>
                         </div>
 
                         <Button @click="handleBooking" label="Tiếp tục đặt phòng" class="w-full p-button-lg" :disabled="!booking.checkInDate || !booking.checkOutDate" />
@@ -1044,6 +1274,19 @@ useHead({
   background-color: rgba(0, 0, 0, 0.6);
 }
 
+/* Styles cho dropdown chọn khách */
+.guest-select-button {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.guest-select-dropdown {
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 50;
+}
+
 /* Thêm styles cho gallery */
 .gallery-dialog {
     @apply bg-black;
@@ -1097,12 +1340,15 @@ useHead({
 }
 
 /* Custom styling cho Accordion */
-:deep(.room-accordion) {
+:deep(.room-accordion),
+:deep(.booking-accordion) {
     border-radius: 0.5rem;
     overflow: hidden;
+    margin-bottom: 1.5rem;
 }
 
-:deep(.room-accordion .p-accordion-header-link) {
+:deep(.room-accordion .p-accordion-header-link),
+:deep(.booking-accordion .p-accordion-header-link) {
     border: none;
     background: #f9fafb;
     padding: 1rem;
@@ -1110,29 +1356,35 @@ useHead({
     transition: all 0.3s ease;
 }
 
-:deep(.room-accordion .p-accordion-header-link:hover) {
+:deep(.room-accordion .p-accordion-header-link:hover),
+:deep(.booking-accordion .p-accordion-header-link:hover) {
     background: #f3f4f6;
 }
 
-:deep(.room-accordion .p-accordion-header-link:focus) {
+:deep(.room-accordion .p-accordion-header-link:focus),
+:deep(.booking-accordion .p-accordion-header-link:focus) {
     box-shadow: none;
     border-color: #d97706;
 }
 
-:deep(.room-accordion .p-accordion-header-text) {
+:deep(.room-accordion .p-accordion-header-text),
+:deep(.booking-accordion .p-accordion-header-text) {
     color: #374151;
+    font-weight: 500;
 }
 
-:deep(.room-accordion .p-accordion-tab) {
+:deep(.room-accordion .p-accordion-tab),
+:deep(.booking-accordion .p-accordion-tab) {
     margin-bottom: 0.5rem;
     border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
     overflow: hidden;
 }
 
-:deep(.room-accordion .p-accordion-content) {
+:deep(.room-accordion .p-accordion-content),
+:deep(.booking-accordion .p-accordion-content) {
     background: white;
     border: none;
-    padding: 0.75rem 1rem;
+    padding: 0;
 }
 </style>
