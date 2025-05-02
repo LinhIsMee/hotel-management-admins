@@ -29,6 +29,10 @@ const props = defineProps({
     globalFilter: {
         type: Object,
         default: null
+    },
+    phoneFilter: {
+        type: String,
+        default: ''
     }
 });
 
@@ -37,9 +41,11 @@ const emit = defineEmits([
     'update:selectedStatus',
     'update:userId',
     'update:globalFilter',
+    'update:phoneFilter',
     'filter-by-date-range',
     'filter-by-status',
     'filter-by-user',
+    'filter-by-phone',
     'reset-filters',
     'add-new',
     'delete-selected',
@@ -51,6 +57,7 @@ const localDateRange = ref({ ...props.dateRange });
 const localSelectedStatus = ref(props.selectedStatus);
 const localUserId = ref(props.userId);
 const localGlobalFilter = ref(props.globalFilter?.value || '');
+const localPhoneFilter = ref(props.phoneFilter || '');
 
 // Theo dõi thay đổi từ props để cập nhật biến cục bộ
 watch(() => props.dateRange, (newVal) => {
@@ -69,6 +76,10 @@ watch(() => props.globalFilter?.value, (newVal) => {
     localGlobalFilter.value = newVal;
 });
 
+watch(() => props.phoneFilter, (newVal) => {
+    localPhoneFilter.value = newVal;
+});
+
 // Cập nhật biến cục bộ và emit event
 const updateDateRange = (value, type) => {
     localDateRange.value[type] = value;
@@ -80,18 +91,22 @@ const updateSelectedStatus = (value) => {
     emit('update:selectedStatus', value);
 };
 
-const updateUserId = (value) => {
-    localUserId.value = value;
-    emit('update:userId', value);
-};
-
 const updateGlobalFilter = (value) => {
     localGlobalFilter.value = value;
     emit('update:globalFilter', { value, matchMode: props.globalFilter?.matchMode });
 };
 
+const updatePhoneFilter = (value) => {
+    localPhoneFilter.value = value;
+    emit('update:phoneFilter', value);
+    emit('filter-by-phone');
+};
+
 const canFilter = computed(() => {
-    return (localDateRange.value.start && localDateRange.value.end) || localSelectedStatus.value || (props.showUserFilter && localUserId.value);
+    return (localDateRange.value.start && localDateRange.value.end) ||
+           localSelectedStatus.value ||
+           (props.showUserFilter && localUserId.value) ||
+           localPhoneFilter.value;
 });
 
 const handleReset = () => {
@@ -99,6 +114,7 @@ const handleReset = () => {
     localSelectedStatus.value = null;
     localUserId.value = '';
     localGlobalFilter.value = '';
+    localPhoneFilter.value = '';
     emit('reset-filters');
 };
 
@@ -112,6 +128,10 @@ const handleDeleteSelected = () => {
 
 const handleExportData = () => {
     emit('export-data');
+};
+
+const filterByPhone = () => {
+    emit('filter-by-phone');
 };
 </script>
 
@@ -139,10 +159,10 @@ const handleExportData = () => {
                     class="date-input"
                 />
 
-                <!-- Dropdown Trạng thái -->
+                <!-- Dropdown Trạng thái - Thêm sự kiện để update ngay -->
                 <Dropdown
                     v-model="localSelectedStatus"
-                    @update:modelValue="updateSelectedStatus($event)"
+                    @update:modelValue="updateSelectedStatus($event); $emit('filter-by-status')"
                     :options="statuses"
                     optionLabel="label"
                     optionValue="value"
@@ -150,13 +170,26 @@ const handleExportData = () => {
                     class="status-dropdown"
                 />
 
+                <!-- Tìm kiếm theo SĐT -->
+                <div class="phone-filter flex">
+                    <span class="p-input-icon-left">
+                        <i class="pi pi-phone"></i>
+                        <InputText
+                            v-model="localPhoneFilter"
+                            @input="updatePhoneFilter($event.target.value)"
+                            placeholder="Số điện thoại KH"
+                            class="p-inputtext-sm phone-input"
+                        />
+                    </span>
+                </div>
+
                 <!-- Nút lọc và làm mới -->
                 <div class="filter-buttons flex gap-1">
                     <Button
                         type="button"
                         icon="pi pi-filter"
                         class="p-button-sm p-button-outlined"
-                        @click="$emit('filter-by-date-range'), $emit('filter-by-status'), showUserFilter && $emit('filter-by-user')"
+                        @click="$emit('filter-by-date-range'), $emit('filter-by-status'), showUserFilter && $emit('filter-by-user'), filterByPhone()"
                         :disabled="!canFilter"
                         aria-label="Lọc"
                     />
@@ -175,7 +208,6 @@ const handleExportData = () => {
                 <!-- Tìm kiếm -->
                 <div class="search-container">
                     <span class="p-input-icon-left search-field">
-                        <i class="pi pi-search"></i>
                         <InputText
                             v-model="localGlobalFilter"
                             @input="updateGlobalFilter($event.target.value)"
@@ -189,21 +221,21 @@ const handleExportData = () => {
                 <Button
                     icon="pi pi-plus"
                     label="Thêm mới"
-                    class="p-button-sm action-button"
+                    class="p-button-sm action-button max-h-10"
                     severity="success"
                     @click="handleAddNew"
                 />
                 <Button
                     icon="pi pi-trash"
                     label="Xóa đã chọn"
-                    class="p-button-sm action-button"
+                    class="p-button-sm action-button max-h-10"
                     severity="danger"
                     @click="handleDeleteSelected"
                 />
                 <Button
                     icon="pi pi-download"
                     label="Xuất dữ liệu"
-                    class="p-button-sm action-button"
+                    class="p-button-sm action-button max-h-10"
                     severity="info"
                     @click="handleExportData"
                 />
@@ -242,6 +274,10 @@ const handleExportData = () => {
     width: 150px;
 }
 
+.phone-input {
+    width: 150px !important;
+}
+
 .search-container {
     position: relative;
     min-width: 200px;
@@ -249,9 +285,9 @@ const handleExportData = () => {
 }
 
 .search-field {
-    width: 100%;
     display: flex;
     align-items: center;
+    width: 100%;
 }
 
 .search-input {
@@ -309,7 +345,8 @@ const handleExportData = () => {
     }
 
     .date-input,
-    .status-dropdown {
+    .status-dropdown,
+    .phone-input {
         width: calc(33.33% - 0.75rem) !important;
     }
 
@@ -324,35 +361,36 @@ const handleExportData = () => {
 }
 
 @media screen and (max-width: 768px) {
+    .filter-container {
+        flex-direction: column;
+    }
+
+    .filter-section {
+        max-width: 100%;
+        margin-bottom: 1rem;
+    }
+
     .action-section {
-        flex-wrap: wrap;
+        width: 100%;
         justify-content: flex-end;
     }
 
     .date-input,
-    .status-dropdown {
-        width: calc(50% - 0.5rem) !important;
-    }
-
-    .filter-buttons {
-        margin-left: auto;
-    }
-
-    .search-container {
-        width: 100%;
-        min-width: 100%;
-        order: -1;
+    .status-dropdown,
+    .phone-input {
+        width: 100% !important;
         margin-bottom: 0.5rem;
     }
 
-    .action-section .p-button {
-        flex: 1;
+    .search-container {
+        min-width: 100%;
     }
 }
 
 @media screen and (max-width: 576px) {
     .date-input,
-    .status-dropdown {
+    .status-dropdown,
+    .phone-input {
         width: 100% !important;
         margin-bottom: 0.5rem;
     }

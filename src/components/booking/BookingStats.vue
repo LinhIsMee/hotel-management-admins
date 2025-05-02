@@ -18,13 +18,20 @@ defineProps({
         required: true
     }
 });
+
+const emit = defineEmits(['filterByStatus']);
+
+// Hàm xử lý khi click vào ô thống kê
+const handleStatusClick = (status) => {
+    emit('filterByStatus', status);
+}
 </script>
 
 <template>
     <div class="booking-stats-container">
         <div class="stats-grid">
             <!-- Tổng đơn đặt -->
-            <div class="stats-card">
+            <div class="stats-card" @click="handleStatusClick(null)">
                 <div class="stats-card-content">
                     <div class="stats-icon blue">
                         <i class="pi pi-calendar"></i>
@@ -37,7 +44,7 @@ defineProps({
             </div>
 
             <!-- Chờ xác nhận -->
-            <div class="stats-card">
+            <div class="stats-card" @click="handleStatusClick('PENDING')">
                 <div class="stats-card-content">
                     <div class="stats-icon orange">
                         <i class="pi pi-clock"></i>
@@ -50,7 +57,7 @@ defineProps({
             </div>
 
             <!-- Đã xác nhận -->
-            <div class="stats-card">
+            <div class="stats-card" @click="handleStatusClick('CONFIRMED')">
                 <div class="stats-card-content">
                     <div class="stats-icon green">
                         <i class="pi pi-check-circle"></i>
@@ -63,7 +70,7 @@ defineProps({
             </div>
 
             <!-- Đang ở -->
-            <div class="stats-card">
+            <div class="stats-card" @click="handleStatusClick('CHECKED_IN')">
                 <div class="stats-card-content">
                     <div class="stats-icon cyan">
                         <i class="pi pi-home"></i>
@@ -76,7 +83,7 @@ defineProps({
             </div>
 
             <!-- Đã hoàn thành -->
-            <div class="stats-card">
+            <div class="stats-card" @click="handleStatusClick('COMPLETED')">
                 <div class="stats-card-content">
                     <div class="stats-icon purple">
                         <i class="pi pi-check-square"></i>
@@ -89,7 +96,7 @@ defineProps({
             </div>
 
             <!-- Đã hủy -->
-            <div class="stats-card">
+            <div class="stats-card" @click="handleStatusClick('CANCELLED')">
                 <div class="stats-card-content">
                     <div class="stats-icon red">
                         <i class="pi pi-times-circle"></i>
@@ -134,6 +141,7 @@ defineProps({
     overflow: hidden;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer; /* Thêm con trỏ tay khi hover */
 }
 
 .stats-card:hover {

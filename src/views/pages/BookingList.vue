@@ -27,10 +27,7 @@ const {
     loading,
     stats,
     fetchAllBookings,
-    fetchBookingsByStatus,
-    fetchBookingsByDateRange,
     fetchBookingById,
-    fetchUserBookings,
     createBooking,
     updateBooking,
     formatCurrency,
@@ -47,18 +44,16 @@ const {
     confirmBooking,
     checkInBooking,
     checkOutBooking,
-    deleteBookingById,
-    updateStats
+    updateStats,
 } = useBookingManagement();
 
 // Thêm hàm để xử lý xuất dữ liệu
-const { isExporting, exportToCSV } = useExportData();
+const { exportToCSV } = useExportData();
 
 // Đảm bảo có khai báo toast
 const toast = useToast();
 
 // Khai báo biến
-const availableRooms = ref([]);
 const bookingDialog = ref(false);
 const bookingDetailsDialog = ref(false);
 const deleteBookingDialog = ref(false);
@@ -73,6 +68,7 @@ const submitted = ref(false);
 const dateRange = ref({ start: null, end: null });
 const selectedStatus = ref(null);
 const userId = ref(null);
+const phoneFilter = ref('');
 
 // Tạo một đối tượng hiển thị các cột dựa vào quyền
 const displayColumns = computed(() => ({
@@ -81,30 +77,30 @@ const displayColumns = computed(() => ({
 }));
 
 // Thêm các biến cần thiết cho dialog
-const roomTypes = ref([
-    { id: 1, name: 'Phòng đơn' },
-    { id: 2, name: 'Phòng đôi' },
-    { id: 3, name: 'Phòng VIP' }
-]);
+// const roomTypes = ref([
+//     { id: 1, name: 'Phòng đơn' },
+//     { id: 2, name: 'Phòng đôi' },
+//     { id: 3, name: 'Phòng VIP' }
+// ]);
 
 // Gọi API khi component được mount
 onMounted(async () => {
     console.log('BookingList mounted - Fetching data');
     await fetchAllBookings();
 
-    // Đảm bảo chạy updateStats sau khi có dữ liệu
+    // Đảm bảo tính toán thống kê sau khi có dữ liệu
     if (bookings.value && bookings.value.length > 0) {
-        console.log('Bookings loaded, updating stats...');
-        updateStats();
+        console.log('Bookings loaded, calculating stats...');
+        calculateStats();
     }
 
     // Thêm timeout nếu cần để đảm bảo thống kê được cập nhật
     setTimeout(() => {
         console.log('Current stats after timeout:', stats.value);
-        // Nếu vẫn chưa có thống kê, chạy lại updateStats
+        // Nếu vẫn chưa có thống kê, chạy lại tính toán
         if (!stats.value.totalBookings && bookings.value.length > 0) {
-            console.log('Stats not updated, running updateStats again');
-            updateStats();
+            console.log('Stats not updated, calculating stats again');
+            calculateStats();
         }
     }, 500);
 });
@@ -396,18 +392,6 @@ const confirmDeleteSelected = async () => {
     }
 };
 
-// Tìm index theo ID
-const findIndexById = (id) => {
-    let index = -1;
-    for (let i = 0; i < bookings.value.length; i++) {
-        if (bookings.value[i].id === id) {
-            index = i;
-            break;
-        }
-    }
-    return index;
-};
-
 // Hàm xác nhận booking
 const handleConfirmBooking = async (data) => {
     if (can.confirm.value) {
@@ -435,27 +419,175 @@ const handleCancelBooking = async (data) => {
 // Hàm lọc theo khoảng thời gian
 const filterByDateRange = () => {
     if (dateRange.value.start && dateRange.value.end) {
-        const startDateStr = dateRange.value.start.toISOString().split('T')[0];
-        const endDateStr = dateRange.value.end.toISOString().split('T')[0];
-        fetchBookingsByDateRange(startDateStr, endDateStr);
+        loading.value = true;
+        try {
+            // Lưu trữ dữ liệu gốc nếu chưa có
+            if (!window._originalBookings) {
+                window._originalBookings = [...bookings.value];
+            }
+
+            // Chuyển đổi ngày thành chuỗi để so sánh
+            const startDateStr = dateRange.value.start.toISOString().split('T')[0];
+            const endDateStr = dateRange.value.end.toISOString().split('T')[0];
+
+            // Lọc từ dữ liệu gốc
+            const filteredBookings = window._originalBookings.filter(booking => {
+                // Sử dụng checkInDate hoặc createdAt để lọc theo ngày
+                const bookingDate = booking.checkInDate ||
+                                    (booking.createdAt ? booking.createdAt.split(' ')[0] : null);
+
+                return bookingDate && bookingDate >= startDateStr && bookingDate <= endDateStr;
+            });
+
+            // Cập nhật danh sách hiển thị
+            bookings.value = filteredBookings;
+            // Cập nhật thống kê sau khi lọc
+            calculateStats();
+
+            console.log(`Đã tìm thấy ${filteredBookings.length} đơn đặt phòng từ ${startDateStr} đến ${endDateStr}`);
+        } catch (error) {
+            console.error('Lỗi khi lọc theo ngày:', error);
+        } finally {
+            loading.value = false;
+        }
+    } else {
+        // Khôi phục dữ liệu gốc
+        if (window._originalBookings) {
+            bookings.value = [...window._originalBookings];
+            window._originalBookings = null;
+            calculateStats();
+        } else {
+            fetchAllBookings();
+        }
     }
 };
 
 // Hàm lọc theo trạng thái
 const filterByStatus = () => {
     if (selectedStatus.value) {
-        fetchBookingsByStatus(selectedStatus.value);
+        loading.value = true;
+        try {
+            // Lấy dữ liệu gốc (nếu chưa có)
+            if (!bookings.value || bookings.value.length === 0) {
+                fetchAllBookings().then(() => {
+                    applyStatusFilter();
+                });
+            } else {
+                applyStatusFilter();
+            }
+        } finally {
+            loading.value = false;
+        }
     } else {
         fetchAllBookings();
     }
 };
 
-// Hàm lọc theo người dùng
-const filterByUser = () => {
-    if (userId.value) {
-        fetchUserBookings(userId.value);
+// Hàm áp dụng bộ lọc trạng thái
+const applyStatusFilter = () => {
+    // Lưu trữ dữ liệu gốc nếu chưa có
+    if (!window._originalBookings) {
+        window._originalBookings = [...bookings.value];
+    }
+
+    // Lọc theo trạng thái
+    const filteredBookings = window._originalBookings.filter(booking =>
+        booking.status === selectedStatus.value
+    );
+
+    // Cập nhật danh sách hiển thị
+    bookings.value = filteredBookings;
+    // Cập nhật thống kê sau khi lọc
+    calculateStats();
+
+    console.log(`Đã tìm thấy ${filteredBookings.length} đơn đặt phòng với trạng thái ${selectedStatus.value}`);
+};
+
+// Hàm lọc theo số điện thoại
+const filterByPhone = async () => {
+    if (phoneFilter.value && phoneFilter.value.trim().length > 0) {
+        loading.value = true;
+        try {
+            // Lưu trữ dữ liệu gốc nếu chưa có
+            if (!window._originalBookings) {
+                window._originalBookings = [...bookings.value];
+            }
+
+            // Lọc từ dữ liệu gốc
+            const filteredBookings = window._originalBookings.filter(booking =>
+                booking.phone && booking.phone.includes(phoneFilter.value)
+            );
+
+            // Cập nhật danh sách hiển thị
+            bookings.value = filteredBookings;
+            // Cập nhật thống kê sau khi lọc
+            calculateStats();
+
+            console.log(`Đã tìm thấy ${filteredBookings.length} đơn đặt phòng với số điện thoại ${phoneFilter.value}`);
+        } catch (error) {
+            console.error('Lỗi khi lọc đặt phòng:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: 'Không thể lọc đặt phòng. Vui lòng thử lại sau.',
+                life: 3000
+            });
+        } finally {
+            loading.value = false;
+        }
     } else {
-        fetchAllBookings();
+        // Nếu xóa hết số điện thoại, khôi phục dữ liệu gốc
+        if (window._originalBookings) {
+            bookings.value = [...window._originalBookings];
+            window._originalBookings = null;
+            calculateStats();
+        } else {
+            fetchAllBookings();
+        }
+    }
+};
+
+// Thêm hàm để tính thống kê từ dữ liệu hiện tại
+const calculateStats = () => {
+    // Tính toán số lượng đơn theo từng trạng thái
+    const pendingCount = bookings.value.filter(b => b.status === 'PENDING').length;
+    const confirmedCount = bookings.value.filter(b => b.status === 'CONFIRMED').length;
+    const checkedInCount = bookings.value.filter(b => b.status === 'CHECKED_IN').length;
+    const completedCount = bookings.value.filter(b => b.status === 'COMPLETED').length;
+    const cancelledCount = bookings.value.filter(b => b.status === 'CANCELLED').length;
+
+    // Tính doanh thu từ các đơn đã thanh toán
+    const totalRevenue = bookings.value
+        .filter(b => b.paymentStatus === 'PAID')
+        .reduce((sum, booking) => sum + parseFloat(booking.finalPrice || 0), 0);
+
+    // Cập nhật đối tượng stats
+    stats.value = {
+        totalBookings: bookings.value.length,
+        pendingBookings: pendingCount,
+        confirmedBookings: confirmedCount,
+        checkedInBookings: checkedInCount,
+        completedBookings: completedCount,
+        cancelledBookings: cancelledCount,
+        totalRevenue: totalRevenue
+    };
+};
+
+// Thêm hàm để xử lý khi click vào các ô thống kê
+const handleFilterByStatus = (status) => {
+    selectedStatus.value = status;
+    if (status === null) {
+        // Khôi phục dữ liệu gốc nếu có
+        if (window._originalBookings) {
+            bookings.value = [...window._originalBookings];
+            window._originalBookings = null;
+            calculateStats(); // Sử dụng hàm tính toán thống kê mới
+        } else {
+            fetchAllBookings();
+        }
+    } else {
+        filterByStatus();
+        calculateStats(); // Sử dụng hàm tính toán thống kê mới
     }
 };
 
@@ -464,7 +596,16 @@ const resetFilters = () => {
     dateRange.value = { start: null, end: null };
     selectedStatus.value = null;
     userId.value = null;
-    fetchAllBookings();
+    phoneFilter.value = '';
+
+    // Khôi phục dữ liệu gốc nếu có
+    if (window._originalBookings) {
+        bookings.value = [...window._originalBookings];
+        window._originalBookings = null;
+        calculateStats(); // Sử dụng hàm tính toán thống kê mới
+    } else {
+        fetchAllBookings();
+    }
 };
 
 // Thêm hàm để xử lý xuất dữ liệu
@@ -556,17 +697,19 @@ const handleCheckOutBooking = async (data) => {
         </div>
 
         <!-- Dashboard thống kê -->
-        <BookingStats :stats="stats" :formatCurrency="formatCurrency" />
+        <BookingStats :stats="stats" :formatCurrency="formatCurrency" @filterByStatus="handleFilterByStatus" />
 
         <!-- Bộ lọc + Nút chức năng + Tìm kiếm -->
         <BookingFilters
             :statuses="statuses"
             v-model:dateRange="dateRange"
             v-model:selectedStatus="selectedStatus"
+            v-model:phoneFilter="phoneFilter"
             :globalFilter="filters.global"
             @update:globalFilter="(val) => (filters.global = val)"
             @filter-by-date-range="filterByDateRange"
             @filter-by-status="filterByStatus"
+            @filter-by-phone="filterByPhone"
             @reset-filters="resetFilters"
             @add-new="openNew"
             @delete-selected="deleteSelectedBookings"
