@@ -56,6 +56,9 @@ function setChartData() {
                 borderRadius: {
                     topLeft: 8,
                     topRight: 8
+                },
+                datalabels: {
+                    display: false // Ẩn labels ở cấp dataset
                 }
             }
         ]
@@ -85,6 +88,10 @@ function setChartOptions() {
                         }).format(value);
                     }
                 }
+            },
+            datalabels: {
+                display: false, // Ẩn tất cả datalabels
+                formatter: () => ''  // Không hiển thị giá trị nào
             }
         },
         scales: {
