@@ -94,13 +94,6 @@ const days = computed(() => {
     return Math.max(1, Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
 });
 
-// Tạo mảng các độ tuổi từ 0-17
-const ageOptions = computed(() => {
-    return Array.from({ length: 18 }, (_, i) => ({
-        label: `${i} tuổi`,
-        value: i
-    }));
-});
 
 // Tính tổng tiền đặt phòng - cập nhật theo độ tuổi trẻ em
 const totalPrice = computed(() => {
@@ -668,6 +661,46 @@ const loadRoomData = async () => {
 
         if (roomData) {
             room.value = roomData;
+
+            // Kiểm tra và điều chỉnh số khách nếu vượt quá giới hạn
+            let totalRequestedGuests = booking.value.adults + booking.value.children;
+
+            if (totalRequestedGuests > roomData.maxOccupancy) {
+                // Lưu giá trị trước khi điều chỉnh để hiển thị thông báo
+                const originalAdults = booking.value.adults;
+                const originalChildren = booking.value.children;
+
+                // Ưu tiên giữ người lớn trước
+                if (booking.value.adults > roomData.maxOccupancy) {
+                    booking.value.adults = roomData.maxOccupancy;
+                    booking.value.children = 0;
+                } else {
+                    // Giữ số người lớn và điều chỉnh số trẻ em
+                    booking.value.children = Math.max(0, roomData.maxOccupancy - booking.value.adults);
+                }
+
+                // Điều chỉnh mảng tuổi trẻ em
+                booking.value.childrenAges = booking.value.childrenAges.slice(0, booking.value.children);
+
+                // Hiển thị thông báo
+                toast.add({
+                    severity: 'warn',
+                    summary: 'Số khách đã được điều chỉnh',
+                    detail: `Phòng này chỉ cho phép tối đa ${roomData.maxOccupancy} người. Số khách đã được điều chỉnh từ ${originalAdults} người lớn, ${originalChildren} trẻ em xuống ${booking.value.adults} người lớn, ${booking.value.children} trẻ em.`,
+                    life: 7000
+                });
+
+                // Cập nhật URL để phản ánh thay đổi
+                router.replace({
+                    path: route.path,
+                    query: {
+                        ...route.query,
+                        adults: booking.value.adults,
+                        children: booking.value.children,
+                        childrenAges: booking.value.childrenAges.join(',')
+                    }
+                });
+            }
 
             // Xử lý ảnh
             if (roomData.images && roomData.images.length > 0) {

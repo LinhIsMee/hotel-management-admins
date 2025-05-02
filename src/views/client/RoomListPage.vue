@@ -260,7 +260,30 @@ const filteredRooms = computed(() => {
       return false;
     }
 
-    // Lọc theo số người
+    // Tính toán số lượng người thực tế dựa trên độ tuổi
+    let effectiveOccupancy = filters.value.adults;
+
+    // Tính cả trẻ em theo độ tuổi
+    if (filters.value.childrenAges && filters.value.childrenAges.length > 0) {
+      filters.value.childrenAges.forEach(age => {
+        // Trẻ em 0-6 tuổi: không tính vào sức chứa
+        // Trẻ em 7 tuổi trở lên: tính như 1 người khi xét sức chứa
+        if (age >= 7) {
+          effectiveOccupancy += 1;
+        }
+      });
+    } else if (filters.value.children > 0) {
+      // Nếu không có thông tin tuổi nhưng có số lượng trẻ em, tính tất cả trẻ em vào sức chứa
+      // Đây là trường hợp xử lý khi người dùng chưa chọn tuổi cụ thể cho trẻ
+      effectiveOccupancy += filters.value.children;
+    }
+
+    // Lọc theo số người thực tế, tính cả trẻ em theo độ tuổi
+    if (effectiveOccupancy > room.maxOccupancy) {
+      return false;
+    }
+
+    // Lọc theo số người từ bộ lọc nâng cao (nếu có)
     if (filters.value.occupancy.length > 0 && !filters.value.occupancy.some(occ => room.maxOccupancy >= occ)) {
       return false;
     }
