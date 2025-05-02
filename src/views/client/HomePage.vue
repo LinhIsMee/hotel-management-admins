@@ -49,6 +49,17 @@ async function fetchRoomRatings(roomId) {
     }
 }
 
+// Hàm lấy đánh giá theo số phòng
+async function fetchRoomReviewsByNumber(roomNumber) {
+    try {
+        const response = await axios.get(`http://127.0.0.1:9000/api/v1/reviews/room/number/${roomNumber}`);
+        return response.data;
+    } catch (error) {
+        console.error(`Lỗi khi lấy đánh giá cho phòng số ${roomNumber}:`, error);
+        return [];
+    }
+}
+
 onMounted(async () => {
     try {
         // Gọi API lấy phòng nổi bật
@@ -56,9 +67,16 @@ onMounted(async () => {
 
         // Gán ảnh từ mảng có sẵn và lấy đánh giá cho mỗi phòng
         const roomsWithRatings = await Promise.all(response.data.map(async (room, index) => {
+            // Lấy đánh giá theo ID
             const ratings = await fetchRoomRatings(room.id);
-            const averageRating = ratings.length > 0
-                ? ratings.reduce((acc, curr) => acc + curr.stars, 0) / ratings.length
+
+            // Lấy đánh giá theo số phòng
+            const reviews = await fetchRoomReviewsByNumber(room.roomNumber);
+
+            // Tính điểm trung bình từ cả reviews và ratings
+            const allRatings = [...ratings, ...reviews.map(review => ({ stars: review.rating || review.stars || 0 }))];
+            const averageRating = allRatings.length > 0
+                ? allRatings.reduce((acc, curr) => acc + (curr.stars || curr.rating || 0), 0) / allRatings.length
                 : 0;
 
             return {
@@ -66,8 +84,9 @@ onMounted(async () => {
                 imageUrl: availableImages[index % 3],
                 description: room.notes || room.specialFeatures || `${room.roomTypeName} - ${room.roomNumber}`,
                 ratings: ratings,
+                reviews: reviews,
                 averageRating: averageRating,
-                totalReviews: ratings.length
+                totalReviews: allRatings.length
             };
         }));
 
