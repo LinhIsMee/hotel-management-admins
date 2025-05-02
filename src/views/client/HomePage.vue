@@ -3,9 +3,10 @@ import nha_nghi_1 from '@/assets/images/nha-nghi-1.webp';
 import nha_nghi_2 from '@/assets/images/nha-nghi-2.webp';
 import nha_nghi_3 from '@/assets/images/nha-nghi-3.webp';
 import { useHead } from '@vueuse/head';
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import GuestSelector from '@/components/client/GuestSelector.vue';
 
 const router = useRouter();
 const featuredRooms = ref([]);
@@ -20,22 +21,11 @@ const searchForm = ref({
     checkOut: null,
     adults: 2,
     children: 0,
-    childrenAgeRange: {
-        from: 1,
-        to: 3
-    }
+    childrenAges: [] // Mảng lưu tuổi của từng trẻ em
 });
 
 // Điều khiển hiển thị dropdown chọn khách
 const showGuestSelect = ref(false);
-
-// Tạo mảng các độ tuổi từ 1-17
-const ageOptions = computed(() => {
-    return Array.from({ length: 17 }, (_, i) => ({
-        label: `${i + 1} tuổi`,
-        value: i + 1
-    }));
-});
 
 // Thiết lập meta tags cho trang chủ
 useHead({
@@ -90,9 +80,11 @@ onMounted(async () => {
 
     // Click outside để đóng dropdown
     document.addEventListener('click', (e) => {
-        const dropdown = document.querySelector('.guest-select-dropdown');
-        const button = document.querySelector('.guest-select-button');
-        if (dropdown && !dropdown.contains(e.target) && !button?.contains(e.target)) {
+        const dropdownButton = document.querySelector('.guest-select-button');
+        if (showGuestSelect.value && dropdownButton &&
+            !dropdownButton.contains(e.target) &&
+            !e.target.closest('.guest-selector') &&
+            !e.target.closest('.p-dropdown-panel, .p-datepicker-panel')) {
             showGuestSelect.value = false;
         }
     });
@@ -106,7 +98,7 @@ const navigateToRoomList = () => {
     router.push('/rooms');
 };
 
-// Cập nhật hàm searchRooms để gửi thông tin khoảng tuổi
+// Cập nhật hàm searchRooms để gửi thông tin tuổi của từng trẻ em
 function searchRooms() {
     if (!searchForm.value.checkIn || !searchForm.value.checkOut) {
         return;
@@ -119,8 +111,7 @@ function searchRooms() {
             checkOut: formatDate(searchForm.value.checkOut),
             adults: searchForm.value.adults,
             children: searchForm.value.children,
-            childrenAgeFrom: searchForm.value.childrenAgeRange.from,
-            childrenAgeTo: searchForm.value.childrenAgeRange.to
+            childrenAges: searchForm.value.childrenAges.join(',')
         }
     });
 }
@@ -140,7 +131,6 @@ function handleBookNow(event) {
     emit('show-login');
 }
 
-// Thêm hàm đánh giá vào phần script
 // Hàm chuyển đổi điểm số thành text
 function getRatingText(rating) {
     if (!rating) return 'Chưa đánh giá';
@@ -195,90 +185,41 @@ function getRatingText(rating) {
                         <!-- Số lượng khách và tuổi -->
                         <div class="md:col-span-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Khách và trẻ em</label>
-                            <div class="relative">
+                            <div class="relative overflow-visible" style="z-index: 100;">
                                 <button @click="showGuestSelect = !showGuestSelect"
-                                    class="w-full bg-white border rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-blue-500 focus:outline-none focus:border-blue-500">
+                                    class="guest-select-button w-full bg-white border rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-blue-500 focus:outline-none focus:border-blue-500">
                                     <span class="text-gray-700">
-                                        {{ searchForm.adults }} người lớn{{ searchForm.children ? `,
-                                        ${searchForm.children} trẻ em` : '' }}
+                                        {{ searchForm.adults }} người lớn{{ searchForm.children ? `, ${searchForm.children} trẻ em` : '' }}
                                     </span>
                                     <i class="pi pi-chevron-down text-gray-400"></i>
                                 </button>
 
-                                <!-- Dropdown chọn số lượng -->
+                                <!-- GuestSelector hiển thị ở giữa màn hình như một modal khi trên mobile -->
                                 <div v-if="showGuestSelect"
-                                    class="absolute top-full left-0 w-full mt-2 bg-white border rounded-lg shadow-lg p-4 z-50">
-                                    <!-- Người lớn -->
-                                    <div class="flex items-center justify-between mb-4">
-                                        <div>
-                                            <div class="font-medium">Người lớn</div>
-                                            <div class="text-sm text-gray-500">Từ 13 tuổi trở lên</div>
-                                        </div>
-                                        <div class="flex items-center gap-3">
-                                            <button
-                                                class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                                                :class="{ 'opacity-50 cursor-not-allowed': searchForm.adults <= 1 }"
-                                                @click="searchForm.adults = Math.max(1, searchForm.adults - 1)"
-                                                :disabled="searchForm.adults <= 1">
-                                                <i class="pi pi-minus text-sm"></i>
-                                            </button>
-                                            <span class="w-6 text-center">{{ searchForm.adults }}</span>
-                                            <button
-                                                class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                                                :class="{ 'opacity-50 cursor-not-allowed': searchForm.adults >= 5 }"
-                                                @click="searchForm.adults = Math.min(5, searchForm.adults + 1)"
-                                                :disabled="searchForm.adults >= 5">
-                                                <i class="pi pi-plus text-sm"></i>
-                                            </button>
-                                        </div>
-                                    </div>
+                                     class="absolute left-0 top-full mt-2 z-50 md:block hidden">
+                                    <GuestSelector
+                                        v-model:adults="searchForm.adults"
+                                        v-model:children="searchForm.children"
+                                        v-model:childrenAges="searchForm.childrenAges"
+                                        :maxOccupancy="5"
+                                        position="bottom"
+                                        @close="showGuestSelect = false"
+                                    />
+                                </div>
 
-                                    <!-- Trẻ em -->
-                                    <div class="flex items-center justify-between mb-4">
-                                        <div>
-                                            <div class="font-medium">Trẻ em</div>
-                                            <div class="text-sm text-gray-500">Độ tuổi 0-12</div>
-                                        </div>
-                                        <div class="flex items-center gap-3">
-                                            <button
-                                                class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                                                :class="{ 'opacity-50 cursor-not-allowed': searchForm.children <= 0 }"
-                                                @click="searchForm.children = Math.max(0, searchForm.children - 1)"
-                                                :disabled="searchForm.children <= 0">
-                                                <i class="pi pi-minus text-sm"></i>
-                                            </button>
-                                            <span class="w-6 text-center">{{ searchForm.children }}</span>
-                                            <button
-                                                class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                                                :class="{ 'opacity-50 cursor-not-allowed': searchForm.children >= 4 }"
-                                                @click="searchForm.children = Math.min(4, searchForm.children + 1)"
-                                                :disabled="searchForm.children >= 4">
-                                                <i class="pi pi-plus text-sm"></i>
-                                            </button>
-                                        </div>
+                                <!-- Hiển thị dạng modal trên mobile -->
+                                <div v-if="showGuestSelect"
+                                     class="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:hidden">
+                                    <div class="fixed inset-0 bg-black bg-opacity-30" @click="showGuestSelect = false"></div>
+                                    <div class="relative z-[1001]">
+                                        <GuestSelector
+                                            v-model:adults="searchForm.adults"
+                                            v-model:children="searchForm.children"
+                                            v-model:childrenAges="searchForm.childrenAges"
+                                            :maxOccupancy="5"
+                                            @close="showGuestSelect = false"
+                                        />
                                     </div>
-
-                                    <!-- Độ tuổi trẻ em -->
-                                    <div v-if="searchForm.children > 0">
-                                        <div class="text-sm font-medium text-gray-700 mb-2">Độ tuổi trẻ em</div>
-                                        <div class="grid grid-cols-2 gap-3">
-                                            <Dropdown v-model="searchForm.childrenAgeRange.from" :options="ageOptions"
-                                                optionLabel="label" optionValue="value" placeholder="Từ"
-                                                class="w-full" />
-                                            <Dropdown v-model="searchForm.childrenAgeRange.to"
-                                                :options="ageOptions.filter(age => age.value >= searchForm.childrenAgeRange.from)"
-                                                optionLabel="label" optionValue="value" placeholder="Đến"
-                                                class="w-full" />
-                                        </div>
-                                        <div class="text-xs text-gray-500 mt-2">
-                                            Để tìm chỗ nghỉ phù hợp với cả nhóm của bạn cùng mức giá chính xác
-                                        </div>
-                                    </div>
-
-                                    <button @click="showGuestSelect = false"
-                                        class="w-full mt-4 bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition-colors">
-                                        Xong
-                                    </button>
                                 </div>
                             </div>
                         </div>

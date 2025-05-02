@@ -26,6 +26,13 @@ import Accordion from 'primevue/accordion';
 import AccordionTab from 'primevue/accordiontab';
 import Chart from 'primevue/chart';
 
+// Import ChartJS plugins
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { Chart as ChartJS } from 'chart.js';
+
+// Register ChartJS plugins
+ChartJS.register(ChartDataLabels);
+
 import '@/assets/styles.scss';
 import './assets/styles/main.css';
 

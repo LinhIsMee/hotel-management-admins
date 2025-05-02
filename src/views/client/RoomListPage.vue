@@ -4,6 +4,7 @@ import { useHead } from '@vueuse/head';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
+import GuestSelector from '@/components/client/GuestSelector.vue';
 
 // Import PrimeVue components
 import InputNumber from 'primevue/inputnumber';
@@ -40,10 +41,7 @@ const filters = ref({
   checkOut: null,
   adults: 2,
   children: 0,
-  childrenAgeRange: {
-    from: 1,
-    to: 3
-  },
+  childrenAges: [], // Mảng lưu tuổi của từng trẻ em
   occupancy: [],
   roomType: [],
   amenities: []
@@ -63,11 +61,11 @@ const occupancyOptions = ref([
   { label: '4+ người', value: 4 }
 ]);
 
-// Tạo mảng các độ tuổi từ 1-17
+// Tạo mảng các độ tuổi từ 0-17
 const ageOptions = computed(() => {
-  return Array.from({ length: 17 }, (_, i) => ({
-    label: `${i + 1} tuổi`,
-    value: i + 1
+  return Array.from({ length: 18 }, (_, i) => ({
+    label: `${i} tuổi`,
+    value: i
   }));
 });
 
@@ -342,6 +340,14 @@ onMounted(async () => {
     filters.value.children = parseInt(route.query.children);
   }
 
+  // Xử lý danh sách tuổi trẻ em từ query parameter
+  if (route.query.childrenAges) {
+    filters.value.childrenAges = route.query.childrenAges.split(',').map(age => parseInt(age));
+  } else {
+    // Khởi tạo mảng trống nếu không có dữ liệu
+    filters.value.childrenAges = Array(filters.value.children).fill(0);
+  }
+
   // Tải danh sách tiện nghi từ API
   await fetchAmenities();
 
@@ -353,9 +359,11 @@ onMounted(async () => {
 
   // Click outside để đóng dropdown
   document.addEventListener('click', (e) => {
-    const dropdown = document.querySelector('.guest-select-dropdown');
     const button = document.querySelector('.guest-select-button');
-    if (dropdown && !dropdown.contains(e.target) && !button?.contains(e.target)) {
+    if (showGuestSelect.value && button &&
+        !button.contains(e.target) &&
+        !e.target.closest('.guest-selector') &&
+        !e.target.closest('.p-dropdown-panel, .p-datepicker-panel, .p-multiselect-panel')) {
       showGuestSelect.value = false;
     }
   });
@@ -393,7 +401,8 @@ const updateSearch = () => {
       checkIn: filters.value.checkIn ? formatDate(filters.value.checkIn) : undefined,
       checkOut: filters.value.checkOut ? formatDate(filters.value.checkOut) : undefined,
       adults: filters.value.adults || undefined,
-      children: filters.value.children || undefined
+      children: filters.value.children || undefined,
+      childrenAges: filters.value.childrenAges.length > 0 ? filters.value.childrenAges.join(',') : undefined
     }
   });
 
@@ -408,7 +417,8 @@ const navigateToDetail = (roomId) => {
       checkIn: filters.value.checkIn ? formatDate(filters.value.checkIn) : undefined,
       checkOut: filters.value.checkOut ? formatDate(filters.value.checkOut) : undefined,
       adults: filters.value.adults || undefined,
-      children: filters.value.children || undefined
+      children: filters.value.children || undefined,
+      childrenAges: filters.value.childrenAges.length > 0 ? filters.value.childrenAges.join(',') : undefined
     }
   });
 };
@@ -422,10 +432,7 @@ const resetFilters = () => {
     checkOut: null,
     adults: 2,
     children: 0,
-    childrenAgeRange: {
-      from: 1,
-      to: 3
-    },
+    childrenAges: [],
     occupancy: [],
     roomType: [],
     amenities: []
@@ -475,7 +482,7 @@ useHead({
           </div>
           <div>
             <label class="block text-gray-700 font-medium mb-2">Khách và trẻ em</label>
-            <div class="relative">
+            <div class="relative overflow-visible" style="z-index: 100;">
               <button @click="showGuestSelect = !showGuestSelect"
                 class="guest-select-button w-full bg-white border rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-blue-500 focus:outline-none focus:border-blue-500">
                 <span class="text-gray-700">
@@ -484,76 +491,32 @@ useHead({
                 <i class="pi pi-chevron-down text-gray-400"></i>
               </button>
 
-              <!-- Dropdown chọn số lượng -->
+              <!-- GuestSelector hiển thị ở giữa màn hình như một modal khi trên mobile -->
               <div v-if="showGuestSelect"
-                class="guest-select-dropdown absolute top-full left-0 w-[300px] mt-2 bg-white border rounded-lg shadow-lg p-4 z-50">
-                <!-- Người lớn -->
-                <div class="flex items-center justify-between mb-4">
-                  <div>
-                    <div class="font-medium">Người lớn</div>
-                    <div class="text-sm text-gray-500">Từ 13 tuổi trở lên</div>
-                  </div>
-                  <div class="flex items-center gap-3">
-                    <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                      :class="{ 'opacity-50 cursor-not-allowed': filters.adults <= 1 }"
-                      @click="filters.adults = Math.max(1, filters.adults - 1)"
-                      :disabled="filters.adults <= 1">
-                      <i class="pi pi-minus text-sm"></i>
-                    </button>
-                    <span class="w-6 text-center">{{ filters.adults }}</span>
-                    <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                      :class="{ 'opacity-50 cursor-not-allowed': filters.adults >= 5 }"
-                      @click="filters.adults = Math.min(5, filters.adults + 1)"
-                      :disabled="filters.adults >= 5">
-                      <i class="pi pi-plus text-sm"></i>
-                    </button>
-                  </div>
-                </div>
+                   class="absolute left-0 top-full mt-2 z-50 md:block hidden">
+                <GuestSelector
+                  v-model:adults="filters.adults"
+                  v-model:children="filters.children"
+                  v-model:childrenAges="filters.childrenAges"
+                  :maxOccupancy="5"
+                  position="bottom"
+                  @close="showGuestSelect = false; updateSearch()"
+                />
+              </div>
 
-                <!-- Trẻ em -->
-                <div class="flex items-center justify-between mb-4">
-                  <div>
-                    <div class="font-medium">Trẻ em</div>
-                    <div class="text-sm text-gray-500">Độ tuổi 0-12</div>
-                  </div>
-                  <div class="flex items-center gap-3">
-                    <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                      :class="{ 'opacity-50 cursor-not-allowed': filters.children <= 0 }"
-                      @click="filters.children = Math.max(0, filters.children - 1)"
-                      :disabled="filters.children <= 0">
-                      <i class="pi pi-minus text-sm"></i>
-                    </button>
-                    <span class="w-6 text-center">{{ filters.children }}</span>
-                    <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                      :class="{ 'opacity-50 cursor-not-allowed': filters.children >= 4 }"
-                      @click="filters.children = Math.min(4, filters.children + 1)"
-                      :disabled="filters.children >= 4">
-                      <i class="pi pi-plus text-sm"></i>
-                    </button>
-                  </div>
+              <!-- Hiển thị dạng modal trên mobile -->
+              <div v-if="showGuestSelect"
+                   class="fixed inset-0 z-[1000] flex items-center justify-center p-4 md:hidden">
+                <div class="fixed inset-0 bg-black bg-opacity-30" @click="showGuestSelect = false"></div>
+                <div class="relative z-[1001]">
+                  <GuestSelector
+                    v-model:adults="filters.adults"
+                    v-model:children="filters.children"
+                    v-model:childrenAges="filters.childrenAges"
+                    :maxOccupancy="5"
+                    @close="showGuestSelect = false; updateSearch()"
+                  />
                 </div>
-
-                <!-- Độ tuổi trẻ em -->
-                <div v-if="filters.children > 0">
-                  <div class="text-sm font-medium text-gray-700 mb-2">Độ tuổi trẻ em</div>
-                  <div class="grid grid-cols-2 gap-3">
-                    <Dropdown v-model="filters.childrenAgeRange.from" :options="ageOptions"
-                      optionLabel="label" optionValue="value" placeholder="Từ"
-                      class="w-full" />
-                    <Dropdown v-model="filters.childrenAgeRange.to"
-                      :options="ageOptions.filter(age => age.value >= filters.childrenAgeRange.from)"
-                      optionLabel="label" optionValue="value" placeholder="Đến"
-                      class="w-full" />
-                  </div>
-                  <div class="text-xs text-gray-500 mt-2">
-                    Để tìm chỗ nghỉ phù hợp với cả nhóm của bạn
-                  </div>
-                </div>
-
-                <button @click="showGuestSelect = false; updateSearch()"
-                  class="w-full mt-4 bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition-colors">
-                  Xong
-                </button>
               </div>
             </div>
           </div>

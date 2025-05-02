@@ -16,6 +16,7 @@
         "@vueuse/head": "^2.0.0",
         "axios": "^1.8.4",
         "chart.js": "3.3.2",
+        "chartjs-plugin-datalabels": "^2.2.0",
         "exceljs": "^4.4.0",
         "file-saver": "^2.0.5",
         "path": "^0.12.7",

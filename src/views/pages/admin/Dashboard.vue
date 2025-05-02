@@ -1,7 +1,5 @@
 <script setup>
 import BestSellingWidget from '@/components/dashboard/BestSellingWidget.vue';
-import NotificationsWidget from '@/components/dashboard/NotificationsWidget.vue';
-import RecentSalesWidget from '@/components/dashboard/RecentSalesWidget.vue';
 import RevenueStreamWidget from '@/components/dashboard/RevenueStreamWidget.vue';
 import StatsWidget from '@/components/dashboard/StatsWidget.vue';
 import BookingStatusWidget from '@/components/dashboard/BookingStatusWidget.vue';
@@ -17,15 +15,12 @@ import RevenueComparisonWidget from '@/components/dashboard/RevenueComparisonWid
 
         <div class="col-span-12 xl:col-span-8">
             <RevenueStreamWidget class="mb-8" />
-            <RecentSalesWidget />
+            <BestSellingWidget />
         </div>
         <div class="col-span-12 xl:col-span-4">
             <RevenueComparisonWidget class="mb-8" />
             <BookingStatusWidget class="mb-8" />
             <ReviewsWidget class="mb-8" />
-        </div>
-        <div class="col-span-12">
-            <BestSellingWidget />
         </div>
     </div>
   </div>

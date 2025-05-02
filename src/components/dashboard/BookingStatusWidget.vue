@@ -45,8 +45,16 @@ function setChartData() {
     const values = Object.values(statusData.value);
     const backgroundColor = Object.keys(statusData.value).map(key => statusColors[key] || '#cbd5e1');
 
+    const total = values.reduce((a, b) => a + b, 0);
+    const percentages = values.map(value => Math.round((value * 100) / total));
+
+    // Tạo label với phần trăm
+    const labelsWithPercentage = labels.map((label, index) =>
+        `${label}: ${percentages[index]}%`
+    );
+
     return {
-        labels: labels,
+        labels: labelsWithPercentage,
         datasets: [
             {
                 data: values,
@@ -90,12 +98,25 @@ function setChartOptions() {
             tooltip: {
                 callbacks: {
                     label: function (context) {
-                        const label = context.label || '';
+                        const label = context.label.split(':')[0] || '';
                         const value = context.raw || 0;
                         const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
                         const percentage = Math.round((value * 100) / total);
                         return `${label}: ${value} (${percentage}%)`;
                     }
+                }
+            },
+            datalabels: {
+                display: true,
+                color: '#ffffff',
+                font: {
+                    weight: 'bold',
+                    size: 12
+                },
+                formatter: (value, ctx) => {
+                    const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = Math.round((value * 100) / total);
+                    return `${percentage}%`;
                 }
             }
         }
@@ -116,11 +137,11 @@ onMounted(async () => {
 
 <template>
     <div class="card">
-        <div class="font-semibold text-xl">Trạng thái đặt phòng</div>
+        <div class="font-semibold text-xl">Trạng thái đặt phòngs</div>
         <div v-if="loading" class="flex justify-center items-center">
             <i class="pi pi-spin pi-spinner text-3xl"></i>
         </div>
-        <div v-else-if="Object.keys(statusData).length === 0" class="flex justify-center items-center  text-gray-500">
+        <div v-else-if="Object.keys(statusData).length === 0" class="flex justify-center items-center text-gray-500">
             Không có dữ liệu trạng thái đặt phòng
         </div>
         <Chart v-else type="pie" :data="chartData" :options="chartOptions" class="" />

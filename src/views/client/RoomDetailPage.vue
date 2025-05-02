@@ -14,6 +14,7 @@ import Textarea from 'primevue/textarea';
 import { useToast } from 'primevue';
 import Accordion from 'primevue/accordion';
 import AccordionTab from 'primevue/accordiontab';
+import GuestSelector from '@/components/client/GuestSelector.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -45,6 +46,7 @@ const booking = ref({
     checkOutDate: null,
     adults: 1,
     children: 0,
+    childrenAges: [], // Mảng lưu tuổi của từng trẻ em
     specialRequests: '',
     payViaVnpay: false,
     discountCode: '',
@@ -92,15 +94,37 @@ const days = computed(() => {
     return Math.max(1, Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
 });
 
-// Tính tổng tiền đặt phòng
+// Tạo mảng các độ tuổi từ 0-17
+const ageOptions = computed(() => {
+    return Array.from({ length: 18 }, (_, i) => ({
+        label: `${i} tuổi`,
+        value: i
+    }));
+});
+
+// Tính tổng tiền đặt phòng - cập nhật theo độ tuổi trẻ em
 const totalPrice = computed(() => {
     if (!room.value || !booking.value.checkInDate || !booking.value.checkOutDate) return 0;
 
     // Tính giá người lớn
     const adultPrice = room.value.pricePerNight * booking.value.adults * days.value;
 
-    // Tính giá trẻ em (giảm 20%)
-    const childPrice = room.value.pricePerNight * 0.8 * booking.value.children * days.value;
+    // Tính giá trẻ em dựa trên độ tuổi
+    let childPrice = 0;
+    if (booking.value.childrenAges && booking.value.childrenAges.length > 0) {
+        booking.value.childrenAges.forEach(age => {
+            if (age <= 6) {
+                // Trẻ em 0-6 tuổi: miễn phí
+                childPrice += 0;
+            } else if (age <= 11) {
+                // Trẻ em 7-11 tuổi: giảm 50%
+                childPrice += room.value.pricePerNight * 0.5 * days.value;
+            } else {
+                // Từ 12 tuổi trở lên: tính như người lớn (không nên xảy ra vì đã phân loại là người lớn)
+                childPrice += room.value.pricePerNight * days.value;
+            }
+        });
+    }
 
     // Tổng tiền phòng
     let roomTotal = adultPrice + childPrice;
@@ -316,6 +340,7 @@ const prepareBookingData = () => {
         checkOutDate: formatDate(booking.value.checkOutDate),
         adults: booking.value.adults,
         children: booking.value.children,
+        childrenAges: booking.value.childrenAges,
         specialRequests: booking.value.specialRequests,
         totalPrice: totalPrice.value,
         discountCode: discountStatus.value.applied ? booking.value.discountCode : null,
@@ -350,6 +375,7 @@ const handleBooking = () => {
             checkOut: formatDate(booking.value.checkOutDate),
             adults: booking.value.adults,
             children: booking.value.children,
+            childrenAges: booking.value.childrenAges.join(','),
             services: booking.value.services.join(','),
             discount: booking.value.discountCode,
             payment: booking.value.payViaVnpay ? 'vnpay' : 'cash'
@@ -626,6 +652,16 @@ const loadRoomData = async () => {
         if (route.query.adults) {
             booking.value.adults = parseInt(route.query.adults);
         }
+        if (route.query.children) {
+            booking.value.children = parseInt(route.query.children);
+        }
+        // Xử lý danh sách tuổi trẻ em từ query parameter
+        if (route.query.childrenAges) {
+            booking.value.childrenAges = route.query.childrenAges.split(',').map(age => parseInt(age));
+        } else {
+            // Khởi tạo mảng trống hoặc với giá trị mặc định nếu có trẻ em
+            booking.value.childrenAges = Array(booking.value.children).fill(0);
+        }
 
         // Tải thông tin chi tiết phòng từ API
         const roomData = await fetchRoomById(roomId.value);
@@ -702,11 +738,14 @@ onMounted(async () => {
     await loadRoomData();
     await checkUserBookings();
 
-    // Click outside để đóng dropdown
+    // Click outside để đóng dropdown - cập nhật để không đóng khi chọn tuổi trẻ em
     document.addEventListener('click', (e) => {
         const dropdown = document.querySelector('.guest-select-dropdown');
         const button = document.querySelector('.guest-select-button');
-        if (dropdown && !dropdown.contains(e.target) && !button?.contains(e.target)) {
+        if (showGuestSelect.value && button &&
+            !button.contains(e.target) &&
+            !e.target.closest('.guest-selector') &&
+            !e.target.closest('.p-dropdown-panel')) {
             showGuestSelect.value = false;
         }
     });
@@ -1006,80 +1045,30 @@ const minCheckOutDate = computed(() => {
                         </div>
 
                         <div class="mb-4">
-                                        <label class="block text-gray-700 mb-1">Số khách</label>
-                                        <div class="relative">
-                                            <button @click="showGuestSelect = !showGuestSelect"
-                                                class="guest-select-button w-full bg-white border rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-amber-500 focus:outline-none focus:border-amber-500">
-                                                <span class="text-gray-700">
-                                                    {{ booking.adults }} người lớn{{ booking.children ? `, ${booking.children} trẻ em` : '' }}
-                                                </span>
-                                                <i class="pi pi-chevron-down text-gray-400"></i>
-                                            </button>
+                            <label class="block text-gray-700 mb-1">Số khách</label>
+                            <div class="relative overflow-visible" style="z-index: 100;">
+                                <button @click="showGuestSelect = !showGuestSelect"
+                                    class="guest-select-button w-full bg-white border rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-amber-500 focus:outline-none focus:border-amber-500">
+                                    <span class="text-gray-700">
+                                        {{ booking.adults }} người lớn{{ booking.children ? `, ${booking.children} trẻ em` : '' }}
+                                    </span>
+                                    <i class="pi pi-chevron-down text-gray-400"></i>
+                                </button>
 
-                                            <!-- Dropdown chọn số lượng -->
-                                            <div v-if="showGuestSelect"
-                                                class="guest-select-dropdown absolute top-full left-0 w-[300px] mt-2 bg-white border rounded-lg shadow-lg p-4 z-50">
-                                                <!-- Thông tin số người tối đa -->
-                                                <div class="text-sm text-gray-500 mb-4">
-                                                    Tối đa {{ room.maxOccupancy }} người
-                                                </div>
-
-                                                <!-- Người lớn -->
-                                                <div class="flex items-center justify-between mb-4">
-                                                    <div>
-                                                        <div class="font-medium">Người lớn</div>
-                                                        <div class="text-sm text-gray-500">Từ 13 tuổi trở lên</div>
-                                                    </div>
-                                                    <div class="flex items-center gap-3">
-                                                        <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                                                            :class="{ 'opacity-50 cursor-not-allowed': booking.adults <= 1 }"
-                                                            @click="booking.adults = Math.max(1, booking.adults - 1)"
-                                                            :disabled="booking.adults <= 1">
-                                                            <i class="pi pi-minus text-sm"></i>
-                                                        </button>
-                                                        <span class="w-6 text-center">{{ booking.adults }}</span>
-                                                        <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                                                            :class="{ 'opacity-50 cursor-not-allowed': totalGuests >= room.maxOccupancy }"
-                                                            @click="booking.adults = Math.min(room.maxOccupancy, booking.adults + 1)"
-                                                            :disabled="totalGuests >= room.maxOccupancy">
-                                                            <i class="pi pi-plus text-sm"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Trẻ em -->
-                                                <div class="flex items-center justify-between mb-4">
-                                                    <div>
-                                                        <div class="font-medium">Trẻ em</div>
-                                                        <div class="text-sm text-gray-500">Độ tuổi 0-12</div>
-                                                    </div>
-                                                    <div class="flex items-center gap-3">
-                                                        <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                                                            :class="{ 'opacity-50 cursor-not-allowed': booking.children <= 0 }"
-                                                            @click="booking.children = Math.max(0, booking.children - 1)"
-                                                            :disabled="booking.children <= 0">
-                                                            <i class="pi pi-minus text-sm"></i>
-                                                        </button>
-                                                        <span class="w-6 text-center">{{ booking.children }}</span>
-                                                        <button class="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-gray-100"
-                                                            :class="{ 'opacity-50 cursor-not-allowed': totalGuests >= room.maxOccupancy }"
-                                                            @click="booking.children = Math.min(room.maxOccupancy - booking.adults, booking.children + 1)"
-                                                            :disabled="totalGuests >= room.maxOccupancy">
-                                                            <i class="pi pi-plus text-sm"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div class="text-xs text-gray-500 mb-4">
-                                                    Trẻ em được giảm giá 20% giá phòng
-                                                </div>
-
-                                                <button @click="showGuestSelect = false"
-                                                    class="w-full mt-2 bg-amber-600 text-white rounded-lg py-2 hover:bg-amber-700 transition-colors">
-                                                    Xong
-                                                </button>
-                                            </div>
-                                        </div>
+                                <!-- GuestSelector hiển thị ở giữa màn hình như một modal -->
+                                <div v-if="showGuestSelect" class="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+                                    <div class="fixed inset-0 bg-black bg-opacity-30" @click="showGuestSelect = false"></div>
+                                    <div class="relative z-[1001]">
+                                        <GuestSelector
+                                            v-model:adults="booking.adults"
+                                            v-model:children="booking.children"
+                                            v-model:childrenAges="booking.childrenAges"
+                                            :maxOccupancy="room ? room.maxOccupancy : 5"
+                                            @close="showGuestSelect = false"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-4">
@@ -1178,10 +1167,25 @@ const minCheckOutDate = computed(() => {
                                     <span class="text-gray-700">Người lớn ({{ booking.adults }}):</span>
                                     <span class="font-semibold">{{ formatCurrency(room.pricePerNight * booking.adults * days) }}</span>
                                 </div>
-                                <div v-if="booking.children > 0" class="flex justify-between">
-                                    <span class="text-gray-700">Trẻ em ({{ booking.children }}, giảm 20%):</span>
-                                    <span class="font-semibold">{{ formatCurrency(room.pricePerNight * 0.8 * booking.children * days) }}</span>
-                                </div>
+                                <!-- Hiện thị chi tiết giá theo từng trẻ em -->
+                                <template v-if="booking.children > 0">
+                                    <div v-for="(age, index) in booking.childrenAges" :key="index" class="flex justify-between">
+                                        <span class="text-gray-700">
+                                            Trẻ em {{ index + 1 }} ({{ age }} tuổi):
+                                        </span>
+                                        <span class="font-semibold">
+                                            <template v-if="age <= 6">
+                                                Miễn phí
+                                            </template>
+                                            <template v-else-if="age <= 11">
+                                                {{ formatCurrency(room.pricePerNight * 0.5 * days) }} (giảm 50%)
+                                            </template>
+                                            <template v-else>
+                                                {{ formatCurrency(room.pricePerNight * days) }}
+                                            </template>
+                                        </span>
+                                    </div>
+                                </template>
                                 <div v-if="booking.services && booking.services.length > 0" class="flex justify-between">
                                 <span class="text-gray-700">Dịch vụ bổ sung:</span>
                                 <span class="font-semibold">{{ formatCurrency(serviceTotal) }}</span>
@@ -1605,5 +1609,10 @@ const minCheckOutDate = computed(() => {
     background: white;
     border: none;
     padding: 0;
+}
+
+/* Thêm style cho backdrop */
+.guest-selector-backdrop {
+    z-index: 1000;
 }
 </style>
