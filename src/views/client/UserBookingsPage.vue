@@ -1,15 +1,57 @@
 <script setup>
 import AuthService from '@/services/AuthService';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 
 const router = useRouter();
 const toast = useToast();
 const bookings = ref([]);
+const allBookings = ref([]);
 const loading = ref(true);
 const currentUser = ref(null);
 const API_BASE_URL = 'http://localhost:9000';
+const selectedStatus = ref('ALL');
+
+// Danh sách các trạng thái đặt phòng
+const bookingStatuses = [
+    { value: 'ALL', label: 'Tất cả' },
+    { value: 'PENDING_GROUP', label: 'Chờ xác nhận' },
+    { value: 'CONFIRMED', label: 'Đã xác nhận' },
+    { value: 'CHECKIN_GROUP', label: 'Đã nhận phòng' },
+    { value: 'CHECKOUT_GROUP', label: 'Đã trả phòng' },
+    { value: 'CANCELLED', label: 'Đã hủy' }
+];
+
+// Lọc danh sách đặt phòng theo trạng thái
+const filteredBookings = computed(() => {
+    if (!allBookings.value || selectedStatus.value === 'ALL') {
+        return allBookings.value;
+    }
+
+    return allBookings.value.filter(booking => {
+        if (selectedStatus.value === 'PENDING_GROUP') {
+            return booking.status === 'NEW' || booking.status === 'PENDING';
+        } else if (selectedStatus.value === 'CHECKIN_GROUP') {
+            return booking.status === 'CHECK_IN' || booking.status === 'CHECKED_IN';
+        } else if (selectedStatus.value === 'CHECKOUT_GROUP') {
+            return booking.status === 'CHECK_OUT' || booking.status === 'COMPLETED';
+        } else {
+            return booking.status === selectedStatus.value;
+        }
+    });
+});
+
+// Cập nhật danh sách hiển thị khi lọc thay đổi
+const updateFilteredBookings = () => {
+    bookings.value = filteredBookings.value;
+};
+
+// Xử lý thay đổi trạng thái lọc
+const handleStatusChange = (event) => {
+    selectedStatus.value = event.value;
+    updateFilteredBookings();
+};
 
 // Hàm lấy token từ localStorage
 const getAuthToken = () => {
@@ -70,7 +112,8 @@ const fetchCurrentUserBookings = async () => {
         const result = await response.json();
         console.log('Dữ liệu booking của người dùng:', result);
 
-        bookings.value = Array.isArray(result) ? result : [];
+        allBookings.value = Array.isArray(result) ? result : [];
+        updateFilteredBookings();
     } catch (error) {
         console.error('Lỗi khi tải dữ liệu đặt phòng:', error);
         toast.add({
@@ -79,6 +122,7 @@ const fetchCurrentUserBookings = async () => {
             detail: error.message || 'Không thể tải danh sách đặt phòng của bạn',
             life: 3000
         });
+        allBookings.value = [];
         bookings.value = [];
     } finally {
         loading.value = false;
@@ -207,7 +251,7 @@ const getRoomNames = (rooms) => {
                 <ProgressSpinner />
             </div>
 
-            <div v-else-if="bookings.length === 0" class="bg-white p-10 rounded-lg shadow-md text-center">
+            <div v-else-if="allBookings.length === 0" class="bg-white p-10 rounded-lg shadow-md text-center">
                 <i class="pi pi-calendar-times text-5xl text-gray-400 mb-4"></i>
                 <h3 class="text-xl font-semibold text-gray-700 mb-2">Bạn chưa có đơn đặt phòng nào</h3>
                 <p class="text-gray-600 mb-4">Hãy khám phá các phòng của chúng tôi và đặt ngay hôm nay!</p>
@@ -217,7 +261,15 @@ const getRoomNames = (rooms) => {
             <div v-else>
                 <div class="bg-white rounded-lg shadow-md overflow-hidden">
                     <div class="p-4 md:p-6 border-b border-gray-200">
-                        <h2 class="text-xl font-semibold text-gray-800">Danh sách đơn đặt phòng của bạn</h2>
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4 md:mb-0">Danh sách đơn đặt phòng của bạn</h2>
+                            <div class="w-full md:w-auto">
+                                <span class="mr-2 text-gray-700">Lọc theo trạng thái:</span>
+                                <Dropdown v-model="selectedStatus" :options="bookingStatuses" optionLabel="label" optionValue="value"
+                                         @change="handleStatusChange" placeholder="Chọn trạng thái"
+                                         class="w-full md:w-60" />
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Card view cho mobile -->
