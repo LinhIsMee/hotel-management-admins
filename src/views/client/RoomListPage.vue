@@ -12,8 +12,6 @@ import Slider from 'primevue/slider';
 import MultiSelect from 'primevue/multiselect';
 import DatePicker from 'primevue/datepicker';
 import Toast from 'primevue/toast';
-import Select from 'primevue/select';
-import Dropdown from 'primevue/dropdown';
 
 const router = useRouter();
 const route = useRoute();
@@ -61,13 +59,6 @@ const occupancyOptions = ref([
   { label: '4+ người', value: 4 }
 ]);
 
-// Tạo mảng các độ tuổi từ 0-17
-const ageOptions = computed(() => {
-  return Array.from({ length: 18 }, (_, i) => ({
-    label: `${i} tuổi`,
-    value: i
-  }));
-});
 
 // Hiển thị dropdown chọn khách
 const showGuestSelect = ref(false);
