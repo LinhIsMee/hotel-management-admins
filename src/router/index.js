@@ -210,12 +210,6 @@ const routes = [
                 component: () => import('@/views/pages/UserList.vue')
             },
             {
-                path: 'employees',
-                name: 'adminEmployees',
-                component: () => import('@/views/pages/EmployeeList.vue'),
-                meta: { requiresAdminAuth: true }
-            },
-            {
                 path: 'rooms',
                 name: 'adminRooms',
                 component: () => import('@/views/pages/RoomList.vue'),

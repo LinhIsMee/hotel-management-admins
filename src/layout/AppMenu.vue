@@ -8,7 +8,6 @@ const route = useRoute();
 const menu = ref([
     { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/admin/dashboard' },
     { label: 'Quản lý người dùng', icon: 'pi pi-fw pi-user', to: '/admin/users' },
-    { label: 'Quản lý nhân viên', icon: 'pi pi-fw pi-id-card', to: '/admin/employees' },
     { label: 'Quản lý đặt phòng', icon: 'pi pi-fw pi-calendar-plus', to: '/admin/bookings' },
     { label: 'Quản lý phòng', icon: 'pi pi-fw pi-home', to: '/admin/rooms' },
     { label: 'Quản lý loại phòng', icon: 'pi pi-fw pi-list', to: '/admin/room-types' },
