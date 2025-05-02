@@ -19,7 +19,7 @@ const availableImages = [nha_nghi_1, nha_nghi_2, nha_nghi_3];
 const searchForm = ref({
     checkIn: null,
     checkOut: null,
-    adults: 2,
+    adults: 1,
     children: 0,
     childrenAges: [] // Mảng lưu tuổi của từng trẻ em
 });
@@ -270,7 +270,7 @@ function getRatingText(rating) {
                         <img :src="room.imageUrl"
                             :alt="`Phòng ${room.name} tại Luxury Hotel - ${room.description.substring(0, 50)}...`"
                             class="w-full h-64 object-cover" loading="lazy" width="600" height="400" />
-                        <div class="p-6">
+                        <div class="p-6 flex flex-col h-[calc(100%-16rem)]">
                             <div class="flex justify-between items-start mb-2">
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
@@ -295,7 +295,7 @@ function getRatingText(rating) {
                                     }).format(room.pricePerNight) }}/đêm
                                 </span>
                             </div>
-                            <p class="text-gray-600 mb-4 line-clamp-2">{{ room.description }}</p>
+
                             <div class="flex flex-wrap gap-2 mb-4">
                                 <span v-for="(amenity, index) in room.amenities.slice(0, 4)" :key="index"
                                     class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs">
@@ -305,8 +305,11 @@ function getRatingText(rating) {
                                     class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs"> +{{
                                     room.amenities.length - 4 }} </span>
                             </div>
+
+                            <p class="text-gray-600 mb-4 line-clamp-2">{{ room.description }}</p>
+
                             <Button label="Xem chi tiết"
-                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium border-blue-600 hover:border-blue-700"
+                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium border-blue-600 hover:border-blue-700 mt-auto"
                                 aria-label="Xem chi tiết phòng" @click="navigateToDetail(room.id)" />
                         </div>
                     </div>

@@ -39,7 +39,7 @@ const filters = ref({
   maxPrice: 5000000,
   checkIn: null,
   checkOut: null,
-  adults: 2,
+  adults: 1,
   children: 0,
   childrenAges: [], // Mảng lưu tuổi của từng trẻ em
   occupancy: [],
@@ -449,7 +449,7 @@ const resetFilters = () => {
     maxPrice: 5000000,
     checkIn: null,
     checkOut: null,
-    adults: 2,
+    adults: 1,
     children: 0,
     childrenAges: [],
     occupancy: [],
