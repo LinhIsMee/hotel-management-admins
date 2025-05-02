@@ -14,7 +14,21 @@ import Textarea from 'primevue/textarea';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
+
+// Lấy phân quyền
+const { userRole, can, refreshRole } = usePermissions();
+
+// Tính toán quyền của người dùng
+const permissions = computed(() => {
+    return {
+        canView: can.view.value,
+        canCreate: can.create.value,
+        canEdit: can.edit.value,
+        canDelete: can.delete.value
+    };
+});
 
 const services = ref([]);
 const loading = ref(true);
@@ -142,6 +156,7 @@ const fetchData = async () => {
 };
 
 onMounted(() => {
+    refreshRole();
     fetchData();
 });
 
@@ -368,6 +383,15 @@ const getSeverity = (available) => {
     <div class="card">
         <Toast />
         <ConfirmDialog></ConfirmDialog>
+
+        <!-- Thông báo phân quyền cho nhân viên -->
+        <div v-if="userRole === 'ROLE_EMPLOYEE'" class="p-3 mb-3 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg">
+            <div class="flex align-items-center">
+                <i class="pi pi-info-circle mr-2"></i>
+                <span>Bạn đang đăng nhập với vai trò <b>Nhân viên</b>. Một số chức năng sẽ bị giới hạn.</span>
+            </div>
+        </div>
+
         <div class="">
             <Toolbar class="mb-4">
                 <template #start>
@@ -377,8 +401,8 @@ const getSeverity = (available) => {
                 </template>
 
                 <template #end>
-                    <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedServices?.length" />
+                    <Button v-if="permissions.canCreate" label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                    <Button v-if="permissions.canDelete" label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedServices?.length" />
                 </template>
             </Toolbar>
 
@@ -409,7 +433,7 @@ const getSeverity = (available) => {
                         <template #empty>Không có dịch vụ nào được tìm thấy.</template>
                         <template #loading>Đang tải dữ liệu dịch vụ. Vui lòng đợi.</template>
 
-                        <Column selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
+                        <Column v-if="permissions.canDelete" selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
 
                         <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
 
@@ -449,8 +473,8 @@ const getSeverity = (available) => {
 
                         <Column exportable="false" style="min-width: 8rem">
                             <template #body="{ data }">
-                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editService(data)" v-tooltip.top="'Sửa dịch vụ'" />
-                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteService(data)" v-tooltip.top="'Xóa dịch vụ'" />
+                                <Button v-if="permissions.canEdit" icon="pi pi-pencil" outlined class="mr-2" @click="editService(data)" v-tooltip.top="'Sửa dịch vụ'" />
+                                <Button v-if="permissions.canDelete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteService(data)" v-tooltip.top="'Xóa dịch vụ'" />
                             </template>
                         </Column>
                     </DataTable>

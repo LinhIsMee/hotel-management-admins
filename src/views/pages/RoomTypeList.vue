@@ -1,7 +1,8 @@
 <script setup>
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
 
 // Import các component PrimeVue
 import Button from 'primevue/button';
@@ -18,6 +19,9 @@ import Textarea from 'primevue/textarea';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 
+// Lấy phân quyền
+const { userRole, can, refreshRole } = usePermissions();
+
 const API_BASE_URL = 'http://localhost:5173';
 const toast = useToast();
 
@@ -32,6 +36,16 @@ const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 const submitted = ref(false);
+
+// Tính toán quyền của người dùng
+const permissions = computed(() => {
+    return {
+        canView: can.view.value,
+        canCreate: can.create.value,
+        canEdit: can.edit.value,
+        canDelete: can.delete.value
+    };
+});
 
 // Hàm helper lấy token từ localStorage
 const getAuthToken = () => {
@@ -124,6 +138,7 @@ const fetchData = async () => {
     }
 };
 onMounted(() => {
+    refreshRole();
     fetchData();
 });
 
@@ -342,6 +357,15 @@ const getSeverity = (status) => {
     <div class="card">
         <Toast />
         <ConfirmDialog></ConfirmDialog>
+
+        <!-- Thông báo phân quyền cho nhân viên -->
+        <div v-if="userRole === 'ROLE_EMPLOYEE'" class="p-3 mb-3 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg">
+            <div class="flex align-items-center">
+                <i class="pi pi-info-circle mr-2"></i>
+                <span>Bạn đang đăng nhập với vai trò <b>Nhân viên</b>. Một số chức năng sẽ bị giới hạn.</span>
+            </div>
+        </div>
+
         <div class="">
             <Toolbar class="mb-4">
                 <template #start>
@@ -351,8 +375,8 @@ const getSeverity = (status) => {
                 </template>
 
                 <template #end>
-                    <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" v-tooltip.top="'Thêm loại phòng mới'" />
-                    <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRoomTypes?.length" v-tooltip.top="'Xóa các loại phòng đã chọn'" />
+                    <Button v-if="permissions.canCreate" label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" v-tooltip.top="'Thêm loại phòng mới'" />
+                    <Button v-if="permissions.canDelete" label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRoomTypes?.length" v-tooltip.top="'Xóa các loại phòng đã chọn'" />
                 </template>
             </Toolbar>
 
@@ -373,7 +397,7 @@ const getSeverity = (status) => {
                 <template #empty>Không có loại phòng nào được tìm thấy.</template>
                 <template #loading>Đang tải dữ liệu loại phòng. Vui lòng đợi.</template>
 
-                <Column selectionMode="multiple" :exportable="false" style="min-width: 3rem"></Column>
+                <Column v-if="permissions.canDelete" selectionMode="multiple" :exportable="false" style="min-width: 3rem"></Column>
 
                 <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
 
@@ -424,8 +448,8 @@ const getSeverity = (status) => {
 
                 <Column :exportable="false" style="min-width: 8rem">
                     <template #body="{ data }">
-                        <Button icon="pi pi-pencil" outlined class="mr-2" @click="editRoomType(data)" v-tooltip.top="'Chỉnh sửa loại phòng'" />
-                        <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteRoomType(data)" v-tooltip.top="'Xóa loại phòng'" />
+                        <Button v-if="permissions.canEdit" icon="pi pi-pencil" outlined class="mr-2" @click="editRoomType(data)" v-tooltip.top="'Chỉnh sửa loại phòng'" />
+                        <Button v-if="permissions.canDelete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteRoomType(data)" v-tooltip.top="'Xóa loại phòng'" />
                     </template>
                 </Column>
             </DataTable>

@@ -1,5 +1,6 @@
 import AuthService from '@/services/AuthService';
 import { createRouter, createWebHistory } from 'vue-router';
+import { usePermissions } from '@/composables/usePermissions';
 
 // Layouts
 import AdminLayout from '@/layout/AdminLayout.vue';
@@ -13,16 +14,25 @@ import ClientLayout from '@/layout/ClientLayout.vue';
 const adminAuthGuard = (to, from, next) => {
     console.log('Admin Auth Guard - Checking authentication');
 
-    if (AuthService.isAdminAuthenticated()) {
-        console.log('Admin authenticated, proceeding to', to.path);
-        next();
-    } else {
-        console.log('Admin not authenticated, redirecting to login');
-        next({
-            path: '/auth/login',
-            query: { redirect: to.fullPath }
-        });
+    const adminInfo = localStorage.getItem('admin_token');
+    if (adminInfo) {
+        try {
+            const parsedInfo = JSON.parse(adminInfo);
+            if (parsedInfo.role === 'ROLE_ADMIN' || parsedInfo.role === 'ROLE_EMPLOYEE') {
+                console.log('Admin authenticated, proceeding to', to.path);
+                next();
+                return;
+            }
+        } catch (e) {
+            console.error('Error parsing admin info:', e);
+        }
     }
+
+    console.log('Admin not authenticated or not authorized, redirecting to login');
+    next({
+        path: '/auth/login',
+        query: { redirect: to.fullPath }
+    });
 };
 
 // Middleware chỉ cho phép truy cập khi chưa đăng nhập
@@ -56,6 +66,41 @@ const clientAuthGuard = (to, from, next) => {
             window.dispatchEvent(event);
         }, 100);
     }
+};
+
+// Middleware kiểm tra quyền truy cập trang dựa trên vai trò
+const roleBasedGuard = (to, from, next) => {
+    // Lấy tên trang từ path
+    const pathSegments = to.path.split('/');
+    const pageName = pathSegments[pathSegments.length - 1];
+
+    // Khởi tạo composable
+    const { canAccessPage, refreshRole } = usePermissions();
+
+    // Cập nhật role từ localStorage
+    refreshRole();
+
+    // Kiểm tra adminInfo để đảm bảo role chính xác
+    const adminInfo = localStorage.getItem('admin_token');
+    if (adminInfo) {
+        try {
+            const parsedInfo = JSON.parse(adminInfo);
+            if (parsedInfo.role === 'ROLE_ADMIN') {
+                // Admin có quyền truy cập tất cả các trang
+                next();
+                return;
+            } else if (parsedInfo.role === 'ROLE_EMPLOYEE' && canAccessPage(pageName)) {
+                // Employee chỉ có quyền truy cập các trang được phép
+                next();
+                return;
+            }
+        } catch (e) {
+            console.error('Error parsing admin info:', e);
+        }
+    }
+
+    // Nếu không có quyền hoặc có lỗi, chuyển hướng đến trang từ chối truy cập
+    next('/auth/access');
 };
 
 const routes = [
@@ -202,48 +247,57 @@ const routes = [
                 path: 'dashboard',
                 name: 'adminDashboard',
                 component: () => import('@/views/pages/admin/Dashboard.vue'),
-                meta: { requiresAdminAuth: true }
+                meta: { requiresAdminAuth: true },
+                beforeEnter: roleBasedGuard
             },
             {
                 path: 'users',
                 name: 'admin-users',
-                component: () => import('@/views/pages/UserList.vue')
+                component: () => import('@/views/pages/UserList.vue'),
+                meta: { requiresAdminAuth: true },
+                beforeEnter: roleBasedGuard
             },
             {
                 path: 'rooms',
                 name: 'adminRooms',
                 component: () => import('@/views/pages/RoomList.vue'),
-                meta: { requiresAdminAuth: true }
+                meta: { requiresAdminAuth: true },
+                beforeEnter: roleBasedGuard
             },
             {
                 path: 'room-types',
                 name: 'adminRoomTypes',
                 component: () => import('@/views/pages/RoomTypeList.vue'),
-                meta: { requiresAdminAuth: true }
+                meta: { requiresAdminAuth: true },
+                beforeEnter: roleBasedGuard
             },
             {
                 path: 'services',
                 name: 'adminServices',
                 component: () => import('@/views/pages/ServiceList.vue'),
-                meta: { requiresAdminAuth: true }
+                meta: { requiresAdminAuth: true },
+                beforeEnter: roleBasedGuard
             },
             {
                 path: 'reviews',
                 name: 'adminReviews',
                 component: () => import('@/views/pages/ReviewList.vue'),
-                meta: { requiresAdminAuth: true }
+                meta: { requiresAdminAuth: true },
+                beforeEnter: roleBasedGuard
             },
             {
                 path: 'bookings',
                 name: 'adminBookings',
                 component: () => import('@/views/pages/BookingList.vue'),
-                meta: { requiresAdminAuth: true }
+                meta: { requiresAdminAuth: true },
+                beforeEnter: roleBasedGuard
             },
             {
                 path: 'discounts',
                 name: 'adminDiscounts',
                 component: () => import('@/views/pages/DiscountList.vue'),
-                meta: { requiresAdminAuth: true }
+                meta: { requiresAdminAuth: true },
+                beforeEnter: roleBasedGuard
             }
         ]
     },
@@ -304,22 +358,46 @@ const router = createRouter({
 
 // Middleware để kiểm tra đăng nhập user cho các trang yêu cầu
 router.beforeEach((to, from, next) => {
-    const isClientAuthenticated = AuthService.isClientAuthenticated();
-    const isAdminAuthenticated = AuthService.isAdminAuthenticated();
-
     // Nếu route yêu cầu auth admin nhưng chưa đăng nhập admin
     if (to.matched.some((record) => record.meta.requiresAdminAuth)) {
-        if (!isAdminAuthenticated) {
+        const adminInfo = localStorage.getItem('admin_token');
+        if (!adminInfo) {
             next({
                 path: '/auth/login',
                 query: { redirect: to.fullPath }
             });
-        } else {
-            next();
+            return;
+        }
+
+        try {
+            const parsedInfo = JSON.parse(adminInfo);
+            if (parsedInfo.role === 'ROLE_ADMIN') {
+                // Admin có thể truy cập tất cả trang
+                next();
+            } else if (parsedInfo.role === 'ROLE_EMPLOYEE') {
+                // Kiểm tra xem trang có trong danh sách được phép cho ROLE_EMPLOYEE
+                const { canAccessPage, refreshRole } = usePermissions();
+                refreshRole();
+
+                const pathSegments = to.path.split('/');
+                const pageName = pathSegments[pathSegments.length - 1];
+
+                if (canAccessPage(pageName)) {
+                    next();
+                } else {
+                    next('/auth/access');
+                }
+            } else {
+                next('/auth/access');
+            }
+        } catch (e) {
+            console.error('Error parsing admin info:', e);
+            next('/auth/login');
         }
     }
     // Nếu route yêu cầu auth client nhưng chưa đăng nhập
     else if (to.matched.some((record) => record.meta.requiresAuth)) {
+        const isClientAuthenticated = AuthService.isClientAuthenticated();
         if (!isClientAuthenticated) {
             // Lưu lại trang muốn truy cập để redirect sau khi đăng nhập
             const loginComponent = document.querySelector('.layout-wrapper');
@@ -338,12 +416,29 @@ router.beforeEach((to, from, next) => {
         }
     }
     // Nếu đã đăng nhập user và cố truy cập trang login/register
-    else if ((to.path === '/auth/login' || to.path === '/auth/register') && isClientAuthenticated) {
-        next('/');
+    else if ((to.path === '/auth/login' || to.path === '/auth/register')) {
+        const isClientAuthenticated = AuthService.isClientAuthenticated();
+        if (isClientAuthenticated) {
+            next('/');
+        } else {
+            next();
+        }
     }
     // Nếu đã đăng nhập admin và cố truy cập trang login admin
-    else if (to.path === '/auth/login' && !to.query.clientAuth && isAdminAuthenticated) {
-        next('/admin/dashboard');
+    else if (to.path === '/auth/login' && !to.query.clientAuth) {
+        const adminInfo = localStorage.getItem('admin_token');
+        if (adminInfo) {
+            try {
+                const parsedInfo = JSON.parse(adminInfo);
+                if (parsedInfo.role === 'ROLE_ADMIN') {
+                    next('/admin/dashboard');
+                    return;
+                }
+            } catch (e) {
+                console.error('Error parsing admin info:', e);
+            }
+        }
+        next();
     } else {
         // Cập nhật title
         if (to.meta.title) {

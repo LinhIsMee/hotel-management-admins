@@ -22,8 +22,18 @@ import DiscountFilters from '@/components/discount/DiscountFilters.vue';
 import DiscountGenerateDialog from '@/components/discount/DiscountGenerateDialog.vue';
 
 // Lấy phân quyền
-const { can } = usePermissions();
+const { userRole, can, refreshRole } = usePermissions();
 const toast = useToast();
+
+// Tính toán quyền của người dùng
+const permissions = computed(() => {
+    return {
+        canView: can.view.value,
+        canCreate: can.create.value,
+        canEdit: can.edit.value,
+        canDelete: can.delete.value
+    };
+});
 
 // Lấy các hàm và biến từ composable
 const {
@@ -68,6 +78,7 @@ const deleteSelectedDialog = ref(false);
 
 // Gọi API khi component được mount
 onMounted(() => {
+    refreshRole();
     fetchDiscounts();
 });
 
@@ -191,6 +202,14 @@ const calculateUsagePercentage = (discount) => {
         <Toast />
         <ConfirmDialog></ConfirmDialog>
 
+        <!-- Thông báo phân quyền cho nhân viên -->
+        <div v-if="userRole === 'ROLE_EMPLOYEE'" class="p-3 mb-3 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg">
+            <div class="flex align-items-center">
+                <i class="pi pi-info-circle mr-2"></i>
+                <span>Bạn đang đăng nhập với vai trò <b>Nhân viên</b>. Một số chức năng sẽ bị giới hạn.</span>
+            </div>
+        </div>
+
         <Toolbar class="mb-4">
             <template #start>
                 <DiscountFilters v-model:showActiveOnly="showActiveOnly" @toggle-active-filter="toggleActiveFilter" @search="handleSearch" />
@@ -198,9 +217,9 @@ const calculateUsagePercentage = (discount) => {
 
             <template #end>
                 <div class="my-2">
-                    <Button v-if="can.create" label="Thêm mã giảm giá" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" v-tooltip.top="'Thêm mã giảm giá mới'" />
-                    <Button v-if="can.create" label="Tạo hàng loạt" icon="pi pi-cog" class="mr-2" @click="openGenerateDialog" v-tooltip.top="'Tạo nhiều mã giảm giá'" />
-                    <Button v-if="can.delete" label="Xóa đã chọn" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteDiscount(null, true)" :disabled="!selectedDiscounts || !selectedDiscounts.length" v-tooltip.top="'Xóa các mã đã chọn'" />
+                    <Button v-if="permissions.canCreate" label="Thêm mã giảm giá" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" v-tooltip.top="'Thêm mã giảm giá mới'" />
+                    <Button v-if="permissions.canCreate" label="Tạo hàng loạt" icon="pi pi-cog" class="mr-2" @click="openGenerateDialog" v-tooltip.top="'Tạo nhiều mã giảm giá'" />
+                    <Button v-if="permissions.canDelete" label="Xóa đã chọn" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteDiscount(null, true)" :disabled="!selectedDiscounts || !selectedDiscounts.length" v-tooltip.top="'Xóa các mã đã chọn'" />
                 </div>
             </template>
         </Toolbar>
@@ -208,7 +227,7 @@ const calculateUsagePercentage = (discount) => {
         <DataTable
             :value="discounts"
             v-model:selection="selectedDiscounts"
-            :selectionMode="can.delete ? 'multiple' : null"
+            :selectionMode="permissions.canDelete ? 'multiple' : null"
             dataKey="id"
             :paginator="true"
             :rows="10"
@@ -225,7 +244,7 @@ const calculateUsagePercentage = (discount) => {
             <template #empty>Không có mã giảm giá nào được tìm thấy</template>
             <template #loading>Đang tải dữ liệu mã giảm giá...</template>
 
-            <Column v-if="can.delete" selectionMode="multiple" :exportable="false" style="min-width: 3rem"></Column>
+            <Column v-if="permissions.canDelete" selectionMode="multiple" :exportable="false" style="min-width: 3rem"></Column>
 
             <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
 
@@ -282,8 +301,8 @@ const calculateUsagePercentage = (discount) => {
 
             <Column :exportable="false" style="min-width: 10rem">
                 <template #body="{ data }">
-                    <Button v-if="can.edit" icon="pi pi-pencil" outlined class="mr-2" @click="editDiscount(data)" v-tooltip.top="'Chỉnh sửa mã giảm giá'" />
-                    <Button v-if="can.delete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteDiscount(data)" v-tooltip.top="'Xóa mã giảm giá'" />
+                    <Button v-if="permissions.canEdit" icon="pi pi-pencil" outlined class="mr-2" @click="editDiscount(data)" v-tooltip.top="'Chỉnh sửa mã giảm giá'" />
+                    <Button v-if="permissions.canDelete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteDiscount(data)" v-tooltip.top="'Xóa mã giảm giá'" />
                 </template>
             </Column>
         </DataTable>

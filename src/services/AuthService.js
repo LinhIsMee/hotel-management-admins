@@ -39,7 +39,7 @@ class AuthService {
 
         try {
             const parsed = JSON.parse(adminInfo);
-            return parsed.role === 'ROLE_ADMIN';
+            return parsed.role === 'ROLE_ADMIN' || parsed.role === 'ROLE_EMPLOYEE';
         } catch (e) {
             return false;
         }
@@ -138,10 +138,9 @@ class AuthService {
                 return null;
             }
 
-            if (data.role !== 'ROLE_ADMIN') {
-                console.error('User is not an admin');
-                return null;
-            }
+            // Xoá dữ liệu cũ
+            localStorage.removeItem(TOKEN_KEY_ADMIN);
+            localStorage.removeItem('adminUser');
 
             // Lưu token vào localStorage
             const adminInfo = {
@@ -149,10 +148,14 @@ class AuthService {
                 username: username,
                 accessToken: data.accessToken,
                 token: data.token,
-                role: data.role
+                role: data.role,
+                timestamp: new Date().getTime() // Thêm timestamp để biết khi nào đăng nhập
             };
 
             localStorage.setItem(TOKEN_KEY_ADMIN, JSON.stringify(adminInfo));
+
+            // Cũng lưu vào adminUser để các thành phần khác có thể truy cập
+            localStorage.setItem('adminUser', JSON.stringify(adminInfo));
 
             if (data.rememberMe) {
                 localStorage.setItem('admin_username', username);
@@ -504,6 +507,7 @@ class AuthService {
         }
 
         localStorage.removeItem(TOKEN_KEY_ADMIN);
+        localStorage.removeItem('adminUser');
         localStorage.removeItem('admin_username');
     }
 

@@ -19,7 +19,7 @@ import BookingManagementTable from '@/components/booking/BookingManagementTable.
 import BookingStats from '@/components/booking/BookingStats.vue';
 
 // Lấy phân quyền
-const { can } = usePermissions();
+const { userRole, can, refreshRole } = usePermissions();
 
 // Lấy các hàm và biến từ composable
 const {
@@ -84,9 +84,10 @@ const displayColumns = computed(() => ({
 // ]);
 
 // Gọi API khi component được mount
-onMounted(async () => {
+onMounted(() => {
+    refreshRole();
     console.log('BookingList mounted - Fetching data');
-    await fetchAllBookings();
+    fetchAllBookings();
 
     // Đảm bảo tính toán thống kê sau khi có dữ liệu
     if (bookings.value && bookings.value.length > 0) {

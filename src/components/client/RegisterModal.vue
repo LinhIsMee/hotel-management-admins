@@ -1,5 +1,5 @@
 <script setup>
-import AuthService from '@/services/AuthService';
+// import AuthService from '@/services/AuthService';
 import { reactive, ref } from 'vue';
 
 // Import các component cần thiết
@@ -58,17 +58,17 @@ const register = async () => {
     errorMessage.value = '';
 
     try {
-        const result = await AuthService.registerClient({
-            username: form.username,
-            password: form.password,
-            email: form.email,
-            fullName: form.fullName,
-            phoneNumber: form.phoneNumber,
-            gender: form.gender,
-            dateOfBirth: form.dateOfBirth,
-            address: form.address,
-            nationalId: form.nationalId
-        });
+        // const result = await AuthService.registerClient({
+        //     username: form.username,
+        //     password: form.password,
+        //     email: form.email,
+        //     fullName: form.fullName,
+        //     phoneNumber: form.phoneNumber,
+        //     gender: form.gender,
+        //     dateOfBirth: form.dateOfBirth,
+        //     address: form.address,
+        //     nationalId: form.nationalId
+        // });
 
         emit('register-success');
         emit('update:visible', false);

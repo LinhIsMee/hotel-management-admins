@@ -1,6 +1,5 @@
 <script setup>
-import { FilterMatchMode } from '@primevue/core/api';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 
 // Import các component PrimeVue
 import Avatar from 'primevue/avatar';
@@ -23,9 +22,6 @@ const deleteUserDialog = ref(false);
 const deleteUsersDialog = ref(false);
 const user = ref({});
 const selectedUsers = ref(null);
-const filters = ref({
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
-});
 const submitted = ref(false);
 const toast = useToast();
 
@@ -40,14 +36,131 @@ const genders = ref([
 
 const roles = ref([
     { label: 'Admin', value: 'ROLE_ADMIN' },
-    { label: 'Nhân viên', value: 'ROLE_STAFF' },
+    { label: 'Nhân viên', value: 'ROLE_EMPLOYEE' },
     { label: 'Người dùng', value: 'ROLE_USER' }
 ]);
 
-const statuses = ref([
-    { label: 'Hoạt động', value: 'ACTIVE' },
-    { label: 'Bị khóa', value: 'INACTIVE' }
+// Lọc tĩnh - dữ liệu cho bộ lọc
+// Các tùy chọn cho bộ lọc vai trò
+const roleFilterItems = ref([
+    { label: 'Admin', value: 'ROLE_ADMIN' },
+    { label: 'Nhân viên', value: 'ROLE_EMPLOYEE' },
+    { label: 'Người dùng', value: 'ROLE_USER' }
 ]);
+
+// Các tùy chọn cho bộ lọc giới tính
+const genderFilterItems = ref([
+    { label: 'Nam', value: 'Male' },
+    { label: 'Nữ', value: 'Female' },
+    { label: 'Khác', value: 'Other' }
+]);
+
+// Các biến lọc tĩnh
+const selectedRoleFilter = ref(null);
+const selectedGenderFilter = ref(null);
+const globalFilterValue = ref('');
+
+// Lọc danh sách hiển thị
+const filteredUsers = computed(() => {
+    if (!users.value) return [];
+
+    return users.value.filter(user => {
+        const matchesRole = selectedRoleFilter.value === null || user.role === selectedRoleFilter.value;
+        const matchesGender = selectedGenderFilter.value === null || user.gender === selectedGenderFilter.value;
+
+        // Lọc toàn cục
+        const matchesGlobal = globalFilterValue.value.trim() === '' ||
+            Object.keys(user).some(key => {
+                const val = user[key];
+                if (val === null || val === undefined) return false;
+                return String(val).toLowerCase().includes(globalFilterValue.value.toLowerCase());
+            });
+
+        return matchesRole && matchesGender && matchesGlobal;
+    });
+});
+
+// Xóa tất cả bộ lọc
+const clearAllFilters = () => {
+    selectedRoleFilter.value = null;
+    selectedGenderFilter.value = null;
+    globalFilterValue.value = '';
+};
+
+// Đếm số lượng bộ lọc đang áp dụng
+const activeFilterCount = computed(() => {
+    let count = 0;
+    if (selectedRoleFilter.value !== null) count++;
+    if (selectedGenderFilter.value !== null) count++;
+    if (globalFilterValue.value.trim() !== '') count++;
+    return count;
+});
+
+// Hiển thị dialog thay đổi role
+const changeRoleDialog = ref(false);
+const selectedNewRole = ref(null);
+const userToChangeRole = ref({});
+
+const openChangeRoleDialog = (userData) => {
+    userToChangeRole.value = userData;
+    selectedNewRole.value = userData.role;
+    changeRoleDialog.value = true;
+};
+
+// Hàm thay đổi role người dùng
+const changeUserRole = async () => {
+    if (!selectedNewRole.value || selectedNewRole.value === userToChangeRole.value.role) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Không thay đổi',
+            detail: 'Vui lòng chọn role khác với role hiện tại',
+            life: 3000
+        });
+        return;
+    }
+
+    try {
+        const headers = getAuthHeaders();
+        if (!headers) return;
+
+        const url = `${API_BASE_URL}/api/v1/users/${userToChangeRole.value.id}/role/${selectedNewRole.value}`;
+
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('Server response:', errorData);
+            throw new Error(`Không thể thay đổi role người dùng: ${response.statusText} (${response.status})`);
+        }
+
+        const updatedUser = await response.json();
+
+        // Cập nhật thông tin người dùng trong danh sách
+        const index = findIndexById(userToChangeRole.value.id);
+        if (index !== -1) {
+            users.value[index] = updatedUser;
+        }
+
+        changeRoleDialog.value = false;
+        toast.add({
+            severity: 'success',
+            summary: 'Thành công',
+            detail: `Đã thay đổi role của người dùng ${userToChangeRole.value.username} thành ${getRoleName(selectedNewRole.value)}`,
+            life: 3000
+        });
+    } catch (error) {
+        console.error('Lỗi khi thay đổi role:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Lỗi',
+            detail: error.message || 'Có lỗi xảy ra khi thay đổi role người dùng',
+            life: 3000
+        });
+    }
+};
 
 // Hàm helper lấy token từ localStorage
 const getAuthToken = () => {
@@ -151,6 +264,7 @@ const fetchData = async () => {
 
 onMounted(() => {
     fetchData();
+    currentUserRole.value = getCurrentUserRole();
 });
 
 const openNew = () => {
@@ -170,6 +284,17 @@ const hideDialog = () => {
 // Lưu người dùng (tạo mới hoặc cập nhật)
 const saveUser = async () => {
     submitted.value = true;
+
+    // Kiểm tra quyền - nhân viên không thể thay đổi vai trò
+    if (!permissions.value.canChangeRole && user.value.role) {
+        // Nếu đang chỉnh sửa người dùng đã tồn tại, giữ nguyên role cũ
+        if (user.value.id) {
+            // Không làm gì cả, giữ nguyên role
+        } else {
+            // Nếu tạo mới, mặc định là ROLE_USER
+            user.value.role = 'ROLE_USER';
+        }
+    }
 
     if (user.value.fullName?.trim() && user.value.email?.trim() && (user.value.id || (user.value.username?.trim() && user.value.password?.trim()))) {
         try {
@@ -194,8 +319,7 @@ const saveUser = async () => {
                     gender: user.value.gender,
                     dateOfBirth: dateOfBirth,
                     address: user.value.address,
-                    nationalId: user.value.nationalId,
-                    status: user.value.status // Thêm trạng thái nếu API hỗ trợ
+                    nationalId: user.value.nationalId
                 });
             } else {
                 // Tạo người dùng mới
@@ -206,15 +330,14 @@ const saveUser = async () => {
                     password: user.value.password,
                     fullName: user.value.fullName,
                     email: user.value.email,
-                    phone: user.value.phone, // Thay phoneNumber bằng phone theo payload chuẩn
+                    phone: user.value.phone,
                     gender: user.value.gender,
                     dateOfBirth: dateOfBirth,
                     address: user.value.address,
                     nationalId: user.value.nationalId,
                     role: {
-                        name: user.value.role // Sử dụng định dạng đúng cho role
-                    },
-                    status: user.value.status // Thêm trạng thái nếu API hỗ trợ
+                        name: user.value.role
+                    }
                 });
             }
 
@@ -386,7 +509,7 @@ const getRoleName = (role) => {
     switch (role) {
         case 'ROLE_ADMIN':
             return 'Admin';
-        case 'ROLE_STAFF':
+        case 'ROLE_EMPLOYEE':
             return 'Nhân viên';
         case 'ROLE_USER':
             return 'Người dùng';
@@ -399,7 +522,7 @@ const getRoleStatus = (role) => {
     switch (role) {
         case 'ROLE_ADMIN':
             return 'danger';
-        case 'ROLE_STAFF':
+        case 'ROLE_EMPLOYEE':
             return 'warning';
         case 'ROLE_USER':
             return 'info';
@@ -423,6 +546,52 @@ const getGenderName = (gender) => {
             return gender;
     }
 };
+
+// Phân quyền
+const currentUserRole = ref('');
+
+// Hàm lấy role của người dùng đang đăng nhập
+const getCurrentUserRole = () => {
+    try {
+        // Lấy dữ liệu từ admin_token trong localStorage
+        const adminData = localStorage.getItem('adminUser');
+
+        if (!adminData) {
+            return 'ROLE_ADMIN'; // Mặc định nếu không lấy được
+        }
+
+        // Parse chuỗi JSON
+        const adminObj = JSON.parse(adminData);
+
+        // Lấy role từ object
+        if (adminObj && adminObj.role) {
+            return adminObj.role;
+        }
+
+        return 'ROLE_ADMIN'; // Mặc định nếu không lấy được
+    } catch (error) {
+        console.error('Lỗi khi lấy role:', error);
+        return 'ROLE_ADMIN'; // Mặc định nếu có lỗi
+    }
+};
+
+// Các hàm kiểm tra quyền
+const permissions = computed(() => {
+    const role = currentUserRole.value;
+
+    return {
+        // Admin có tất cả quyền
+        canAddUser: role === 'ROLE_ADMIN',
+        canDeleteUser: role === 'ROLE_ADMIN',
+        canChangeRole: role === 'ROLE_ADMIN',
+        canEditUser: true, // Cả admin và nhân viên đều có thể sửa thông tin cơ bản
+        canViewUser: true, // Cả admin và nhân viên đều có thể xem
+
+        // Quyền của người đang đăng nhập
+        isAdmin: role === 'ROLE_ADMIN',
+        isEmployee: role === 'ROLE_EMPLOYEE'
+    };
+});
 </script>
 
 <template>
@@ -431,18 +600,44 @@ const getGenderName = (gender) => {
         <div class="">
             <Toolbar class="mb-4">
                 <template v-slot:start>
-                    <span class="p-input-icon-left">
-                        <InputText v-model="filters['global'].value" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
-                    </span>
+                    <div class="flex flex-wrap align-items-center gap-2">
+                        <span class="p-input-icon-left">
+                            <i class="pi pi-search" />
+                            <InputText v-model="globalFilterValue" placeholder="Tìm kiếm..." class="p-inputtext-sm" />
+                        </span>
+
+                        <Dropdown v-model="selectedRoleFilter" :options="roleFilterItems"
+                            optionLabel="label" optionValue="value"
+                            placeholder="Vai trò" class="p-inputtext-sm filter-dropdown" />
+
+                        <Dropdown v-model="selectedGenderFilter" :options="genderFilterItems"
+                            optionLabel="label" optionValue="value"
+                            placeholder="Giới tính" class="p-inputtext-sm filter-dropdown" />
+
+                        <Button v-if="activeFilterCount > 0"
+                            icon="pi pi-filter-slash"
+                            outlined
+                            class="p-button-sm"
+                            @click="clearAllFilters"
+                            v-tooltip.top="'Xóa bộ lọc'" />
+                    </div>
                 </template>
 
                 <template v-slot:end>
                     <div class="my-2">
-                        <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                        <Button label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedUsers || !selectedUsers.length" />
+                        <Button v-if="permissions.canAddUser" label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                        <Button v-if="permissions.canDeleteUser" label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedUsers || !selectedUsers.length" />
                     </div>
                 </template>
             </Toolbar>
+
+            <!-- Thông báo phân quyền -->
+            <div v-if="!permissions.isAdmin" class="p-3 mb-3 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg">
+                <div class="flex align-items-center">
+                    <i class="pi pi-info-circle mr-2"></i>
+                    <span>Bạn đang đăng nhập với vai trò <b>Nhân viên</b>. Một số chức năng sẽ bị giới hạn.</span>
+                </div>
+            </div>
 
             <div v-if="loading" class="text-center py-4">
                 <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
@@ -450,17 +645,27 @@ const getGenderName = (gender) => {
             </div>
 
             <div v-else>
-                <div v-if="users.length === 0" class="text-center py-4">Không có người dùng nào được tìm thấy.</div>
+                <div v-if="filteredUsers.length === 0" class="text-center py-4">
+                    <div v-if="activeFilterCount > 0">
+                        Không có người dùng nào phù hợp với bộ lọc.
+                        <Button label="Xóa bộ lọc" link @click="clearAllFilters" class="p-1"></Button>
+                    </div>
+                    <div v-else>Không có người dùng nào được tìm thấy.</div>
+                </div>
                 <div v-else>
-                    <div class="text-sm mb-2">Tổng số: {{ users.length }} người dùng</div>
+                    <div class="text-sm mb-2 flex align-items-center">
+                        <span>Tổng số: {{ filteredUsers.length }} người dùng</span>
+                        <span v-if="filteredUsers.length !== users.length" class="ml-2 text-gray-500">
+                            (đã lọc từ {{ users.length }} người dùng)
+                        </span>
+                    </div>
 
                     <DataTable
-                        :value="users"
+                        :value="filteredUsers"
                         v-model:selection="selectedUsers"
                         dataKey="id"
                         :paginator="true"
                         :rows="10"
-                        :filters="filters"
                         paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                         :rowsPerPageOptions="[5, 10, 25, 50]"
                         currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} người dùng"
@@ -529,8 +734,9 @@ const getGenderName = (gender) => {
 
                         <Column exportable="false" style="min-width: 10rem">
                             <template #body="{ data }">
-                                <Button icon="pi pi-pencil" outlined class="mr-2" @click="editUser(data)" v-tooltip.top="'Sửa thông tin người dùng'" />
-                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteUser(data)" v-tooltip.top="'Xóa người dùng'" />
+                                <Button v-if="permissions.canEditUser" icon="pi pi-pencil" outlined class="mr-2" @click="editUser(data)" v-tooltip.top="'Sửa thông tin người dùng'" />
+                                <Button v-if="permissions.canChangeRole" icon="pi pi-user-edit" outlined class="mr-2" severity="warning" @click="openChangeRoleDialog(data)" v-tooltip.top="'Thay đổi vai trò'" />
+                                <Button v-if="permissions.canDeleteUser" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteUser(data)" v-tooltip.top="'Xóa người dùng'" />
                             </template>
                         </Column>
                     </DataTable>
@@ -601,7 +807,9 @@ const getGenderName = (gender) => {
 
                             <div class="mb-4 w-full" v-if="!user.id">
                                 <label for="role" class="font-bold mb-2 block">Vai trò</label>
-                                <Dropdown id="role" v-model="user.role" :options="roles" optionLabel="label" optionValue="value" placeholder="Chọn vai trò" class="w-full" />
+                                <Dropdown id="role" v-model="user.role" :options="roles" optionLabel="label" optionValue="value" placeholder="Chọn vai trò" class="w-full"
+                                :disabled="!permissions.canChangeRole" />
+                                <small v-if="!permissions.canChangeRole" class="text-gray-500">Bạn không có quyền thay đổi vai trò người dùng</small>
                             </div>
                             <div class="mb-4 w-full" v-else>
                                 <label for="role-display" class="font-bold mb-2 block">Vai trò</label>
@@ -609,11 +817,6 @@ const getGenderName = (gender) => {
                                     <Tag :value="getRoleName(user.role)" :severity="getRoleStatus(user.role)" />
                                 </div>
                                 <small class="text-gray-500">Không thể thay đổi vai trò người dùng</small>
-                            </div>
-
-                            <div class="mb-4 w-full">
-                                <label for="status" class="font-bold mb-2 block">Trạng thái</label>
-                                <Dropdown id="status" v-model="user.status" :options="statuses" optionLabel="label" optionValue="value" placeholder="Chọn trạng thái" class="w-full" />
                             </div>
 
                             <div class="mb-4 w-full" v-if="user.id">
@@ -665,6 +868,40 @@ const getGenderName = (gender) => {
                 <template #footer>
                     <Button label="Không" icon="pi pi-times" text @click="deleteUsersDialog = false" />
                     <Button label="Có" icon="pi pi-check" text @click="deleteSelectedUsers" />
+                </template>
+            </Dialog>
+
+            <!-- Dialog thay đổi role người dùng -->
+            <Dialog v-model:visible="changeRoleDialog" :style="{ width: '450px' }" header="Thay đổi vai trò người dùng" :modal="true">
+                <div class="p-fluid">
+                    <div class="mb-4">
+                        <p>Bạn đang thay đổi vai trò của người dùng: <b>{{ userToChangeRole.username }}</b></p>
+                        <p>Vai trò hiện tại: <Tag :value="getRoleName(userToChangeRole.role)" :severity="getRoleStatus(userToChangeRole.role)" /></p>
+                    </div>
+
+                    <div class="field">
+                        <label for="newRole" class="font-bold mb-2 block">Chọn vai trò mới</label>
+                        <Dropdown
+                            id="newRole"
+                            v-model="selectedNewRole"
+                            :options="roles"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Chọn vai trò mới"
+                            class="w-full"
+                        />
+                        <small v-if="selectedNewRole === userToChangeRole.role" class="p-error">Vui lòng chọn vai trò khác với vai trò hiện tại</small>
+                    </div>
+                </div>
+                <template #footer>
+                    <Button label="Hủy" icon="pi pi-times" text @click="changeRoleDialog = false" />
+                    <Button
+                        label="Lưu thay đổi"
+                        icon="pi pi-check"
+                        text
+                        @click="changeUserRole"
+                        :disabled="!selectedNewRole || selectedNewRole === userToChangeRole.role"
+                    />
                 </template>
             </Dialog>
         </div>
@@ -744,5 +981,35 @@ const getGenderName = (gender) => {
 
 .field {
     width: 100%;
+}
+
+/* CSS cho thanh lọc tích hợp */
+.filter-dropdown {
+    min-width: 150px;
+    margin-right: 0.5rem;
+}
+
+:deep(.filter-dropdown .p-dropdown-label) {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+}
+
+:deep(.p-button-sm) {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    min-height: 36px;
+}
+
+:deep(.p-tag) {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 3px;
+}
+
+@media screen and (max-width: 768px) {
+    .filter-dropdown {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
 }
 </style>

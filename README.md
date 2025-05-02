@@ -116,3 +116,67 @@ Dự án này được cấp phép theo Giấy phép MIT - xem tệp LICENSE đ�
 ---
 
 © 2024 Luxury Hotel. Bảo lưu mọi quyền.
+
+## Phân quyền hệ thống
+
+### Vai trò người dùng
+- **ROLE_ADMIN**: Quản trị viên, có đầy đủ quyền trong hệ thống
+- **ROLE_EMPLOYEE**: Nhân viên, có quyền hạn chế
+
+### Quyền truy cập theo trang
+| Trang | ROLE_ADMIN | ROLE_EMPLOYEE |
+|-------|------------|---------------|
+| Dashboard | ✅ | ✅ |
+| Quản lý người dùng | ✅ | ❌ |
+| Quản lý phòng | ✅ | ✅ |
+| Quản lý loại phòng | ✅ | ✅ |
+| Quản lý đặt phòng | ✅ | ✅ |
+| Quản lý dịch vụ | ✅ | ❌ |
+| Quản lý đánh giá | ✅ | ✅ |
+| Mã giảm giá | ✅ | ❌ |
+
+### Quyền thao tác
+| Thao tác | ROLE_ADMIN | ROLE_EMPLOYEE |
+|----------|------------|---------------|
+| Xem (view) | ✅ | ✅ |
+| Tạo mới (create) | ✅ | ❌ |
+| Chỉnh sửa (edit) | ✅ | ❌ |
+| Xóa (delete) | ✅ | ❌ |
+| Xác nhận (confirm) | ✅ | ✅ |
+| Hủy (cancel) | ✅ | ❌ |
+| Check-in | ✅ | ✅ |
+| Check-out | ✅ | ✅ |
+
+### Cơ chế kiểm tra quyền
+
+1. **Kiểm tra quyền trang**
+   - Sử dụng route guard `roleBasedGuard` kiểm tra quyền truy cập trang dựa trên vai trò
+   - Chuyển hướng đến trang từ chối truy cập nếu không có quyền
+
+2. **Kiểm tra quyền thao tác**
+   - Sử dụng `usePermissions` composable để kiểm tra quyền thao tác
+   - Ẩn/hiện các nút chức năng dựa trên quyền của người dùng
+
+3. **Luồng xác thực**
+   - Đăng nhập riêng biệt cho admin/nhân viên và khách hàng
+   - Lưu thông tin người dùng vào localStorage
+   - Kiểm tra token và vai trò mỗi khi truy cập trang bảo mật
+
+### Sử dụng
+```javascript
+// Sử dụng composable usePermissions
+import { usePermissions } from '@/composables/usePermissions';
+
+// Lấy thông tin quyền
+const { userRole, can, refreshRole } = usePermissions();
+
+// Kiểm tra quyền cụ thể
+if (can.edit.value) {
+  // Hiển thị chức năng chỉnh sửa
+}
+```
+
+### An ninh
+- Kiểm tra token authentication với mỗi request API
+- Kiểm tra vai trò (role) tại cả client và server side
+- Chỉ hiển thị các tính năng mà người dùng có quyền truy cập

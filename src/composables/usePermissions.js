@@ -1,21 +1,53 @@
 import { computed, ref } from 'vue';
 
 export function usePermissions() {
-    // Trong thực tế, thông tin này sẽ đến từ hệ thống xác thực của bạn
-    const userRole = ref(localStorage.getItem('userRole') || 'admin');
+    // Lấy thông tin người dùng từ localStorage
+    const getUserRole = () => {
+        try {
+            const adminInfo = localStorage.getItem('admin_token');
+            if (!adminInfo) return 'guest';
+
+            const parsedInfo = JSON.parse(adminInfo);
+            return parsedInfo.role || 'guest';
+        } catch (error) {
+            console.error('Error getting user role:', error);
+            return 'guest';
+        }
+    };
+
+    // Lưu vai trò người dùng hiện tại
+    const userRole = ref(getUserRole());
 
     // Định nghĩa các quyền theo vai trò
     const rolePermissions = {
-        admin: ['view', 'create', 'edit', 'delete', 'confirm', 'cancel', 'checkIn', 'checkOut'],
-        manager: ['view', 'create', 'edit', 'confirm', 'cancel', 'checkIn', 'checkOut'],
-        staff: ['view', 'confirm', 'checkIn', 'checkOut'],
-        viewer: ['view']
+        'ROLE_ADMIN': ['view', 'create', 'edit', 'delete', 'confirm', 'cancel', 'checkIn', 'checkOut'],
+        'ROLE_EMPLOYEE': ['view', 'confirm', 'checkIn', 'checkOut'],
+        'guest': []
+    };
+
+    // Định nghĩa quyền truy cập trang theo vai trò
+    const pageAccessRoles = {
+        // Admin có tất cả các quyền
+        'users': ['ROLE_ADMIN'],
+        'room-types': ['ROLE_ADMIN', 'ROLE_EMPLOYEE'],
+        'rooms': ['ROLE_ADMIN', 'ROLE_EMPLOYEE'],
+        'bookings': ['ROLE_ADMIN', 'ROLE_EMPLOYEE'],
+        'services': ['ROLE_ADMIN'],
+        'reviews': ['ROLE_ADMIN', 'ROLE_EMPLOYEE'],
+        'discounts': ['ROLE_ADMIN'],
+        'dashboard': ['ROLE_ADMIN', 'ROLE_EMPLOYEE']
     };
 
     // Kiểm tra quyền dựa trên vai trò
     const hasPermission = (permission) => {
         const permissions = rolePermissions[userRole.value] || [];
         return permissions.includes(permission);
+    };
+
+    // Kiểm tra quyền truy cập trang
+    const canAccessPage = (pageName) => {
+        const allowedRoles = pageAccessRoles[pageName] || [];
+        return allowedRoles.includes(userRole.value);
     };
 
     // Các quyền cụ thể được tính toán
@@ -30,17 +62,23 @@ export function usePermissions() {
         checkOut: computed(() => hasPermission('checkOut'))
     };
 
-    // Thay đổi vai trò (cho mục đích thử nghiệm)
+    // Thay đổi vai trò
     const setRole = (role) => {
-        if (['admin', 'manager', 'staff', 'viewer'].includes(role)) {
+        if (Object.keys(rolePermissions).includes(role)) {
             userRole.value = role;
-            localStorage.setItem('userRole', role);
         }
+    };
+
+    // Cập nhật role từ localStorage khi có thay đổi
+    const refreshRole = () => {
+        userRole.value = getUserRole();
     };
 
     return {
         userRole,
         can,
-        setRole
+        setRole,
+        refreshRole,
+        canAccessPage
     };
 }

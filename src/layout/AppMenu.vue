@@ -1,20 +1,32 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { usePermissions } from '@/composables/usePermissions';
 
 const route = useRoute();
+const { userRole, canAccessPage, refreshRole } = usePermissions();
 
-// Danh sách menu được đơn giản hóa - không phân cấp
-const menu = ref([
-    { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/admin/dashboard' },
-    { label: 'Quản lý người dùng', icon: 'pi pi-fw pi-user', to: '/admin/users' },
-    { label: 'Quản lý đặt phòng', icon: 'pi pi-fw pi-calendar-plus', to: '/admin/bookings' },
-    { label: 'Quản lý phòng', icon: 'pi pi-fw pi-home', to: '/admin/rooms' },
-    { label: 'Quản lý loại phòng', icon: 'pi pi-fw pi-list', to: '/admin/room-types' },
-    { label: 'Quản lý dịch vụ', icon: 'pi pi-fw pi-briefcase', to: '/admin/services' },
-    { label: 'Quản lý đánh giá', icon: 'pi pi-fw pi-star', to: '/admin/reviews' },
-    { label: 'Mã giảm giá', icon: 'pi pi-fw pi-tag', to: '/admin/discounts' }
-]);
+// Đảm bảo cập nhật role khi component mount
+onMounted(() => {
+    refreshRole();
+});
+
+// Danh sách menu đầy đủ
+const allMenuItems = [
+    { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/admin/dashboard', page: 'dashboard' },
+    { label: 'Quản lý người dùng', icon: 'pi pi-fw pi-user', to: '/admin/users', page: 'users' },
+    { label: 'Quản lý đặt phòng', icon: 'pi pi-fw pi-calendar-plus', to: '/admin/bookings', page: 'bookings' },
+    { label: 'Quản lý phòng', icon: 'pi pi-fw pi-home', to: '/admin/rooms', page: 'rooms' },
+    { label: 'Quản lý loại phòng', icon: 'pi pi-fw pi-list', to: '/admin/room-types', page: 'room-types' },
+    { label: 'Quản lý dịch vụ', icon: 'pi pi-fw pi-briefcase', to: '/admin/services', page: 'services' },
+    { label: 'Quản lý đánh giá', icon: 'pi pi-fw pi-star', to: '/admin/reviews', page: 'reviews' },
+    { label: 'Mã giảm giá', icon: 'pi pi-fw pi-tag', to: '/admin/discounts', page: 'discounts' }
+];
+
+// Menu được lọc dựa trên quyền truy cập
+const menu = computed(() => {
+    return allMenuItems.filter(item => canAccessPage(item.page));
+});
 </script>
 
 <template>

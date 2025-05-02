@@ -1,6 +1,21 @@
 <script setup>
 import { useReviewManagement } from '@/composables/useReviewManagement';
-import { onMounted } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
+import { onMounted, computed } from 'vue';
+
+// Lấy phân quyền
+const { userRole, can, refreshRole } = usePermissions();
+
+// Tính toán quyền của người dùng
+const permissions = computed(() => {
+    return {
+        canView: can.view.value,
+        canCreate: can.create.value,
+        canEdit: can.edit.value,
+        canDelete: can.delete.value,
+        canReply: can.view.value  // Nhân viên có thể trả lời đánh giá
+    };
+});
 
 // Import các component PrimeVue
 import Button from 'primevue/button';
@@ -53,6 +68,7 @@ const {
 } = useReviewManagement();
 
 onMounted(() => {
+    refreshRole();
     fetchAllData();
 });
 </script>
@@ -61,6 +77,15 @@ onMounted(() => {
     <div class="card">
         <Toast />
         <ConfirmDialog></ConfirmDialog>
+
+        <!-- Thông báo phân quyền cho nhân viên -->
+        <div v-if="userRole === 'ROLE_EMPLOYEE'" class="p-3 mb-3 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg">
+            <div class="flex align-items-center">
+                <i class="pi pi-info-circle mr-2"></i>
+                <span>Bạn đang đăng nhập với vai trò <b>Nhân viên</b>. Một số chức năng sẽ bị giới hạn.</span>
+            </div>
+        </div>
+
         <div class="mb-4">
             <div v-if="stats" class="flex flex-wrap gap-4 mb-4">
                 <div class="bg-blue-50 p-4 rounded-lg shadow-sm flex-1">
@@ -132,8 +157,8 @@ onMounted(() => {
 
                 <template #end>
                     <div class="flex">
-                        <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
-                        <Button label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedReviews?.length" />
+                        <Button v-if="permissions.canCreate" label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" />
+                        <Button v-if="permissions.canDelete" label="Xóa" icon="pi pi-trash" class="mr-2" severity="danger" @click="confirmDeleteSelected" :disabled="!selectedReviews?.length" />
                     </div>
                 </template>
             </Toolbar>
@@ -166,7 +191,7 @@ onMounted(() => {
                         <template #empty>Không có đánh giá nào được tìm thấy.</template>
                         <template #loading>Đang tải dữ liệu đánh giá. Vui lòng đợi.</template>
 
-                        <Column selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
+                        <Column v-if="permissions.canDelete" selectionMode="multiple" exportable="false" style="min-width: 3rem"></Column>
 
                         <Column field="id" header="ID" sortable style="min-width: 4rem"></Column>
 
@@ -217,9 +242,9 @@ onMounted(() => {
 
                         <Column exportable="false" style="min-width: 10rem">
                             <template #body="{ data }">
-                                <Button icon="pi pi-pencil" outlined class="mr-1" @click="editReview(data)" v-tooltip.top="'Chỉnh sửa đánh giá'" />
-                                <Button icon="pi pi-reply" outlined severity="info" class="mr-1" @click="replyReview(data)" v-if="data.status !== 'REPLIED'" v-tooltip.top="'Phản hồi đánh giá'" />
-                                <Button icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteReview(data)" v-tooltip.top="'Xóa đánh giá'" />
+                                <Button v-if="permissions.canEdit" icon="pi pi-pencil" outlined class="mr-1" @click="editReview(data)" v-tooltip.top="'Chỉnh sửa đánh giá'" />
+                                <Button v-if="permissions.canReply && data.status !== 'REPLIED'" icon="pi pi-reply" outlined severity="info" class="mr-1" @click="replyReview(data)" v-tooltip.top="'Phản hồi đánh giá'" />
+                                <Button v-if="permissions.canDelete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteReview(data)" v-tooltip.top="'Xóa đánh giá'" />
                             </template>
                         </Column>
                     </DataTable>

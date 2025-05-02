@@ -12,7 +12,11 @@ import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
+import { usePermissions } from '@/composables/usePermissions';
+
+// Lấy phân quyền
+const { userRole, can, refreshRole } = usePermissions();
 
 // Khai báo biến
 const rooms = ref([]);
@@ -39,6 +43,16 @@ const statuses = ref([
     { label: 'Bảo trì', value: 'MAINTENANCE' },
     { label: 'Đang dọn dẹp', value: 'CLEANING' }
 ]);
+
+// Tính toán quyền của người dùng
+const permissions = computed(() => {
+    return {
+        canView: can.view.value,
+        canCreate: can.create.value,
+        canEdit: can.edit.value,
+        canDelete: can.delete.value
+    };
+});
 
 // Hàm helper lấy token từ localStorage
 const getAuthToken = () => {
@@ -159,6 +173,7 @@ const fetchData = async () => {
 
 // Gọi API khi component được mount
 onMounted(() => {
+    refreshRole();
     fetchData();
 });
 
@@ -426,6 +441,14 @@ const getStatusLabel = (status) => {
         <Toast />
         <ConfirmDialog />
 
+        <!-- Thông báo phân quyền cho nhân viên -->
+        <div v-if="userRole === 'ROLE_EMPLOYEE'" class="p-3 mb-3 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg">
+            <div class="flex align-items-center">
+                <i class="pi pi-info-circle mr-2"></i>
+                <span>Bạn đang đăng nhập với vai trò <b>Nhân viên</b>. Một số chức năng sẽ bị giới hạn.</span>
+            </div>
+        </div>
+
         <Toolbar class="mb-4">
             <template #start>
                 <span class="p-input-icon-left">
@@ -433,8 +456,8 @@ const getStatusLabel = (status) => {
                 </span>
             </template>
             <template #end>
-                <Button label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" v-tooltip.top="'Thêm phòng mới'" />
-                <Button label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRooms?.length" v-tooltip.top="'Xóa các phòng đã chọn'" />
+                <Button v-if="permissions.canCreate" label="Thêm mới" icon="pi pi-plus" class="mr-2" severity="success" @click="openNew" v-tooltip.top="'Thêm phòng mới'" />
+                <Button v-if="permissions.canDelete" label="Xóa" icon="pi pi-trash" severity="danger" class="mr-2" @click="confirmDeleteSelected" :disabled="!selectedRooms?.length" v-tooltip.top="'Xóa các phòng đã chọn'" />
             </template>
         </Toolbar>
 
@@ -463,7 +486,7 @@ const getStatusLabel = (status) => {
                     <template #empty>Không có dữ liệu</template>
                     <template #loading>Đang tải dữ liệu...</template>
 
-                    <Column selectionMode="multiple" style="width: 3rem" />
+                    <Column v-if="permissions.canDelete" selectionMode="multiple" style="width: 3rem" />
                     <Column field="id" header="ID" sortable />
                     <Column field="roomNumber" header="Số phòng" sortable />
                     <Column field="floor" header="Tầng" sortable />
@@ -499,8 +522,8 @@ const getStatusLabel = (status) => {
                     </Column>
                     <Column style="width: 8rem">
                         <template #body="{ data }">
-                            <Button icon="pi pi-pencil" class="mr-2" @click="editRoom(data)" v-tooltip.top="'Chỉnh sửa phòng'" />
-                            <Button icon="pi pi-trash" severity="danger" @click="confirmDeleteRoom(data)" v-tooltip.top="'Xóa phòng'" />
+                            <Button v-if="permissions.canEdit" icon="pi pi-pencil" class="mr-2" @click="editRoom(data)" v-tooltip.top="'Chỉnh sửa phòng'" />
+                            <Button v-if="permissions.canDelete" icon="pi pi-trash" severity="danger" @click="confirmDeleteRoom(data)" v-tooltip.top="'Xóa phòng'" />
                         </template>
                     </Column>
                 </DataTable>
