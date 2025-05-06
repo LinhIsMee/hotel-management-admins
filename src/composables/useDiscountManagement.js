@@ -520,23 +520,29 @@ export function useDiscountManagement() {
         startDate.setHours(0, 0, 0, 0);
         endDate.setHours(0, 0, 0, 0);
 
+        // Kiểm tra trạng thái active trước
+        if (!discountItem.active) {
+            return { label: 'Vô hiệu hóa', severity: 'secondary' }; // Màu xám cho trạng thái vô hiệu hóa
+        }
+
+        // Sau đó kiểm tra các điều kiện khác
         if (discountItem.usedCount >= discountItem.maxUses) {
-            return { label: 'Đã hết lượt', severity: 'danger' };
+            return { label: 'Đã hết lượt', severity: 'danger' }; // Màu đỏ cho trạng thái hết lượt
         }
 
         if (today < startDate) {
-            return { label: 'Chưa bắt đầu', severity: 'info' };
+            return { label: 'Chưa bắt đầu', severity: 'info' }; // Màu xanh dương cho trạng thái chưa bắt đầu
         }
 
         if (today > endDate) {
-            return { label: 'Đã hết hạn', severity: 'danger' };
+            return { label: 'Đã hết hạn', severity: 'danger' }; // Màu đỏ cho trạng thái hết hạn
         }
 
-        if (!discountItem.isActive) {
-            return { label: 'Đã tắt', severity: 'warning' };
+        if (!discountItem.valid) {
+            return { label: 'Không hợp lệ', severity: 'warning' }; // Màu cam cho trạng thái không hợp lệ
         }
 
-        return { label: 'Đang hoạt động', severity: 'success' };
+        return { label: 'Đang hoạt động', severity: 'success' }; // Màu xanh lá cho trạng thái đang hoạt động
     };
 
     // Đánh giá mức độ sử dụng mã giảm giá
@@ -792,6 +798,55 @@ export function useDiscountManagement() {
         return true;
     };
 
+    // Cập nhật trạng thái mã giảm giá
+    const updateDiscountStatus = async (discount) => {
+        try {
+            const headers = getAuthHeaders(true);
+            if (!headers) return null;
+
+            // Cập nhật trạng thái active
+            const updatedDiscount = {
+                ...discount,
+                active: !discount.active
+            };
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts/${discount.id}`, {
+                method: 'PUT',
+                headers: headers,
+                body: JSON.stringify(updatedDiscount)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server response:', errorText);
+                throw new Error(`Lỗi khi cập nhật trạng thái mã giảm giá: ${response.statusText} (${response.status})`);
+            }
+
+            const result = await response.json();
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: `Đã ${result.active ? 'kích hoạt' : 'vô hiệu hóa'} mã giảm giá`,
+                life: 3000
+            });
+
+            // Cập nhật danh sách mã giảm giá
+            await fetchDiscounts();
+
+            return result;
+        } catch (error) {
+            console.error('Lỗi khi cập nhật trạng thái mã giảm giá:', error);
+            toast.add({
+                severity: 'error',
+                summary: 'Lỗi',
+                detail: error.message || 'Không thể cập nhật trạng thái mã giảm giá',
+                life: 3000
+            });
+            return null;
+        }
+    };
+
     return {
         discounts,
         loading,
@@ -830,6 +885,7 @@ export function useDiscountManagement() {
         editDiscount,
         confirmDeleteDiscount,
         confirmDelete,
-        validateDiscountForm
+        validateDiscountForm,
+        updateDiscountStatus
     };
 }

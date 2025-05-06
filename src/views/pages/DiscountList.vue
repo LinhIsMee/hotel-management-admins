@@ -50,6 +50,7 @@ const {
     fetchDiscounts,
     fetchDiscountById,
     fetchActiveDiscounts,
+    updateDiscountStatus,
 
     editDiscount: composableEditDiscount,
     openNew: composableOpenNew,
@@ -66,15 +67,42 @@ const {
     getUsagePercentage
 } = useDiscountManagement();
 
-// Khai báo biến cho filters
-const filters = ref({
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    code: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    discountType: { value: null, matchMode: FilterMatchMode.EQUALS }
-});
+// Biến lọc và trạng thái
 const showActiveOnly = ref(false);
 const selectedDiscount = ref(null);
 const deleteSelectedDialog = ref(false);
+const filters = ref({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
+});
+
+// Danh sách đã lọc
+const filteredDiscounts = computed(() => {
+    let result = [...discounts.value];
+
+    // Lọc theo trạng thái hoạt động
+    if (showActiveOnly.value) {
+        result = result.filter(d => d.active && d.valid);
+    }
+
+    // Lọc theo từ khóa tìm kiếm
+    if (filters.value.global.value) {
+        const searchText = filters.value.global.value.toLowerCase();
+        result = result.filter(d =>
+            d.code.toLowerCase().includes(searchText) ||
+            d.discountType.toLowerCase().includes(searchText)
+        );
+    }
+
+    return result;
+});
+
+// Xử lý tìm kiếm
+const handleSearch = (query) => {
+    filters.value.global.value = query;
+};
+
+// Tham chiếu đến DataTable
+const dt = ref();
 
 // Gọi API khi component được mount
 onMounted(() => {
@@ -82,25 +110,10 @@ onMounted(() => {
     fetchDiscounts();
 });
 
-// Lọc mã giảm giá theo trạng thái
-const toggleActiveFilter = () => {
-    showActiveOnly.value = !showActiveOnly.value;
-    if (showActiveOnly.value) {
-        fetchActiveDiscounts();
-    } else {
-        fetchDiscounts();
-    }
-};
-
 // Định dạng date cho hiển thị
 const formatDate = (value) => {
     if (!value) return '';
     return new Date(value).toLocaleDateString('vi-VN');
-};
-
-// Hàm tìm kiếm
-const handleSearch = (query) => {
-    filters.value.global.value = query;
 };
 
 // Danh sách mã đã tồn tại để kiểm tra trùng
@@ -195,6 +208,11 @@ const hideDialog = () => {
 const calculateUsagePercentage = (discount) => {
     return getUsagePercentage(discount);
 };
+
+// Xử lý cập nhật trạng thái
+const handleStatusChange = async (discount) => {
+    await updateDiscountStatus(discount);
+};
 </script>
 
 <template>
@@ -212,7 +230,10 @@ const calculateUsagePercentage = (discount) => {
 
         <Toolbar class="mb-4">
             <template #start>
-                <DiscountFilters v-model:showActiveOnly="showActiveOnly" @toggle-active-filter="toggleActiveFilter" @search="handleSearch" />
+                <DiscountFilters
+                    v-model:showActiveOnly="showActiveOnly"
+                    @search="handleSearch"
+                />
             </template>
 
             <template #end>
@@ -225,7 +246,8 @@ const calculateUsagePercentage = (discount) => {
         </Toolbar>
 
         <DataTable
-            :value="discounts"
+            ref="dt"
+            :value="filteredDiscounts"
             v-model:selection="selectedDiscounts"
             :selectionMode="permissions.canDelete ? 'multiple' : null"
             dataKey="id"
@@ -233,13 +255,14 @@ const calculateUsagePercentage = (discount) => {
             :rows="10"
             :rowsPerPageOptions="[5, 10, 25, 50]"
             :loading="loading"
-            :filters="filters"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
             currentPageReportTemplate="Hiển thị {first} đến {last} của {totalRecords} mã giảm giá"
             class="p-datatable-sm"
             :rowHover="true"
             :removableSort="true"
             responsiveLayout="scroll"
+            :totalRecords="filteredDiscounts.length"
+            @page="dt.value?.resetPage()"
         >
             <template #empty>Không có mã giảm giá nào được tìm thấy</template>
             <template #loading>Đang tải dữ liệu mã giảm giá...</template>
@@ -291,9 +314,9 @@ const calculateUsagePercentage = (discount) => {
                 </template>
             </Column>
 
-            <Column field="valid" header="Trạng thái" sortable style="min-width: 8rem">
+            <Column field="active" header="Trạng thái" sortable style="min-width: 8rem">
                 <template #body="{ data }">
-                    <Tag :severity="getDiscountStatus(data).severity">
+                    <Tag :severity="getDiscountStatus(data).severity" class="cursor-pointer" @click="handleStatusChange(data)">
                         {{ getDiscountStatus(data).label }}
                     </Tag>
                 </template>
@@ -385,5 +408,24 @@ const calculateUsagePercentage = (discount) => {
     :deep(.p-toolbar-group-end) {
         margin-top: 0.5rem;
     }
+}
+
+:deep(.p-datatable .p-datatable-tbody > tr > td) {
+    padding: 0.75rem;
+}
+
+:deep(.p-datatable .p-datatable-thead > tr > th) {
+    padding: 0.75rem;
+    font-weight: 600;
+}
+
+:deep(.p-tag) {
+    min-width: 120px;
+    justify-content: center;
+    cursor: pointer;
+}
+
+:deep(.p-tag:hover) {
+    opacity: 0.9;
 }
 </style>

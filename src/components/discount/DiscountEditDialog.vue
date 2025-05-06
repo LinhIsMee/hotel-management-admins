@@ -62,7 +62,7 @@ const discountValueSuffix = computed(() => {
 
 // Màu nền cho card dựa trên status
 const cardStyle = computed(() => ({
-    'border-left': `6px solid ${props.discount.isActive ? 'var(--green-500)' : 'var(--yellow-500)'}`,
+    'border-left': `6px solid ${props.discount.valid ? 'var(--green-500)' : 'var(--yellow-500)'}`,
     transition: 'all 0.3s ease'
 }));
 
@@ -268,9 +268,11 @@ watch(
                     </div>
 
                     <div class="col-12">
-                        <div class="field-checkbox flex align-items-center">
-                            <Checkbox v-model="discount.isActive" :binary="true" inputId="isActive" class="mr-2" @update:modelValue="updateDiscount('isActive', $event)" />
-                            <label for="isActive" class="cursor-pointer"> Kích hoạt mã giảm giá </label>
+                        <div class="field">
+                            <div class="flex align-items-center">
+                                <Checkbox v-model="discount.valid" :binary="true" @update:modelValue="updateDiscount('valid', $event)" />
+                                <label for="valid" class="ml-2">Kích hoạt mã giảm giá</label>
+                            </div>
                         </div>
                     </div>
                 </div>
