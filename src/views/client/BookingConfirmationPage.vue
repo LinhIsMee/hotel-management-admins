@@ -66,7 +66,7 @@ onMounted(async () => {
 
     try {
         // Gọi API để lấy thông tin đặt phòng
-        const response = await fetch(`/api/v1/user/bookings/detail/${bookingId}`);
+        const response = await fetch(`/api/v1/user/bookings/detail/${bookingId.replace('B', '')}`);
 
         if (!response.ok) {
             throw new Error('Không thể tải thông tin đặt phòng');
@@ -79,7 +79,7 @@ onMounted(async () => {
         // Cập nhật dữ liệu booking
         booking.value = {
             ...booking.value,
-            id: bookingData.id,
+            id: bookingData.id.toString().replace('B', ''),
             guestName: bookingData.fullName || 'Không có tên',
             guestEmail: bookingData.email || 'Không có email',
             guestPhone: bookingData.phone || 'Không có số điện thoại',

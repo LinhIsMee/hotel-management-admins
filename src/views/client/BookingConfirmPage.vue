@@ -272,11 +272,17 @@ const confirmBooking = async () => {
             children: bookingInfo.value.children,
             services: services,
             specialRequests: contactInfo.value.specialRequests || '',
-            totalPrice: bookingInfo.value.totalPrice
+            totalPrice: bookingInfo.value.totalPrice,
+            paymentMethod: paymentMethod.value
         };
 
+        // Đường dẫn API dựa vào phương thức thanh toán
+        const apiEndpoint = paymentMethod.value === 'VNPAY'
+            ? 'http://localhost:9000/api/v1/payments/create-booking-payment'
+            : 'http://localhost:9000/api/v1/bookings/create';
+
         // Gọi API đặt phòng mới
-        const response = await fetch('http://localhost:5173/api/v1/payments/create-booking-payment', {
+        const response = await fetch(apiEndpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -302,19 +308,25 @@ const confirmBooking = async () => {
 
         const result = await response.json();
 
-        // Chuyển hướng đến trang thanh toán VNPay
-        if (result.paymentUrl) {
+        // Chuyển hướng đến trang thanh toán VNPay nếu chọn phương thức VNPay
+        if (paymentMethod.value === 'VNPAY' && result.paymentUrl) {
             window.location.href = result.paymentUrl;
         } else {
-            throw new Error('Không nhận được URL thanh toán');
-        }
+            // Nếu thanh toán tại khách sạn hoặc không có URL thanh toán, chuyển hướng đến trang xác nhận
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Đặt phòng thành công!',
+                life: 3000
+            });
 
-        toast.add({
-            severity: 'success',
-            summary: 'Thành công',
-            detail: 'Đặt phòng thành công!',
-            life: 3000
-        });
+            // Chuyển hướng đến trang xác nhận đặt phòng
+            if (result.bookingId) {
+                router.push(`/booking/confirmation/${result.bookingId.toString().replace('B', '')}`);
+            } else {
+                router.push('/bookings'); // Trang danh sách đặt phòng của người dùng
+            }
+        }
     } catch (error) {
         console.error('Lỗi khi đặt phòng:', error);
         toast.add({

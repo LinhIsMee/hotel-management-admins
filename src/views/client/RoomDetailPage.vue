@@ -15,6 +15,7 @@ import { useToast } from 'primevue';
 import Accordion from 'primevue/accordion';
 import AccordionTab from 'primevue/accordiontab';
 import GuestSelector from '@/components/client/GuestSelector.vue';
+import RadioButton from 'primevue/radiobutton';
 
 const route = useRoute();
 const router = useRouter();
@@ -49,8 +50,10 @@ const booking = ref({
     childrenAges: [], // Mảng lưu tuổi của từng trẻ em
     specialRequests: '',
     payViaVnpay: false,
+    payAtHotel: true, // Mặc định là thanh toán tại khách sạn
     discountCode: '',
-    services: []
+    services: [],
+    paymentMethod: 'CASH'
 });
 
 // Thêm vào các thuộc tính cho gallery
@@ -345,7 +348,7 @@ const prepareBookingData = () => {
                 price: service.price
             };
         }),
-        paymentMethod: booking.value.payViaVnpay ? 'VNPAY' : 'CASH'
+        paymentMethod: booking.value.paymentMethod
     };
 };
 
@@ -356,8 +359,22 @@ const handleBooking = () => {
         return;
     }
 
+    // Kiểm tra xem người dùng đã chọn phương thức thanh toán chưa
+    if (!booking.value.paymentMethod) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Cảnh báo',
+            detail: 'Vui lòng chọn phương thức thanh toán',
+            life: 3000
+        });
+        return;
+    }
+
     const bookingData = prepareBookingData();
     console.log('Dữ liệu đặt phòng:', bookingData);
+
+    // Xác định phương thức thanh toán cho query params
+    const paymentMethod = booking.value.paymentMethod.toLowerCase();
 
     // Chuyển đến trang xác nhận đặt phòng
     router.push({
@@ -371,7 +388,7 @@ const handleBooking = () => {
             childrenAges: booking.value.childrenAges.join(','),
             services: booking.value.services.join(','),
             discount: booking.value.discountCode,
-            payment: booking.value.payViaVnpay ? 'vnpay' : 'cash'
+            payment: paymentMethod
         }
     });
 };
@@ -773,10 +790,13 @@ onMounted(async () => {
 
     // Click outside để đóng dropdown - cập nhật để không đóng khi chọn tuổi trẻ em
     document.addEventListener('click', (e) => {
-        const dropdown = document.querySelector('.guest-select-dropdown');
+        const guestSelectDropdown = document.querySelector('.guest-select-dropdown');
         const button = document.querySelector('.guest-select-button');
-        if (showGuestSelect.value && button &&
+        if (showGuestSelect.value &&
+            guestSelectDropdown &&
+            button &&
             !button.contains(e.target) &&
+            !guestSelectDropdown.contains(e.target) &&
             !e.target.closest('.guest-selector') &&
             !e.target.closest('.p-dropdown-panel')) {
             showGuestSelect.value = false;
@@ -796,6 +816,25 @@ const minCheckOutDate = computed(() => {
     const nextDay = new Date(booking.value.checkInDate);
     nextDay.setDate(nextDay.getDate() + 1);
     return nextDay;
+});
+
+// Theo dõi thay đổi phương thức thanh toán
+watch(() => booking.value.payViaVnpay, (newValue) => {
+    if (newValue) {
+        booking.value.payAtHotel = false;
+    } else if (!booking.value.payAtHotel) {
+        // Nếu không có phương thức nào được chọn, mặc định là thanh toán tại khách sạn
+        booking.value.payAtHotel = true;
+    }
+});
+
+watch(() => booking.value.payAtHotel, (newValue) => {
+    if (newValue) {
+        booking.value.payViaVnpay = false;
+    } else if (!booking.value.payViaVnpay) {
+        // Nếu không có phương thức nào được chọn, mặc định là VNPay
+        booking.value.payViaVnpay = true;
+    }
 });
 </script>
 
@@ -1171,14 +1210,23 @@ const minCheckOutDate = computed(() => {
 
                                     <!-- Phương thức thanh toán -->
                                     <div class="mb-4">
-                                        <div class="flex items-center p-3 border border-gray-200 rounded-lg bg-gray-50">
-                                            <Checkbox v-model="booking.payViaVnpay" :binary="true" inputId="pay_vnpay" />
-                                            <label for="pay_vnpay" class="ml-2 flex items-center cursor-pointer">
-                                                <span class="mr-2">Thanh toán qua VNPay</span>
-                                                <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPay" class="h-6" />
-                                            </label>
+                                        <h3 class="font-semibold text-gray-700 mb-2">Phương thức thanh toán</h3>
+                                        <div class="space-y-2">
+                                            <div class="flex items-center p-3 border border-gray-200 rounded-lg bg-gray-50">
+                                                <RadioButton v-model="booking.paymentMethod" value="CASH" inputId="pay_at_hotel" />
+                                                <label for="pay_at_hotel" class="ml-2 flex items-center cursor-pointer">
+                                                    <span>Thanh toán tại khách sạn</span>
+                                                </label>
+                                            </div>
+                                            <div class="flex items-center p-3 border border-gray-200 rounded-lg bg-gray-50">
+                                                <RadioButton v-model="booking.paymentMethod" value="VNPAY" inputId="pay_vnpay" />
+                                                <label for="pay_vnpay" class="ml-2 flex items-center cursor-pointer">
+                                                    <span class="mr-2">Thanh toán qua VNPay</span>
+                                                    <img src="https://vnpay.vn/s1/statics.vnpay.vn/2023/9/06ncktiwd6dc1694418196384.png" alt="VNPay" class="h-6" />
+                                                </label>
+                                            </div>
                                         </div>
-                                        <small class="text-gray-500 mt-1 block">Bạn sẽ được chuyển đến cổng thanh toán VNPay sau khi nhấn nút tiếp tục</small>
+                                        <small class="text-gray-500 mt-1 block">Bạn sẽ được chuyển đến cổng thanh toán VNPay sau khi nhấn nút tiếp tục nếu chọn thanh toán qua VNPay</small>
                                     </div>
                                 </div>
                             </AccordionTab>

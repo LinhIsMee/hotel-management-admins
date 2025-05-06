@@ -219,7 +219,7 @@ const needsPayment = (booking) => {
 
                                 <!-- Action buttons -->
                                 <div class="flex flex-wrap gap-2 mt-4">
-                                    <router-link :to="`/booking/confirmation/${booking.id}`" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded text-sm"> Xem chi tiết </router-link>
+                                    <router-link :to="`/booking/confirmation/${booking.id.toString().replace('B', '')}`" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded text-sm"> Xem chi tiết </router-link>
 
                                     <button v-if="canCancelBooking(booking)" @click="cancelBooking(booking.id)" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded text-sm">Hủy đặt phòng</button>
 
