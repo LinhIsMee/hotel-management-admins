@@ -3,7 +3,7 @@ import Button from 'primevue/button';
 import Calendar from 'primevue/calendar';
 import Dropdown from 'primevue/dropdown';
 import InputText from 'primevue/inputtext';
-import { computed, defineEmits, defineProps, ref, watch } from 'vue';
+import { defineEmits, defineProps, ref, watch } from 'vue';
 
 const props = defineProps({
     dateRange: {
@@ -26,13 +26,12 @@ const props = defineProps({
         type: Boolean,
         default: false
     },
-    globalFilter: {
+    searchFilter: {
         type: Object,
-        default: null
-    },
-    phoneFilter: {
-        type: String,
-        default: ''
+        default: () => ({
+            value: '',
+            type: 'all' // 'all', 'phone', 'name', etc.
+        })
     }
 });
 
@@ -40,12 +39,11 @@ const emit = defineEmits([
     'update:dateRange',
     'update:selectedStatus',
     'update:userId',
-    'update:globalFilter',
-    'update:phoneFilter',
+    'update:searchFilter',
     'filter-by-date-range',
     'filter-by-status',
     'filter-by-user',
-    'filter-by-phone',
+    'filter-by-search',
     'reset-filters',
     'add-new',
     'delete-selected',
@@ -56,8 +54,7 @@ const emit = defineEmits([
 const localDateRange = ref({ ...props.dateRange });
 const localSelectedStatus = ref(props.selectedStatus);
 const localUserId = ref(props.userId);
-const localGlobalFilter = ref(props.globalFilter?.value || '');
-const localPhoneFilter = ref(props.phoneFilter || '');
+const localSearchFilter = ref({ ...props.searchFilter });
 
 // Theo dõi thay đổi từ props để cập nhật biến cục bộ
 watch(() => props.dateRange, (newVal) => {
@@ -72,49 +69,47 @@ watch(() => props.userId, (newVal) => {
     localUserId.value = newVal;
 });
 
-watch(() => props.globalFilter?.value, (newVal) => {
-    localGlobalFilter.value = newVal;
-});
-
-watch(() => props.phoneFilter, (newVal) => {
-    localPhoneFilter.value = newVal;
-});
+watch(() => props.searchFilter, (newVal) => {
+    localSearchFilter.value = { ...newVal };
+}, { deep: true });
 
 // Cập nhật biến cục bộ và emit event
 const updateDateRange = (value, type) => {
     localDateRange.value[type] = value;
     emit('update:dateRange', { ...localDateRange.value });
+    if (localDateRange.value.start && localDateRange.value.end) {
+        emit('filter-by-date-range');
+    }
 };
 
 const updateSelectedStatus = (value) => {
     localSelectedStatus.value = value;
     emit('update:selectedStatus', value);
+    emit('filter-by-status');
 };
 
-const updateGlobalFilter = (value) => {
-    localGlobalFilter.value = value;
-    emit('update:globalFilter', { value, matchMode: props.globalFilter?.matchMode });
-};
+const updateSearchFilter = (value) => {
+    localSearchFilter.value.value = value;
 
-const updatePhoneFilter = (value) => {
-    localPhoneFilter.value = value;
-    emit('update:phoneFilter', value);
-    emit('filter-by-phone');
-};
+    if (value.trim()) {
+        if (/^\d+$/.test(value.trim())) {
+            localSearchFilter.value.type = 'phone';
+        } else {
+            localSearchFilter.value.type = 'all';
+        }
+    } else {
+        localSearchFilter.value.type = 'all';
+    }
 
-const canFilter = computed(() => {
-    return (localDateRange.value.start && localDateRange.value.end) ||
-           localSelectedStatus.value ||
-           (props.showUserFilter && localUserId.value) ||
-           localPhoneFilter.value;
-});
+    emit('update:searchFilter', { ...localSearchFilter.value });
+    emit('filter-by-search');
+};
 
 const handleReset = () => {
     localDateRange.value = { start: null, end: null };
     localSelectedStatus.value = null;
     localUserId.value = '';
-    localGlobalFilter.value = '';
-    localPhoneFilter.value = '';
+    localSearchFilter.value = { value: '', type: 'all' };
     emit('reset-filters');
 };
 
@@ -129,16 +124,12 @@ const handleDeleteSelected = () => {
 const handleExportData = () => {
     emit('export-data');
 };
-
-const filterByPhone = () => {
-    emit('filter-by-phone');
-};
 </script>
 
 <template>
     <div class="booking-filters p-2 mb-3 border-1 border-gray-200 rounded-md shadow-1 bg-white">
-        <div class="filter-container flex">
-            <!-- Khu vực bộ lọc (bên trái) -->
+        <div class="filter-container flex flex-wrap">
+            <!-- Khu vực bộ lọc -->
             <div class="filter-section flex gap-2 flex-grow-1">
                 <!-- Từ ngày - Đến ngày -->
                 <Calendar
@@ -159,10 +150,10 @@ const filterByPhone = () => {
                     class="date-input"
                 />
 
-                <!-- Dropdown Trạng thái - Thêm sự kiện để update ngay -->
+                <!-- Dropdown Trạng thái -->
                 <Dropdown
                     v-model="localSelectedStatus"
-                    @update:modelValue="updateSelectedStatus($event); $emit('filter-by-status')"
+                    @update:modelValue="updateSelectedStatus($event)"
                     :options="statuses"
                     optionLabel="label"
                     optionValue="value"
@@ -170,29 +161,20 @@ const filterByPhone = () => {
                     class="status-dropdown"
                 />
 
-                <!-- Tìm kiếm theo SĐT -->
-                <div class="phone-filter flex">
-                    <span class="p-input-icon-left">
-                        <i class="pi pi-phone"></i>
+                <!-- Tìm kiếm thông minh -->
+                <div class="search-container flex-grow-1">
+                    <span class="w-full">
                         <InputText
-                            v-model="localPhoneFilter"
-                            @input="updatePhoneFilter($event.target.value)"
-                            placeholder="Số điện thoại KH"
-                            class="p-inputtext-sm phone-input"
+                            v-model="localSearchFilter.value"
+                            @input="updateSearchFilter($event.target.value)"
+                            :placeholder="localSearchFilter.type === 'phone' ? 'Tìm theo SĐT...' : 'Tìm kiếm...'"
+                            class="p-inputtext-sm w-full"
                         />
                     </span>
                 </div>
 
-                <!-- Nút lọc và làm mới -->
-                <div class="filter-buttons flex gap-1">
-                    <Button
-                        type="button"
-                        icon="pi pi-filter"
-                        class="p-button-sm p-button-outlined"
-                        @click="$emit('filter-by-date-range'), $emit('filter-by-status'), showUserFilter && $emit('filter-by-user'), filterByPhone()"
-                        :disabled="!canFilter"
-                        aria-label="Lọc"
-                    />
+                <!-- Nút làm mới -->
+                <div class="filter-buttons">
                     <Button
                         type="button"
                         icon="pi pi-sync"
@@ -203,21 +185,8 @@ const filterByPhone = () => {
                 </div>
             </div>
 
-            <!-- Khu vực nút chức năng và tìm kiếm (bên phải) -->
+            <!-- Khu vực nút chức năng -->
             <div class="action-section flex align-items-center gap-2 ml-auto">
-                <!-- Tìm kiếm -->
-                <div class="search-container">
-                    <span class="p-input-icon-left search-field">
-                        <InputText
-                            v-model="localGlobalFilter"
-                            @input="updateGlobalFilter($event.target.value)"
-                            placeholder="Tìm kiếm..."
-                            class="p-inputtext-sm search-input"
-                        />
-                    </span>
-                </div>
-
-                <!-- Nút chức năng -->
                 <Button
                     icon="pi pi-plus"
                     label="Thêm mới"
@@ -250,163 +219,55 @@ const filterByPhone = () => {
 }
 
 .filter-container {
-    display: flex;
-    flex-wrap: nowrap;
-    width: 100%;
+    gap: 1rem;
 }
 
 .filter-section {
     flex-wrap: wrap;
-    max-width: calc(100% - 640px); /* Dành không gian cho cụm nút bên phải */
+    row-gap: 0.5rem;
 }
 
-.action-section {
-    flex-wrap: nowrap;
-    flex-shrink: 0; /* Không cho phép co lại */
-    margin-left: auto; /* Đẩy sát về phía bên phải */
-}
-
-.date-input {
-    width: 150px !important;
-}
-
+.date-input,
 .status-dropdown {
-    width: 150px;
-}
-
-.phone-input {
-    width: 150px !important;
+    min-width: 150px;
 }
 
 .search-container {
-    position: relative;
     min-width: 200px;
-    max-width: 250px;
 }
 
-.search-field {
-    display: flex;
-    align-items: center;
-    width: 100%;
-}
-
-.search-input {
-    width: 100%;
-    height: 2.357rem;
-    border-radius: 4px;
-    padding-left: 2rem;
-    font-size: 0.875rem;
-    border: 1px solid var(--surface-border);
-}
-
-.p-input-icon-left > i {
-    position: absolute;
-    left: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-color-secondary);
-    z-index: 1;
-}
-
-.action-button {
-    white-space: nowrap;
-}
-
-:deep(.p-inputtext) {
-    height: 2.357rem;
-    font-size: 0.875rem;
-}
-
-:deep(.p-dropdown) {
-    height: 2.357rem;
-}
-
-/* Responsive */
-@media screen and (max-width: 1400px) {
-    .filter-container {
-        flex-wrap: wrap;
-    }
-
-    .filter-section {
-        max-width: 100%;
-    }
-
-    .action-section {
-        margin-top: 0.5rem;
-        margin-left: auto; /* Vẫn đẩy sang phải */
-        width: auto;
-    }
-}
-
-@media screen and (max-width: 992px) {
-    .filter-section,
-    .action-section {
-        gap: 0.5rem;
-    }
-
-    .date-input,
-    .status-dropdown,
-    .phone-input {
-        width: calc(33.33% - 0.75rem) !important;
-    }
-
-    .action-section {
-        width: 100%;
-        justify-content: flex-end;
-    }
-
-    .search-container {
-        min-width: 170px;
-    }
+.action-section {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
 }
 
 @media screen and (max-width: 768px) {
-    .filter-container {
-        flex-direction: column;
-    }
-
-    .filter-section {
-        max-width: 100%;
-        margin-bottom: 1rem;
+    .filter-section,
+    .action-section {
+        width: 100%;
     }
 
     .action-section {
-        width: 100%;
+        margin-left: 0;
+        margin-top: 0.5rem;
         justify-content: flex-end;
-    }
-
-    .date-input,
-    .status-dropdown,
-    .phone-input {
-        width: 100% !important;
-        margin-bottom: 0.5rem;
-    }
-
-    .search-container {
-        min-width: 100%;
     }
 }
 
 @media screen and (max-width: 576px) {
     .date-input,
     .status-dropdown,
-    .phone-input {
+    .search-container {
         width: 100% !important;
-        margin-bottom: 0.5rem;
     }
 
     .filter-buttons {
         width: 100%;
         justify-content: flex-end;
-        margin-bottom: 0.5rem;
     }
 
-    .action-section .p-button {
-        padding: 0.5rem;
-    }
-
-    .action-section .p-button-label {
-        display: none;
+    .action-section {
+        justify-content: flex-start;
     }
 }
 </style>

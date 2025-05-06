@@ -62,13 +62,23 @@ const booking = ref({});
 const selectedBooking = ref(null);
 const selectedBookings = ref([]);
 const filters = ref({
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    fullName: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    phone: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    status: { value: null, matchMode: FilterMatchMode.EQUALS },
+    checkInDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
+    checkOutDate: { value: null, matchMode: FilterMatchMode.DATE_IS }
 });
 const submitted = ref(false);
 const dateRange = ref({ start: null, end: null });
 const selectedStatus = ref(null);
 const userId = ref(null);
 const phoneFilter = ref('');
+
+const searchFilter = ref({
+    value: '',
+    type: 'all'
+});
 
 // Tạo một đối tượng hiển thị các cột dựa vào quyền
 const displayColumns = computed(() => ({
@@ -417,135 +427,56 @@ const handleCancelBooking = async (data) => {
     }
 };
 
-// Hàm lọc theo khoảng thời gian
-const filterByDateRange = () => {
+// Xử lý tìm kiếm
+const handleSearch = () => {
+    const searchValue = searchFilter.value.value.trim();
+
+    // Reset tất cả các filter liên quan đến tìm kiếm
+    filters.value.global.value = null;
+    filters.value.phone.value = null;
+    filters.value.fullName.value = null;
+
+    if (searchValue) {
+        if (searchFilter.value.type === 'phone') {
+            // Nếu là số điện thoại, chỉ tìm trong trường phone
+            filters.value.phone.value = searchValue;
+        } else {
+            // Nếu là text, tìm trong cả tên và số điện thoại
+            filters.value.global.value = searchValue;
+        }
+    }
+};
+
+// Xử lý lọc theo trạng thái
+const handleStatusFilter = () => {
+    filters.value.status.value = selectedStatus.value;
+};
+
+// Xử lý lọc theo ngày
+const handleDateFilter = () => {
     if (dateRange.value.start && dateRange.value.end) {
-        loading.value = true;
-        try {
-            // Lưu trữ dữ liệu gốc nếu chưa có
-            if (!window._originalBookings) {
-                window._originalBookings = [...bookings.value];
-            }
-
-            // Chuyển đổi ngày thành chuỗi để so sánh
-            const startDateStr = dateRange.value.start.toISOString().split('T')[0];
-            const endDateStr = dateRange.value.end.toISOString().split('T')[0];
-
-            // Lọc từ dữ liệu gốc
-            const filteredBookings = window._originalBookings.filter(booking => {
-                // Sử dụng checkInDate hoặc createdAt để lọc theo ngày
-                const bookingDate = booking.checkInDate ||
-                                    (booking.createdAt ? booking.createdAt.split(' ')[0] : null);
-
-                return bookingDate && bookingDate >= startDateStr && bookingDate <= endDateStr;
-            });
-
-            // Cập nhật danh sách hiển thị
-            bookings.value = filteredBookings;
-            // Cập nhật thống kê sau khi lọc
-            calculateStats();
-
-            console.log(`Đã tìm thấy ${filteredBookings.length} đơn đặt phòng từ ${startDateStr} đến ${endDateStr}`);
-        } catch (error) {
-            console.error('Lỗi khi lọc theo ngày:', error);
-        } finally {
-            loading.value = false;
-        }
+        filters.value.checkInDate.value = dateRange.value.start;
+        filters.value.checkOutDate.value = dateRange.value.end;
     } else {
-        // Khôi phục dữ liệu gốc
-        if (window._originalBookings) {
-            bookings.value = [...window._originalBookings];
-            window._originalBookings = null;
-            calculateStats();
-        } else {
-            fetchAllBookings();
-        }
+        filters.value.checkInDate.value = null;
+        filters.value.checkOutDate.value = null;
     }
 };
 
-// Hàm lọc theo trạng thái
-const filterByStatus = () => {
-    if (selectedStatus.value) {
-        loading.value = true;
-        try {
-            // Lấy dữ liệu gốc (nếu chưa có)
-            if (!bookings.value || bookings.value.length === 0) {
-                fetchAllBookings().then(() => {
-                    applyStatusFilter();
-                });
-            } else {
-                applyStatusFilter();
-            }
-        } finally {
-            loading.value = false;
-        }
-    } else {
-        fetchAllBookings();
-    }
-};
-
-// Hàm áp dụng bộ lọc trạng thái
-const applyStatusFilter = () => {
-    // Lưu trữ dữ liệu gốc nếu chưa có
-    if (!window._originalBookings) {
-        window._originalBookings = [...bookings.value];
-    }
-
-    // Lọc theo trạng thái
-    const filteredBookings = window._originalBookings.filter(booking =>
-        booking.status === selectedStatus.value
-    );
-
-    // Cập nhật danh sách hiển thị
-    bookings.value = filteredBookings;
-    // Cập nhật thống kê sau khi lọc
-    calculateStats();
-
-    console.log(`Đã tìm thấy ${filteredBookings.length} đơn đặt phòng với trạng thái ${selectedStatus.value}`);
-};
-
-// Hàm lọc theo số điện thoại
-const filterByPhone = async () => {
-    if (phoneFilter.value && phoneFilter.value.trim().length > 0) {
-        loading.value = true;
-        try {
-            // Lưu trữ dữ liệu gốc nếu chưa có
-            if (!window._originalBookings) {
-                window._originalBookings = [...bookings.value];
-            }
-
-            // Lọc từ dữ liệu gốc
-            const filteredBookings = window._originalBookings.filter(booking =>
-                booking.phone && booking.phone.includes(phoneFilter.value)
-            );
-
-            // Cập nhật danh sách hiển thị
-            bookings.value = filteredBookings;
-            // Cập nhật thống kê sau khi lọc
-            calculateStats();
-
-            console.log(`Đã tìm thấy ${filteredBookings.length} đơn đặt phòng với số điện thoại ${phoneFilter.value}`);
-        } catch (error) {
-            console.error('Lỗi khi lọc đặt phòng:', error);
-            toast.add({
-                severity: 'error',
-                summary: 'Lỗi',
-                detail: 'Không thể lọc đặt phòng. Vui lòng thử lại sau.',
-                life: 3000
-            });
-        } finally {
-            loading.value = false;
-        }
-    } else {
-        // Nếu xóa hết số điện thoại, khôi phục dữ liệu gốc
-        if (window._originalBookings) {
-            bookings.value = [...window._originalBookings];
-            window._originalBookings = null;
-            calculateStats();
-        } else {
-            fetchAllBookings();
-        }
-    }
+// Xử lý reset filters
+const handleResetFilters = () => {
+    filters.value = {
+        global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        fullName: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        phone: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        status: { value: null, matchMode: FilterMatchMode.EQUALS },
+        checkInDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
+        checkOutDate: { value: null, matchMode: FilterMatchMode.DATE_IS }
+    };
+    dateRange.value = { start: null, end: null };
+    selectedStatus.value = null;
+    searchFilter.value = { value: '', type: 'all' };
+    fetchAllBookings(); // Tải lại dữ liệu gốc
 };
 
 // Thêm hàm để tính thống kê từ dữ liệu hiện tại
@@ -705,13 +636,13 @@ const handleCheckOutBooking = async (data) => {
             :statuses="statuses"
             v-model:dateRange="dateRange"
             v-model:selectedStatus="selectedStatus"
-            v-model:phoneFilter="phoneFilter"
+            v-model:searchFilter="searchFilter"
             :globalFilter="filters.global"
             @update:globalFilter="(val) => (filters.global = val)"
-            @filter-by-date-range="filterByDateRange"
-            @filter-by-status="filterByStatus"
-            @filter-by-phone="filterByPhone"
-            @reset-filters="resetFilters"
+            @filter-by-date-range="handleDateFilter"
+            @filter-by-status="handleStatusFilter"
+            @filter-by-search="handleSearch"
+            @reset-filters="handleResetFilters"
             @add-new="openNew"
             @delete-selected="deleteSelectedBookings"
             @export-data="handleExport"
