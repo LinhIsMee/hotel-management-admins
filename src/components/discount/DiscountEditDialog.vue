@@ -260,12 +260,12 @@ watch(
                         </div>
                     </div>
 
-                    <div class="col-12 md:col-6">
+                    <!-- <div class="col-12 md:col-6">
                         <div class="field">
                             <label for="minOrderValue" class="font-bold"> Giá trị đơn hàng tối thiểu </label>
                             <InputNumber id="minOrderValue" v-model="discount.minOrderValue" :min="0" :step="10000" mode="currency" currency="VND" locale="vi-VN" @update:modelValue="updateDiscount('minOrderValue', $event)" :allowEmpty="true" />
                         </div>
-                    </div>
+                    </div> -->
 
                     <div class="col-12">
                         <div class="field">
