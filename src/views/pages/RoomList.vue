@@ -6,9 +6,7 @@ import ConfirmDialog from 'primevue/confirmdialog';
 import DataTable from 'primevue/datatable';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
-import InputSwitch from 'primevue/inputswitch';
 import InputText from 'primevue/inputtext';
-import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
 import { useToast } from 'primevue/usetoast';
@@ -35,14 +33,6 @@ const toast = useToast();
 
 // Định nghĩa địa chỉ cơ sở của API backend
 const API_BASE_URL = 'http://localhost:9000';
-
-// Trạng thái phòng theo tài liệu API
-const statuses = ref([
-    { label: 'Trống', value: 'VACANT' },
-    { label: 'Đang có khách', value: 'OCCUPIED' },
-    { label: 'Bảo trì', value: 'MAINTENANCE' },
-    { label: 'Đang dọn dẹp', value: 'CLEANING' }
-]);
 
 // Tính toán quyền của người dùng
 const permissions = computed(() => {
@@ -182,9 +172,7 @@ const openNew = () => {
     room.value = {
         roomNumber: '',
         roomTypeId: null,
-        status: 'VACANT',
         floor: '1',
-        isActive: true,
         notes: ''
     };
     submitted.value = false;
@@ -213,11 +201,9 @@ const saveRoom = async () => {
         let body;
 
         if (room.value.id) {
-            // Cập nhật phòng hiện có
             url = `${API_BASE_URL}/api/v1/admin/rooms/${room.value.id}`;
             method = 'PUT';
         } else {
-            // Tạo phòng mới
             url = `${API_BASE_URL}/api/v1/admin/rooms`;
             method = 'POST';
         }
@@ -226,9 +212,7 @@ const saveRoom = async () => {
         body = JSON.stringify({
             roomNumber: room.value.roomNumber,
             roomTypeId: room.value.roomTypeId,
-            status: room.value.status,
             floor: room.value.floor,
-            isActive: room.value.isActive,
             notes: room.value.notes
         });
 
@@ -420,20 +404,6 @@ const getRoomTypeName = (roomTypeId) => {
     const roomType = roomTypes.value.find((rt) => rt.id === roomTypeId);
     return roomType ? roomType.name : '';
 };
-
-const getStatusSeverity = (status) => {
-    const statusMap = {
-        VACANT: 'success',
-        OCCUPIED: 'warning',
-        MAINTENANCE: 'danger',
-        CLEANING: 'info'
-    };
-    return statusMap[status] || null;
-};
-
-const getStatusLabel = (status) => {
-    return statuses.value.find((s) => s.value === status)?.label || status;
-};
 </script>
 
 <template>
@@ -495,11 +465,6 @@ const getStatusLabel = (status) => {
                             {{ getRoomTypeName(data.roomTypeId) }}
                         </template>
                     </Column>
-                    <Column field="status" header="Trạng thái" sortable>
-                        <template #body="{ data }">
-                            <Tag :value="getStatusLabel(data.status)" :severity="getStatusSeverity(data.status)" />
-                        </template>
-                    </Column>
                     <Column field="pricePerNight" header="Giá/đêm" sortable>
                         <template #body="{ data }">
                             {{ formatCurrency(data.pricePerNight) }}
@@ -513,11 +478,6 @@ const getStatusLabel = (status) => {
                     <Column field="createdAt" header="Ngày tạo" sortable>
                         <template #body="{ data }">
                             {{ formatDate(data.createdAt) }}
-                        </template>
-                    </Column>
-                    <Column field="isActive" header="Hoạt động" sortable>
-                        <template #body="{ data }">
-                            <i :class="['pi', data.isActive ? 'pi-check' : 'pi-times']" />
                         </template>
                     </Column>
                     <Column style="width: 8rem">
@@ -553,19 +513,8 @@ const getStatusLabel = (status) => {
                 <div class="field">
                     <div class="p-4 rounded-lg">
                         <div class="mb-4">
-                            <label>Trạng thái</label>
-                            <Dropdown v-model="room.status" :options="statuses" optionLabel="label" optionValue="value" class="w-full" placeholder="Chọn trạng thái" />
-                        </div>
-                        <div class="mb-4">
                             <label>Ghi chú</label>
                             <InputText v-model="room.notes" class="w-full" />
-                        </div>
-                        <div class="mb-4">
-                            <label>Hoạt động</label>
-                            <div class="flex items-center">
-                                <InputSwitch v-model="room.isActive" />
-                                <span class="ml-2">{{ room.isActive ? 'Đang hoạt động' : 'Không hoạt động' }}</span>
-                            </div>
                         </div>
                     </div>
                 </div>
