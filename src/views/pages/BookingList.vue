@@ -4,7 +4,7 @@ import { useExportData } from '@/composables/useExportData';
 import { usePermissions } from '@/composables/usePermissions';
 import { FilterMatchMode } from '@/utils/primeUtils';
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 // Import các component PrimeVue
 import ConfirmDialog from 'primevue/confirmdialog';
@@ -19,7 +19,7 @@ import BookingManagementTable from '@/components/booking/BookingManagementTable.
 import BookingStats from '@/components/booking/BookingStats.vue';
 
 // Lấy phân quyền
-const { userRole, can, refreshRole } = usePermissions();
+const { can, refreshRole } = usePermissions();
 
 // Lấy các hàm và biến từ composable
 const {
@@ -44,7 +44,7 @@ const {
     confirmBooking,
     checkInBooking,
     checkOutBooking,
-    updateStats,
+    // updateStats, // AI: Đã comment out nếu không dùng
 } = useBookingManagement();
 
 // Thêm hàm để xử lý xuất dữ liệu
@@ -72,8 +72,8 @@ const filters = ref({
 const submitted = ref(false);
 const dateRange = ref({ start: null, end: null });
 const selectedStatus = ref(null);
-const userId = ref(null);
-const phoneFilter = ref('');
+// const userId = ref(null);
+// const phoneFilter = ref('');
 
 const searchFilter = ref({
     value: '',
@@ -93,27 +93,32 @@ const displayColumns = computed(() => ({
 //     { id: 3, name: 'Phòng VIP' }
 // ]);
 
+// AI: Thêm watch cho dateRange để đảm bảo handleDateFilter được gọi
+watch(dateRange, (newVal, oldVal) => {
+    console.log('dateRange changed from', oldVal, 'to', newVal); // Dòng này giúp kiểm tra
+    handleDateFilter();
+}, { deep: true });
+
 // Gọi API khi component được mount
-onMounted(() => {
+onMounted(async () => {
     refreshRole();
     console.log('BookingList mounted - Fetching data');
-    fetchAllBookings();
+    await fetchAllBookings(); // Giả định hàm này cập nhật bookings.value từ composable
 
-    // Đảm bảo tính toán thống kê sau khi có dữ liệu
     if (bookings.value && bookings.value.length > 0) {
-        console.log('Bookings loaded, calculating stats...');
-        calculateStats();
+        window._masterBookingsGlob = bookings.value.map(b => ({
+            ...b,
+            checkInDate: b.checkInDate ? new Date(b.checkInDate) : null,
+            checkOutDate: b.checkOutDate ? new Date(b.checkOutDate) : null,
+            paymentDate: b.paymentDate ? new Date(b.paymentDate) : null, // Chuyển đổi các ngày khác nếu cần
+        }));
+        bookings.value = [...window._masterBookingsGlob]; // Khởi tạo bookings.value cho hiển thị
+    } else {
+        window._masterBookingsGlob = [];
+        bookings.value = [];
     }
-
-    // Thêm timeout nếu cần để đảm bảo thống kê được cập nhật
-    setTimeout(() => {
-        console.log('Current stats after timeout:', stats.value);
-        // Nếu vẫn chưa có thống kê, chạy lại tính toán
-        if (!stats.value.totalBookings && bookings.value.length > 0) {
-            console.log('Stats not updated, calculating stats again');
-            calculateStats();
-        }
-    }, 500);
+    console.log('Master booking list created with Date objects.');
+    calculateStats(); // Tính toán thống kê ban đầu
 });
 
 // Mở dialog thêm mới
@@ -431,40 +436,116 @@ const handleCancelBooking = async (data) => {
 const handleSearch = () => {
     const searchValue = searchFilter.value.value.trim();
 
+    // Lưu dữ liệu gốc nếu chưa có
+    if (!window._originalBookings) {
+        window._originalBookings = [...bookings.value];
+    }
+
     // Reset tất cả các filter liên quan đến tìm kiếm
     filters.value.global.value = null;
     filters.value.phone.value = null;
     filters.value.fullName.value = null;
 
     if (searchValue) {
+        const sourceData = window._originalBookings;
+
         if (searchFilter.value.type === 'phone') {
             // Nếu là số điện thoại, chỉ tìm trong trường phone
             filters.value.phone.value = searchValue;
+            bookings.value = sourceData.filter(booking =>
+                booking.phone && booking.phone.includes(searchValue)
+            );
         } else {
             // Nếu là text, tìm trong cả tên và số điện thoại
             filters.value.global.value = searchValue;
+            bookings.value = sourceData.filter(booking =>
+                (booking.fullName && booking.fullName.toLowerCase().includes(searchValue.toLowerCase())) ||
+                (booking.phone && booking.phone.includes(searchValue))
+            );
         }
+    } else {
+        // Khôi phục dữ liệu gốc nếu không có giá trị tìm kiếm
+        bookings.value = [...window._originalBookings];
+        window._originalBookings = null;
     }
+
+    // Cập nhật thống kê
+    calculateStats();
 };
 
 // Xử lý lọc theo trạng thái
 const handleStatusFilter = () => {
+    if (selectedStatus.value === null) {
+        // Khôi phục dữ liệu gốc nếu có
+        if (window._originalBookings) {
+            bookings.value = [...window._originalBookings];
+            window._originalBookings = null;
+        }
+    } else {
+        // Lưu dữ liệu gốc nếu chưa có
+        if (!window._originalBookings) {
+            window._originalBookings = [...bookings.value];
+        }
+
+        // Lọc trực tiếp từ dữ liệu
+        const sourceData = window._originalBookings;
+        bookings.value = sourceData.filter(booking => booking.status === selectedStatus.value);
+    }
+
+    // Cập nhật bộ lọc và thống kê
     filters.value.status.value = selectedStatus.value;
+    calculateStats();
 };
 
 // Xử lý lọc theo ngày
 const handleDateFilter = () => {
-    if (dateRange.value.start && dateRange.value.end) {
-        filters.value.checkInDate.value = dateRange.value.start;
-        filters.value.checkOutDate.value = dateRange.value.end;
+    let sourceForFiltering;
+
+    if (window._masterBookingsGlob && window._masterBookingsGlob.length > 0) {
+        sourceForFiltering = [...window._masterBookingsGlob];
     } else {
-        filters.value.checkInDate.value = null;
-        filters.value.checkOutDate.value = null;
+        sourceForFiltering = (bookings.value || []).map(b => ({ // Fallback
+            ...b,
+            checkInDate: b.checkInDate ? (b.checkInDate instanceof Date ? b.checkInDate : new Date(b.checkInDate)) : null,
+            checkOutDate: b.checkOutDate ? (b.checkOutDate instanceof Date ? b.checkOutDate : new Date(b.checkOutDate)) : null,
+        }));
     }
+
+    if (dateRange.value.start && dateRange.value.end) {
+        const startDate = dateRange.value.start instanceof Date ? dateRange.value.start : new Date(dateRange.value.start);
+        const endDate = dateRange.value.end instanceof Date ? dateRange.value.end : new Date(dateRange.value.end);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            console.error("Invalid date range for filtering:", dateRange.value.start, dateRange.value.end);
+            bookings.value = sourceForFiltering;
+        } else {
+            startDate.setHours(0, 0, 0, 0);
+            endDate.setHours(23, 59, 59, 999);
+            bookings.value = sourceForFiltering.filter(booking => {
+                if (!booking.checkInDate || !booking.checkOutDate || isNaN(booking.checkInDate.getTime()) || isNaN(booking.checkOutDate.getTime())) {
+                    return false;
+                }
+                return (booking.checkInDate >= startDate && booking.checkInDate <= endDate) ||
+                       (booking.checkOutDate >= startDate && booking.checkOutDate <= endDate) ||
+                       (booking.checkInDate <= startDate && booking.checkOutDate >= endDate);
+            });
+        }
+    } else {
+        bookings.value = sourceForFiltering;
+    }
+
+    filters.value.checkInDate.value = null;
+    filters.value.checkOutDate.value = null;
+
+    calculateStats();
 };
 
 // Xử lý reset filters
 const handleResetFilters = () => {
+    dateRange.value = { start: null, end: null };
+    selectedStatus.value = null;
+    searchFilter.value = { value: '', type: 'all' };
+
     filters.value = {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
         fullName: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -473,10 +554,13 @@ const handleResetFilters = () => {
         checkInDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
         checkOutDate: { value: null, matchMode: FilterMatchMode.DATE_IS }
     };
-    dateRange.value = { start: null, end: null };
-    selectedStatus.value = null;
-    searchFilter.value = { value: '', type: 'all' };
-    fetchAllBookings(); // Tải lại dữ liệu gốc
+
+    if (window._masterBookingsGlob) {
+        bookings.value = [...window._masterBookingsGlob];
+    } else {
+        bookings.value = [];
+    }
+    calculateStats();
 };
 
 // Thêm hàm để tính thống kê từ dữ liệu hiện tại
@@ -518,25 +602,15 @@ const handleFilterByStatus = (status) => {
             fetchAllBookings();
         }
     } else {
-        filterByStatus();
-        calculateStats(); // Sử dụng hàm tính toán thống kê mới
-    }
-};
+        // Lưu dữ liệu gốc nếu chưa có
+        if (!window._originalBookings) {
+            window._originalBookings = [...bookings.value];
+        }
 
-// Hàm reset bộ lọc
-const resetFilters = () => {
-    dateRange.value = { start: null, end: null };
-    selectedStatus.value = null;
-    userId.value = null;
-    phoneFilter.value = '';
-
-    // Khôi phục dữ liệu gốc nếu có
-    if (window._originalBookings) {
-        bookings.value = [...window._originalBookings];
-        window._originalBookings = null;
+        // Lọc trực tiếp từ dữ liệu
+        const sourceData = window._originalBookings;
+        bookings.value = sourceData.filter(booking => booking.status === status);
         calculateStats(); // Sử dụng hàm tính toán thống kê mới
-    } else {
-        fetchAllBookings();
     }
 };
 
