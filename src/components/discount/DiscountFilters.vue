@@ -1,53 +1,60 @@
 <script setup>
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
-import ToggleButton from 'primevue/togglebutton';
+import Dropdown from 'primevue/dropdown';
 import { ref, watch } from 'vue';
 
 const props = defineProps({
-    showActiveOnly: {
-        type: Boolean,
-        default: false
-    },
-    globalFilter: {
-        type: Object,
-        default: () => ({ value: null })
+    modelValue: {
+        type: String,
+        default: 'ACTIVE'
     }
 });
 
-const emit = defineEmits(['update:showActiveOnly', 'search', 'update:globalFilter', 'toggle-active-filter']);
+const emit = defineEmits(['update:modelValue', 'search']);
 
 const localSearch = ref('');
+
+// Các tùy chọn lọc
+const filterOptions = [
+    { label: 'Tất cả mã giảm giá', value: 'ALL' },
+    { label: 'Đang hoạt động', value: 'ACTIVE' },
+    { label: 'Đã vô hiệu hóa', value: 'INACTIVE' },
+    { label: 'Còn hạn', value: 'VALID' },
+    { label: 'Đã hết hạn', value: 'EXPIRED' }
+];
 
 // Theo dõi thay đổi của localSearch để emit sự kiện tìm kiếm
 watch(localSearch, (newValue) => {
     emit('search', newValue);
 });
 
-const toggleActiveFilter = () => {
-    // Emit cả 2 sự kiện: một cho v-model và một cho logic cũ
-    emit('update:showActiveOnly', !props.showActiveOnly);
-    emit('toggle-active-filter');
-};
-
 // Xóa tìm kiếm
 const clearSearch = () => {
     localSearch.value = '';
     emit('search', '');
 };
+
+// Xử lý sự kiện @change từ PrimeVue Dropdown
+const handleFilterChange = (event) => {
+    // event của PrimeVue Dropdown có dạng { originalEvent: ..., value: ... }
+    // Với optionValue="value", thì event.value ở đây phải là chuỗi string (ví dụ: 'ALL', 'ACTIVE')
+    console.log('DiscountFilters - Dropdown @change event.value:', event.value);
+    emit('update:modelValue', event.value); // Phát ra giá trị string này cho DiscountList
+};
 </script>
 
 <template>
-    <div class="flex align-items-center justify-content-between gap-2">
+    <div class="flex align-items-center justify-content-between gap-2 filter-container">
         <div class="flex align-items-center">
-            <ToggleButton
-                :modelValue="showActiveOnly"
-                @update:modelValue="$emit('update:showActiveOnly', $event)"
-                onIcon="pi pi-check"
-                offIcon="pi pi-list"
-                onLabel="Đang hoạt động"
-                offLabel="Tất cả"
-                class="mr-2"
+            <Dropdown
+                :modelValue="props.modelValue"
+                :options="filterOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Chọn trạng thái lọc"
+                class="filter-dropdown"
+                @change="handleFilterChange"
             />
         </div>
         <span class="p-input-icon-left search-wrapper">
@@ -59,6 +66,14 @@ const clearSearch = () => {
 </template>
 
 <style scoped>
+.filter-container {
+    width: 100%;
+}
+
+.filter-dropdown {
+    min-width: 200px;
+}
+
 .search-wrapper {
     position: relative;
     display: inline-flex;
@@ -86,22 +101,16 @@ const clearSearch = () => {
     padding-left: 2.5rem;
 }
 
-:deep(.p-togglebutton.p-button) {
-    background: var(--surface-200);
-    border: none;
-    color: var(--text-color);
-}
+@media screen and (max-width: 768px) {
+    .filter-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 
-:deep(.p-togglebutton.p-button:not(.p-disabled):hover) {
-    background: var(--surface-300);
-}
-
-:deep(.p-togglebutton.p-button.p-highlight) {
-    background: var(--primary-color);
-    color: var(--primary-color-text);
-}
-
-:deep(.p-togglebutton.p-button.p-highlight:hover) {
-    background: var(--primary-600);
+    .filter-dropdown,
+    .search-wrapper {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
 }
 </style>

@@ -503,10 +503,10 @@ const getSeverity = (status) => {
                             <InputNumber id="maxOccupancy" v-model="roomType.maxOccupancy" showButtons :min="1" :max="10" class="w-full" />
                         </div>
 
-                        <div class="mb-4 w-full">
+                        <!-- <div class="mb-4 w-full">
                             <label for="roomSize" class="font-bold mb-2 block">Diện tích (m²)</label>
                             <InputNumber id="roomSize" v-model="roomType.roomSize" :min="0" :step="0.5" class="w-full" />
-                        </div>
+                        </div> -->
                     </div>
                 </div>
 

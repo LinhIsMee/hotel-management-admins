@@ -3,7 +3,7 @@ import { useDiscountManagement } from '@/composables/useDiscountManagement';
 import { usePermissions } from '@/composables/usePermissions';
 import { FilterMatchMode } from '@/utils/primeUtils';
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 // Import PrimeVue components
 import Button from 'primevue/button';
@@ -14,6 +14,7 @@ import ProgressBar from 'primevue/progressbar';
 import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
 import Toolbar from 'primevue/toolbar';
+import Dropdown from 'primevue/dropdown';
 
 // Import custom components
 import DiscountDeleteDialog from '@/components/discount/DiscountDeleteDialog.vue';
@@ -48,8 +49,6 @@ const {
     generateDiscountDialog,
 
     fetchDiscounts,
-    fetchDiscountById,
-    fetchActiveDiscounts,
     updateDiscountStatus,
 
     editDiscount: composableEditDiscount,
@@ -59,7 +58,6 @@ const {
     saveDiscount: composableSaveDiscount,
     saveGeneratedDiscounts: composableSaveGeneratedDiscounts,
     confirmDelete: composableConfirmDelete,
-    confirmDeleteDiscount: composableConfirmDeleteDiscount,
 
     formatDiscountValue,
     calculateDaysRemaining,
@@ -68,21 +66,72 @@ const {
 } = useDiscountManagement();
 
 // Biến lọc và trạng thái
-const showActiveOnly = ref(false);
+const filterType = ref('ACTIVE');
 const selectedDiscount = ref(null);
 const deleteSelectedDialog = ref(false);
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
+// Theo dõi sự thay đổi của filterType để cập nhật bảng
+watch(filterType, (newValue) => {
+    console.log('WATCH - filterType thay đổi thành:', newValue);
+    // Không cần làm gì vì computed sẽ tự cập nhật
+}, { immediate: true });
+
 // Danh sách đã lọc
 const filteredDiscounts = computed(() => {
-    let result = [...discounts.value];
+    if (!discounts.value || discounts.value.length === 0) return [];
 
-    // Lọc theo trạng thái hoạt động
-    if (showActiveOnly.value) {
-        result = result.filter(d => d.active && d.valid);
+    // Log dữ liệu ban đầu để debug
+    console.log('Giá trị filterType hiện tại:', filterType.value);
+    console.log('Mẫu mã giảm giá đầu tiên:', discounts.value.length > 0 ? discounts.value[0] : 'Không có dữ liệu');
+
+    let result = [...discounts.value];
+    console.log('Tổng số mã giảm giá ban đầu:', result.length);
+
+    // Lọc theo trạng thái
+    switch (filterType.value) {
+        case 'ACTIVE':
+            console.log('Đang lọc các mã ĐANG HOẠT ĐỘNG');
+            result = result.filter(d => {
+                const isActive = d.active === true;
+                const isValid = calculateDaysRemaining(d.validTo) > 0;
+                console.log(`Mã ${d.code}: active=${isActive}, còn hạn=${isValid}`);
+                return isActive && isValid;
+            });
+            break;
+        case 'INACTIVE':
+            console.log('Đang lọc các mã ĐÃ VÔ HIỆU HÓA');
+            result = result.filter(d => {
+                const isInactive = d.active === false;
+                console.log(`Mã ${d.code}: inactive=${isInactive}`);
+                return isInactive;
+            });
+            break;
+        case 'VALID':
+            console.log('Đang lọc các mã CÒN HẠN');
+            result = result.filter(d => {
+                const isValid = calculateDaysRemaining(d.validTo) > 0;
+                console.log(`Mã ${d.code}: còn hạn=${isValid}, ngày hết hạn=${d.validTo}`);
+                return isValid;
+            });
+            break;
+        case 'EXPIRED':
+            console.log('Đang lọc các mã ĐÃ HẾT HẠN');
+            result = result.filter(d => {
+                const isExpired = calculateDaysRemaining(d.validTo) <= 0;
+                console.log(`Mã ${d.code}: hết hạn=${isExpired}, ngày hết hạn=${d.validTo}`);
+                return isExpired;
+            });
+            break;
+        case 'ALL':
+        default:
+            console.log('Hiển thị TẤT CẢ các mã');
+            break;
     }
+
+    console.log('Số mã sau khi lọc:', result.length);
 
     // Lọc theo từ khóa tìm kiếm
     if (filters.value.global.value) {
@@ -99,6 +148,13 @@ const filteredDiscounts = computed(() => {
 // Xử lý tìm kiếm
 const handleSearch = (query) => {
     filters.value.global.value = query;
+};
+
+// Xử lý khi thay đổi bộ lọc
+const handleFilterChange = (newFilterType) => {
+    console.log('[DiscountList] - Nhận sự kiện thay đổi bộ lọc thành:', newFilterType);
+    // Set filterType để computed property được tính toán lại
+    filterType.value = newFilterType;
 };
 
 // Tham chiếu đến DataTable
@@ -231,7 +287,7 @@ const handleStatusChange = async (discount) => {
         <Toolbar class="mb-4">
             <template #start>
                 <DiscountFilters
-                    v-model:showActiveOnly="showActiveOnly"
+                    v-model="filterType"
                     @search="handleSearch"
                 />
             </template>
