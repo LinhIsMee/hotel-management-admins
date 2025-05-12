@@ -1,5 +1,5 @@
 <script setup>
-// import AuthService from '@/services/AuthService';
+import AuthService from '@/services/AuthService';
 import { reactive, ref } from 'vue';
 
 // Import các component cần thiết
@@ -58,35 +58,41 @@ const register = async () => {
     errorMessage.value = '';
 
     try {
-        // const result = await AuthService.registerClient({
-        //     username: form.username,
-        //     password: form.password,
-        //     email: form.email,
-        //     fullName: form.fullName,
-        //     phoneNumber: form.phoneNumber,
-        //     gender: form.gender,
-        //     dateOfBirth: form.dateOfBirth,
-        //     address: form.address,
-        //     nationalId: form.nationalId
-        // });
+        const result = await AuthService.registerClient({
+            username: form.username,
+            password: form.password,
+            email: form.email,
+            fullName: form.fullName,
+            phoneNumber: form.phoneNumber,
+            gender: form.gender,
+            dateOfBirth: form.dateOfBirth,
+            address: form.address,
+            nationalId: form.nationalId
+        });
 
-        emit('register-success');
-        emit('update:visible', false);
+        if (result && result.success !== false) {
+            // Đăng ký thành công
+            emit('register-success');
+            emit('update:visible', false);
 
-        // Reset form
-        form.username = '';
-        form.fullName = '';
-        form.email = '';
-        form.phoneNumber = '';
-        form.gender = 'Male';
-        form.dateOfBirth = '';
-        form.address = '';
-        form.nationalId = '';
-        form.password = '';
-        form.confirmPassword = '';
-        submitted.value = false;
+            // Reset form
+            form.username = '';
+            form.fullName = '';
+            form.email = '';
+            form.phoneNumber = '';
+            form.gender = 'Male';
+            form.dateOfBirth = '';
+            form.address = '';
+            form.nationalId = '';
+            form.password = '';
+            form.confirmPassword = '';
+            submitted.value = false;
+        } else {
+            errorMessage.value = result?.message || 'Đăng ký thất bại. Vui lòng thử lại.';
+        }
     } catch (error) {
-        errorMessage.value = error.message || 'Đăng ký thất bại. Vui lòng thử lại.';
+        console.error('Registration error:', error);
+        errorMessage.value = error?.response?.data?.message || error.message || 'Đăng ký thất bại. Vui lòng thử lại.';
     } finally {
         loading.value = false;
     }
@@ -100,12 +106,12 @@ const showLoginModal = () => {
 
 <template>
     <Dialog
-        v-model:visible="props.visible"
+        :visible="props.visible"
+        @update:visible="$emit('update:visible', $event)"
         modal
         header="Đăng ký tài khoản"
         :style="{ width: '500px' }"
         :closable="true"
-        @update:visible="$emit('update:visible', $event)"
     >
         <div v-if="errorMessage" class="p-4 mb-4 bg-red-100 text-red-700 border-round flex align-items-center">
             <i class="pi pi-exclamation-circle mr-2"></i>
