@@ -337,9 +337,7 @@ export function useDiscountManagement() {
     const deleteDiscount = async (id) => {
         try {
             const headers = getAuthHeaders();
-            if (!headers) return false;
-
-            console.log('Đang gọi API xóa mã giảm giá với ID:', id);
+            if (!headers) return;
 
             const response = await fetch(`${API_BASE_URL}/api/v1/discounts/${id}`, {
                 method: 'DELETE',
@@ -357,10 +355,9 @@ export function useDiscountManagement() {
                 life: 3000
             });
 
-            // Cập nhật danh sách mã giảm giá
+            // Tải lại dữ liệu sau khi xóa
             await fetchDiscounts();
 
-            console.log('Đã xóa mã giảm giá thành công với ID:', id);
             return true;
         } catch (error) {
             console.error('Lỗi khi xóa mã giảm giá:', error);
@@ -693,36 +690,39 @@ export function useDiscountManagement() {
     // Thực hiện xóa mã giảm giá
     const confirmDelete = async (discountToDelete) => {
         try {
-            console.log('Xác nhận xóa mã giảm giá:', discountToDelete);
+            const headers = getAuthHeaders();
+            if (!headers) return;
 
-            if (!discountToDelete || !discountToDelete.id) {
-                console.error('Không thể xóa mã giảm giá - không có ID', discountToDelete);
-                toast.add({
-                    severity: 'error',
-                    summary: 'Lỗi',
-                    detail: 'Không thể xóa mã giảm giá do thiếu ID',
-                    life: 3000
-                });
-                return false;
+            const response = await fetch(`${API_BASE_URL}/api/v1/discounts/${discountToDelete.id}`, {
+                method: 'DELETE',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Lỗi khi xóa mã giảm giá: ${response.statusText} (${response.status})`);
             }
 
-            const success = await deleteDiscount(discountToDelete.id);
-            if (success) {
-                // Không cần lọc lại mảng discounts vì fetchDiscounts đã được gọi trong deleteDiscount
-                deleteDiscountDialog.value = false;
-                selectedDiscount.value = null;
-                return true;
-            }
-            return false;
+            discounts.value = discounts.value.filter((val) => val.id !== discountToDelete.id);
+            deleteDiscountDialog.value = false;
+            selectedDiscount.value = null;
+
+            toast.add({
+                severity: 'success',
+                summary: 'Thành công',
+                detail: 'Xóa mã giảm giá thành công',
+                life: 3000
+            });
+
+            // Tải lại dữ liệu sau khi xóa
+            await fetchDiscounts();
         } catch (error) {
-            console.error('Lỗi trong quá trình xóa mã giảm giá:', error);
+            console.error('Lỗi khi xóa mã giảm giá:', error);
             toast.add({
                 severity: 'error',
                 summary: 'Lỗi',
-                detail: 'Có lỗi xảy ra khi xóa mã giảm giá',
+                detail: error.message || 'Không thể xóa mã giảm giá',
                 life: 3000
             });
-            return false;
         }
     };
 

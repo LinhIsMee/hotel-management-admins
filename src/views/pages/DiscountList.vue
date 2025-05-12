@@ -204,20 +204,20 @@ const editDiscount = async (data) => {
     composableEditDiscount(data);
 };
 
-// Xác nhận xóa mã giảm giá
+// Xác nhận Vô hiệu hóa mã giảm giá
 const confirmDeleteDiscount = (data, isMultiple = false) => {
     if (isMultiple) {
         if (selectedDiscounts.value && selectedDiscounts.value.length > 0) {
             deleteSelectedDialog.value = true;
         }
     } else {
-        console.log('Mở dialog xác nhận xóa mã giảm giá:', data);
+        console.log('Mở dialog xác nhận Vô hiệu hóa mã giảm giá:', data);
         selectedDiscount.value = data;
         deleteDiscountDialog.value = true;
     }
 };
 
-// Xóa mã giảm giá
+// Vô hiệu hóa mã giảm giá
 const deleteDiscount = async () => {
     console.log('Người dùng đã xác nhận xóa mã:', selectedDiscount.value);
     if (selectedDiscount.value) {
@@ -381,7 +381,7 @@ const handleStatusChange = async (discount) => {
             <Column :exportable="false" style="min-width: 10rem">
                 <template #body="{ data }">
                     <Button v-if="permissions.canEdit" icon="pi pi-pencil" outlined class="mr-2" @click="editDiscount(data)" v-tooltip.top="'Chỉnh sửa mã giảm giá'" />
-                    <Button v-if="permissions.canDelete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteDiscount(data)" v-tooltip.top="'Xóa mã giảm giá'" />
+                    <Button v-if="permissions.canDelete" icon="pi pi-trash" outlined severity="danger" @click="confirmDeleteDiscount(data)" v-tooltip.top="'Vô hiệu hóa mã giảm giá'" />
                 </template>
             </Column>
         </DataTable>
@@ -401,7 +401,7 @@ const handleStatusChange = async (discount) => {
         <!-- Dialog tạo hàng loạt mã giảm giá -->
         <DiscountGenerateDialog v-model:visible="generateDiscountDialog" :discount="discount" :submitted="submitted" :discountTypes="discountTypes" @save="saveGeneratedDiscounts" @hide="hideDialog" @update:discount="(val) => (discount = val)" />
 
-        <!-- Dialog xác nhận xóa mã giảm giá -->
+        <!-- Dialog xác nhận Vô hiệu hóa mã giảm giá -->
         <DiscountDeleteDialog v-model:visible="deleteDiscountDialog" :discount="selectedDiscount" :multiple="false" @confirm="deleteDiscount" />
 
         <!-- Dialog xác nhận xóa nhiều mã giảm giá -->

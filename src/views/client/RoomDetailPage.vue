@@ -304,7 +304,7 @@ const checkDiscountCode = async () => {
     }
 };
 
-// Thêm phương thức xóa mã giảm giá
+// Thêm phương thức Vô hiệu hóa mã giảm giá
 const clearDiscountCode = () => {
     booking.value.discountCode = '';
     discountStatus.value.valid = false;
@@ -1197,7 +1197,7 @@ watch(() => booking.value.payAtHotel, (newValue) => {
                                     icon="pi pi-times"
                                                 class="p-button-danger p-button-text"
                                     @click="clearDiscountCode"
-                                    aria-label="Xóa mã giảm giá" />
+                                    aria-label="Vô hiệu hóa mã giảm giá" />
                                 <Button v-else
                                     type="button"
                                     label="Áp dụng"

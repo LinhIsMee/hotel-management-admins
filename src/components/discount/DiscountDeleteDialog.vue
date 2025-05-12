@@ -28,7 +28,7 @@ const updateVisible = (value) => {
 };
 
 const confirm = () => {
-    console.log('Người dùng đã xác nhận xóa mã giảm giá:', props.multiple ? 'nhiều mã' : props.discount);
+    console.log('Người dùng đã xác nhận Vô hiệu hóa mã giảm giá:', props.multiple ? 'nhiều mã' : props.discount);
     emit('confirm');
 };
 </script>
@@ -37,7 +37,7 @@ const confirm = () => {
     <Dialog
         :visible="visible"
         :style="{ width: '450px' }"
-        :header="multiple ? 'Xác nhận xóa nhiều mã giảm giá' : 'Xác nhận xóa mã giảm giá'"
+        :header="multiple ? 'Xác nhận xóa nhiều mã giảm giá' : 'Xác nhận Vô hiệu hóa mã giảm giá'"
         :modal="true"
         :closable="true"
         @update:visible="updateVisible"
@@ -45,7 +45,7 @@ const confirm = () => {
         <div class="confirmation-content">
             <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--orange-500);" />
             <span v-if="multiple">Bạn có chắc chắn muốn xóa <b>{{ count }}</b> mã giảm giá đã chọn không?</span>
-            <span v-else>Bạn có chắc chắn muốn xóa mã giảm giá <b>{{ discount && discount.code }}</b> không?</span>
+            <span v-else>Bạn có chắc chắn muốn Vô hiệu hóa mã giảm giá <b>{{ discount && discount.code }}</b> không?</span>
         </div>
         <template #footer>
             <Button label="Không" icon="pi pi-times" class="p-button-text" @click="updateVisible(false)" />

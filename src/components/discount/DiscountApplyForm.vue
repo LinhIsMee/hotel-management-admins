@@ -66,7 +66,7 @@ const checkDiscount = async () => {
     }
 };
 
-// Xóa mã giảm giá
+// Vô hiệu hóa mã giảm giá
 const clearDiscount = () => {
     discountCode.value = '';
     discountResult.value = null;
@@ -92,7 +92,7 @@ const clearDiscount = () => {
                     :disabled="!discountCode || loading"
                     @click="checkDiscount" />
                 <Button v-else icon="pi pi-times" severity="danger" @click="clearDiscount"
-                    tooltip="Xóa mã giảm giá" tooltipOptions="{ position: 'top' }" />
+                    tooltip="Vô hiệu hóa mã giảm giá" tooltipOptions="{ position: 'top' }" />
             </div>
         </div>
 
