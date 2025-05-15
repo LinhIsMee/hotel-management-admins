@@ -437,21 +437,21 @@ watch(() => localBooking.value.children, (newVal) => {
                         </div>
                     </div>
 
-                    <div class="col-span-1">
+                    <div class="col-span-1" v-if="!localBooking.id">
                         <div class="field">
                             <label for="adults">Số người lớn</label>
                             <InputNumber id="adults" v-model="localBooking.adults" :min="1" :max="getMaxAdults" :showButtons="true" class="w-full" @input="validatePeople" />
                         </div>
                     </div>
 
-                    <div class="col-span-1">
+                    <div class="col-span-1" v-if="!localBooking.id">
                         <div class="field">
                             <label for="children">Số trẻ em</label>
                             <InputNumber id="children" v-model="localBooking.children" :min="0" :max="getMaxChildren" :showButtons="true" class="w-full" @input="validatePeople" />
                         </div>
                     </div>
 
-                    <div class="col-span-2" v-if="localBooking.children > 0">
+                    <div class="col-span-2" v-if="localBooking.children > 0 && !localBooking.id">
                         <div class="field">
                             <label>Độ tuổi từng trẻ em</label>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -471,7 +471,7 @@ watch(() => localBooking.value.children, (newVal) => {
                         </div>
                     </div>
 
-                    <div class="col-span-2">
+                    <div class="col-span-2" v-if="!localBooking.id">
                         <small class="p-error" v-if="peopleError">{{ peopleError }}</small>
                         <small v-else-if="maxOccupancy">Tối đa {{ maxOccupancy }} người/phòng. (Trẻ dưới 6 tuổi không tính vào tổng, 7-11 tuổi tính 0.5, từ 12 tuổi trở lên tính như người lớn)</small>
                     </div>
